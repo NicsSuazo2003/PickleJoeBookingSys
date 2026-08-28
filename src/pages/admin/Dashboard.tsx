@@ -31,8 +31,14 @@ const monthNames = [
 ];
 
 export function Dashboard() {
-  const { analytics, bookings, loadingAnalytics, loadingBookings, loadAnalytics, loadBookings } =
-    useAdminStore();
+  // ✅ Use individual selectors instead of destructuring
+  const analytics = useAdminStore((state) => state.analytics);
+  const bookings = useAdminStore((state) => state.bookings);
+  const loadingAnalytics = useAdminStore((state) => state.loadingAnalytics);
+  const loadingBookings = useAdminStore((state) => state.loadingBookings);
+  const loadAnalytics = useAdminStore((state) => state.loadAnalytics);
+  const loadBookings = useAdminStore((state) => state.loadBookings);
+  
   const [view, setView] = useState<AdminView>('calendar');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(todayISO());
@@ -40,7 +46,7 @@ export function Dashboard() {
   useEffect(() => {
     loadAnalytics();
     loadBookings();
-  }, [loadAnalytics, loadBookings]);
+  }, []);
 
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();

@@ -35,8 +35,14 @@ const statusOptions: { value: BookingStatus | 'all'; label: string }[] = [
 ];
 
 export function Bookings() {
-  const { bookings, courts, loadingBookings, loadBookings, loadCourts, updateBookingStatus } =
-    useAdminStore();
+  // ✅ Use individual selectors instead of destructuring
+  const bookings = useAdminStore((state) => state.bookings);
+  const courts = useAdminStore((state) => state.courts);
+  const loadingBookings = useAdminStore((state) => state.loadingBookings);
+  const loadBookings = useAdminStore((state) => state.loadBookings);
+  const loadCourts = useAdminStore((state) => state.loadCourts);
+  const updateBookingStatus = useAdminStore((state) => state.updateBookingStatus);
+  
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
   const [courtFilter, setCourtFilter] = useState('all');
@@ -46,7 +52,7 @@ export function Bookings() {
   useEffect(() => {
     loadBookings();
     loadCourts();
-  }, [loadBookings, loadCourts]);
+  }, []);
 
   const filtered = bookings.filter((b) => {
     if (statusFilter !== 'all' && b.status !== statusFilter) return false;
