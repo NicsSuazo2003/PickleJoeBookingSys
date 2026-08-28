@@ -20,8 +20,8 @@ export const bookingService = {
         customerPhone: payload.customer.phone,
         date: payload.date,
         slots: payload.slots.map((s) => ({
-          startTime: s.start_time,  // ✅ Changed from s.startTime to s.start_time
-          endTime: s.end_time,      // ✅ Changed from s.endTime to s.end_time
+          startTime: s.start_time,
+          endTime: s.end_time,
         })),
         totalAmount: payload.total_amount,
         notes: payload.customer.notes,
@@ -42,8 +42,8 @@ export const bookingService = {
     return apiRequest<Booking>(`/api/bookings/${bookingId}/upload-payment`, {
       method: 'POST',
       body: JSON.stringify({
-        payment_screenshot: screenshotDataUrl,
-        payment_reference: paymentReference,
+        screenshot: screenshotDataUrl,
+        paymentReference: paymentReference,
       }),
     });
   },

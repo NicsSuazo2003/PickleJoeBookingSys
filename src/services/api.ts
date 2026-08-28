@@ -13,17 +13,18 @@ export class ApiError extends Error {
 
 const BASE_URL = APP_CONFIG.apiUrl;
 
-// ✅ Client subdomain for multi-tenant support
 const CLIENT_SUBDOMAIN = import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe';
 
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${BASE_URL}${path}`;
+  // ✅ Ensure path starts with /api
+  const fullPath = path.startsWith('/api') ? path : `/api${path}`;
+  const url = `${BASE_URL}${fullPath}`;
+  
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    // ✅ Add client subdomain header
     'X-Client-Subdomain': CLIENT_SUBDOMAIN,
     ...options.headers,
   };
