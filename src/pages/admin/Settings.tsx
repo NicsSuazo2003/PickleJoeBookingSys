@@ -19,15 +19,15 @@ import { formatDateLong, todayISO, toISODate, addDays } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
 
 export function Settings() {
-  const {
-    courts,
-    loadingCourts,
-    blockedDates,
-    loadCourts,
-    loadBlockedDates,
-    addBlockedDate,
-    removeBlockedDate,
-  } = useAdminStore();
+  // ✅ Use individual selectors
+  const courts = useAdminStore((state) => state.courts);
+  const loadingCourts = useAdminStore((state) => state.loadingCourts);
+  const blockedDates = useAdminStore((state) => state.blockedDates);
+  const loadCourts = useAdminStore((state) => state.loadCourts);
+  const loadBlockedDates = useAdminStore((state) => state.loadBlockedDates);
+  const addBlockedDate = useAdminStore((state) => state.addBlockedDate);
+  const removeBlockedDate = useAdminStore((state) => state.removeBlockedDate);
+
   const { user } = useAuthStore();
 
   const [selectedCourtId, setSelectedCourtId] = useState<string>('');
@@ -37,13 +37,13 @@ export function Settings() {
   useEffect(() => {
     loadCourts();
     loadBlockedDates();
-  }, [loadCourts, loadBlockedDates]);
+  }, []);
 
   useEffect(() => {
     if (courts.length > 0 && !selectedCourtId) {
       setSelectedCourtId(courts[0].id);
     }
-  }, [courts, selectedCourtId]);
+  }, [courts]);
 
   const handleAddBlock = async () => {
     if (!selectedCourtId || !blockDate) return;
@@ -245,6 +245,3 @@ export function Settings() {
     </AdminLayout>
   );
 }
-
-void Save;
-void Textarea;

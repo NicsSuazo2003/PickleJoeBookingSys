@@ -10,12 +10,17 @@ import { formatCurrency } from '@/utils/format';
 import type { Court, PricingRule } from '@/types';
 
 export function Pricing() {
-  const { courts, loadingCourts, loadCourts, updateCourt } = useAdminStore();
+  // ✅ Use individual selectors
+  const courts = useAdminStore((state) => state.courts);
+  const loadingCourts = useAdminStore((state) => state.loadingCourts);
+  const loadCourts = useAdminStore((state) => state.loadCourts);
+  const updateCourt = useAdminStore((state) => state.updateCourt);
+
   const [rules, setRules] = useState<Record<string, PricingRule>>({});
 
   useEffect(() => {
     loadCourts();
-  }, [loadCourts]);
+  }, []);
 
   useEffect(() => {
     const initial: Record<string, PricingRule> = {};

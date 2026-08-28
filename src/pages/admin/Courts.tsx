@@ -12,13 +12,18 @@ import { AMENITIES_LIST } from '@/utils/constants';
 import type { Court } from '@/types';
 
 export function Courts() {
-  const { courts, loadingCourts, loadCourts, updateCourt } = useAdminStore();
+  // ✅ Use individual selectors
+  const courts = useAdminStore((state) => state.courts);
+  const loadingCourts = useAdminStore((state) => state.loadingCourts);
+  const loadCourts = useAdminStore((state) => state.loadCourts);
+  const updateCourt = useAdminStore((state) => state.updateCourt);
+
   const [editing, setEditing] = useState<Court | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadCourts();
-  }, [loadCourts]);
+  }, []);
 
   const handleSave = async () => {
     if (!editing) return;
@@ -245,6 +250,3 @@ export function Courts() {
     </AdminLayout>
   );
 }
-
-void Building2;
-void Plus;
