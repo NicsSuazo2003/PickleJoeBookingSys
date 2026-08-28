@@ -1,12 +1,12 @@
 export const APP_CONFIG = {
   name: import.meta.env.VITE_APP_NAME ?? 'PickleJoe',
-  demoMode: (import.meta.env.VITE_DEMO_MODE ?? 'true') === 'true',
-  apiUrl: import.meta.env.VITE_API_BASE_URL ?? '',
+  demoMode: (import.meta.env.VITE_DEMO_MODE ?? 'false') === 'true', // ✅ Default to false
+  apiUrl: import.meta.env.VITE_API_BASE_URL ?? 'https://pickleballcourbookingv2.onrender.com',
   tagline: 'Book Your Court. Play Your Game.',
   established: '2026',
-  gcashNumber: '0917 234 5678',
+  gcashNumber: '09XX XXX XXXX',
   gcashAccountName: 'PickleJoe Courts',
-  paymentTimerSeconds: 15 * 60, // 15 minutes
+  paymentTimerSeconds: 15 * 60,
 };
 
 export const FIXED_SLOT = {
@@ -17,9 +17,10 @@ export const FIXED_SLOT = {
   hours: 2,
 };
 
+// ✅ Remove hardcoded admin credentials - use backend
 export const ADMIN_CREDENTIALS = {
-  email: 'admin@picklejoe.com',
-  password: 'admin123',
+  email: 'admin@sideout.com',
+  password: 'Admin123!',
 };
 
 export const BOOKING_STATUS_META: Record<

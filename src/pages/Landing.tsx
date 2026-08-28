@@ -111,11 +111,11 @@ export function Landing() {
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gold-400" />
-                <span>Quezon City</span>
+                <span>San Agustin Sur Dawis, Tandag City</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-gold-400" />
-                <span>Open 5AM - 11PM</span>
+                <span>Open 5AM - 12AM</span>
               </div>
             </div>
           </motion.div>

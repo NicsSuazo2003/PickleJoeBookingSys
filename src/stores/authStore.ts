@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { AdminUser } from '@/types';
-import { ADMIN_CREDENTIALS } from '@/utils/constants';
+import { apiRequest } from '@/services/api';
 
 interface AuthStoreState {
   user: AdminUser | null;
@@ -9,6 +9,7 @@ interface AuthStoreState {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  init: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStoreState>((set) => ({
@@ -19,26 +20,39 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
 
   login: async (email: string, password: string) => {
     set({ loading: true, error: null });
-    await new Promise((r) => setTimeout(r, 600));
-    if (
-      email.toLowerCase() === ADMIN_CREDENTIALS.email &&
-      password === ADMIN_CREDENTIALS.password
-    ) {
+    try {
+      const response = await apiRequest<{ token: string; user: AdminUser }>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      
+      localStorage.setItem('admin_token', response.token);
+      
       set({
-        user: {
-          id: 'admin-1',
-          email: ADMIN_CREDENTIALS.email,
-          name: 'Admin',
-          role: 'admin',
-        },
+        user: response.user,
         isAuthenticated: true,
         loading: false,
+        error: null,
       });
-    } else {
-      set({ loading: false, error: 'Invalid email or password' });
-      throw new Error('Invalid email or password');
+    } catch (err: any) {
+      set({
+        loading: false,
+        error: err.message || 'Invalid email or password',
+        isAuthenticated: false,
+      });
+      throw err;
     }
   },
 
-  logout: () => set({ user: null, isAuthenticated: false, error: null }),
+  logout: () => {
+    localStorage.removeItem('admin_token');
+    set({ user: null, isAuthenticated: false, error: null });
+  },
+
+  init: async () => {
+    const token = localStorage.getItem('admin_token');
+    if (token) {
+      set({ isAuthenticated: true });
+    }
+  },
 }));
