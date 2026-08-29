@@ -15,8 +15,9 @@ import { useAuthStore } from '@/stores/authStore';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
-  return null;
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);  return null;
 }
 
 export default function App() {
