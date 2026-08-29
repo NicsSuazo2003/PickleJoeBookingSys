@@ -10,6 +10,8 @@ import { useAdminStore } from '@/stores/adminStore';
 import { formatCurrency } from '@/utils/format';
 import { AMENITIES_LIST } from '@/utils/constants';
 import type { Court } from '@/types';
+import { ImageUpload } from '@/components/ui/ImageUpload';
+
 
 export function Courts() {
   const courts = useAdminStore((state) => state.courts);
@@ -199,11 +201,12 @@ export function Courts() {
                 onChange={(e) => setEditing({ ...editing, close_time: e.target.value })}
               />
             </div>
-            <Input
-              label="Image URL"
-              value={editing.image || editing.image_url || ''}
-              onChange={(e) => setEditing({ ...editing, image: e.target.value })}
-            />
+            <ImageUpload
+  label="Court Image"
+  value={editing.image || editing.image_url || ''}
+  onChange={(url) => setEditing({ ...editing, image: url, image_url: url })}
+  folder="courts"
+/>
             <Input
               label="Surface Type"
               value={editing.surface || ''}
