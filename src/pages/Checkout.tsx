@@ -176,14 +176,14 @@ export function Checkout() {
               <div className="mt-4 rounded-xl border-2 border-gold-400/30 bg-gold-400/10 p-4">
                 <p className="text-xs text-cream-muted">Amount to Send</p>
                 <p className="font-display text-3xl font-bold text-gold-400">
-                  {formatCurrency(currentBooking.total_amount)}
+                  {formatCurrency(currentBooking.totalAmount)}
                 </p>
               </div>
 
               <div className="mt-4 rounded-xl bg-forest-800 p-4">
                 <p className="text-xs text-cream-muted">Reference Code</p>
                 <p className="font-display text-lg font-bold tracking-wider text-cream">
-                  {currentBooking.reference_code}
+                  {currentBooking.referenceCode}
                 </p>
                 <p className="mt-1 text-xs text-cream-muted">
                   Use this as your GCash note or memo
@@ -319,13 +319,13 @@ export function Checkout() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-cream-muted">Reference</span>
                   <span className="font-mono font-bold text-gold-400">
-                    {currentBooking.reference_code}
+                    {currentBooking.referenceCode}
                   </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-xs text-cream-muted">Court</span>
                   <span className="text-sm font-medium text-cream">
-                    {currentBooking.court_name}
+                    {currentBooking.courtName}
                   </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
@@ -336,26 +336,16 @@ export function Checkout() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+                           <div className="space-y-2">
                 <p className="text-sm font-semibold text-cream">Selected Slots</p>
                 {currentBooking.slots.map((slot) => (
                   <div
-                    key={slot.slot_id}
+                    key={slot.id}
                     className="flex items-center justify-between rounded-lg bg-forest-800 p-3"
                   >
-                    <div>
-                      <p className="text-sm font-medium text-cream">
-                        {formatTimeRange(slot.start_time, slot.end_time)}
-                      </p>
-                      {slot.type === 'fixed_2hr' && (
-                        <span className="text-[10px] font-semibold text-gold-400">
-                          2hr Fixed Slot
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-sm font-semibold text-gold-400">
-                      {formatCurrency(slot.price)}
-                    </span>
+                    <p className="text-sm font-medium text-cream">
+                      {formatTimeRange(slot.startTime, slot.endTime)}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -363,7 +353,7 @@ export function Checkout() {
               <div className="mt-4 space-y-2 border-t border-forest-500 pt-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-cream-muted">Subtotal</span>
-                  <span className="text-cream">{formatCurrency(currentBooking.total_amount)}</span>
+                  <span className="text-cream">{formatCurrency(currentBooking.totalAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-cream-muted">Service Fee</span>
@@ -372,23 +362,22 @@ export function Checkout() {
                 <div className="mt-2 flex items-center justify-between border-t border-forest-500 pt-2">
                   <span className="font-display text-lg font-bold text-cream">Total</span>
                   <span className="font-display text-2xl font-bold text-gold-400">
-                    {formatCurrency(currentBooking.total_amount)}
+                    {formatCurrency(currentBooking.totalAmount)}
                   </span>
                 </div>
               </div>
 
-              <div className="mt-4 rounded-xl bg-forest-800 p-4">
+                            <div className="mt-4 rounded-xl bg-forest-800 p-4">
                 <p className="mb-2 text-xs font-semibold text-cream">Customer Details</p>
                 <div className="space-y-1 text-xs text-cream-muted">
-                  <p>{currentBooking.customer.name}</p>
-                  <p>{currentBooking.customer.email}</p>
-                  <p>{currentBooking.customer.phone}</p>
-                  {currentBooking.customer.notes && (
-                    <p className="italic">"{currentBooking.customer.notes}"</p>
+                  <p>{currentBooking.customerName}</p>
+                  <p>{currentBooking.customerEmail}</p>
+                  <p>{currentBooking.customerPhone}</p>
+                  {currentBooking.notes && (
+                    <p className="italic">"{currentBooking.notes}"</p>
                   )}
                 </div>
               </div>
-
               <button
                 onClick={() => {
                   reset();

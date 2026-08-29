@@ -257,8 +257,7 @@ export function Dashboard() {
                                     : 'bg-blue-500/20 text-blue-300'
                             }`}
                           >
-                            {b.slots[0]?.start_time} {b.customer.name.split(' ')[0]}
-                          </div>
+{b.slots[0]?.startTime} {b.customerName.split(' ')[0]}                          </div>
                         ))}
                         {dayBookings.length > 2 && (
                           <div className="text-[9px] text-cream-muted">
@@ -281,30 +280,27 @@ export function Dashboard() {
                     <p className="text-sm text-cream-muted py-4 text-center">No bookings for this date.</p>
                   ) : (
                     <div className="space-y-2">
-                      {selectedDateBookings.map((b) => (
-                        <div
-                          key={b.id}
-                          className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
-                              {b.slots[0]?.start_time}
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-cream">{b.customer.name}</p>
-                              <p className="text-xs text-cream-muted">
-                                {b.court_name} — {b.slots.map((s) => `${s.start_time}-${s.end_time}`).join(', ')}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-semibold text-gold-400">
-                              {formatCurrency(b.total_amount)}
-                            </span>
-                            <StatusBadge status={b.status} size="sm" />
-                          </div>
-                        </div>
-                      ))}
+                     {selectedDateBookings.map((b) => (
+  <div key={b.id} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex items-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
+        {b.slots[0]?.startTime}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-cream">{b.customerName}</p>
+        <p className="text-xs text-cream-muted">
+          {b.courtName} — {b.slots.map((s) => `${s.startTime}-${s.endTime}`).join(', ')}
+        </p>
+      </div>
+    </div>
+    <div className="flex items-center gap-3">
+      <span className="text-sm font-semibold text-gold-400">
+        {formatCurrency(b.totalAmount)}
+      </span>
+      <StatusBadge status={b.status} size="sm" />
+    </div>
+  </div>
+))}
                     </div>
                   )}
                 </div>
@@ -315,30 +311,27 @@ export function Dashboard() {
               {bookings.length === 0 ? (
                 <p className="py-8 text-center text-sm text-cream-muted">No bookings yet.</p>
               ) : (
-                bookings.map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
-                        {b.slots[0]?.start_time}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-cream">{b.customer.name}</p>
-                        <p className="text-xs text-cream-muted">
-                          {b.reference_code} — {b.court_name} — {formatDate(b.date)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-gold-400">
-                        {formatCurrency(b.total_amount)}
-                      </span>
-                      <StatusBadge status={b.status} size="sm" />
-                    </div>
-                  </div>
-                ))
+               bookings.map((b) => (
+  <div key={b.id} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex items-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
+        {b.slots[0]?.startTime}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-cream">{b.customerName}</p>
+        <p className="text-xs text-cream-muted">
+          {b.referenceCode} — {b.courtName} — {formatDate(b.date)}
+        </p>
+      </div>
+    </div>
+    <div className="flex items-center gap-3">
+      <span className="text-sm font-semibold text-gold-400">
+        {formatCurrency(b.totalAmount)}
+      </span>
+      <StatusBadge status={b.status} size="sm" />
+    </div>
+  </div>
+))
               )}
             </div>
           )}

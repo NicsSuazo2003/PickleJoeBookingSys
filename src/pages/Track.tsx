@@ -159,7 +159,7 @@ export function Track() {
                     <div>
                       <p className="text-xs text-cream-muted">Reference Code</p>
                       <p className="font-display text-2xl font-bold tracking-wider text-gold-400">
-                        {booking.reference_code}
+                        {booking.referenceCode}
                       </p>
                     </div>
                     <StatusBadge status={booking.status} size="md" />
@@ -170,7 +170,7 @@ export function Track() {
                       <MapPin className="h-5 w-5 text-gold-400" />
                       <div>
                         <p className="text-xs text-cream-muted">Court</p>
-                        <p className="font-medium text-cream">{booking.court_name}</p>
+                        <p className="font-medium text-cream">{booking.courtName}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -182,28 +182,20 @@ export function Track() {
                     </div>
                   </div>
 
-                  <div className="mt-4">
+                                   <div className="mt-4">
                     <p className="mb-2 text-sm font-semibold text-cream">Time Slots</p>
                     <div className="space-y-2">
                       {booking.slots.map((slot) => (
                         <div
-                          key={slot.slot_id}
+                          key={slot.id}
                           className="flex items-center justify-between rounded-lg bg-forest-800 p-3"
                         >
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-gold-400" />
                             <span className="text-sm text-cream">
-                              {formatTimeRange(slot.start_time, slot.end_time)}
+                              {formatTimeRange(slot.startTime, slot.endTime)}
                             </span>
-                            {slot.type === 'fixed_2hr' && (
-                              <span className="badge bg-gold-400/20 text-gold-300">
-                                2hr Fixed
-                              </span>
-                            )}
                           </div>
-                          <span className="text-sm font-semibold text-gold-400">
-                            {formatCurrency(slot.price)}
-                          </span>
                         </div>
                       ))}
                     </div>
@@ -213,7 +205,7 @@ export function Track() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-cream-muted">Total Amount</span>
                       <span className="font-display text-xl font-bold text-gold-400">
-                        {formatCurrency(booking.total_amount)}
+                        {formatCurrency(booking.totalAmount)}
                       </span>
                     </div>
                   </div>
@@ -228,28 +220,28 @@ export function Track() {
                     <div className="flex items-center gap-2 text-sm">
                       <User className="h-4 w-4 text-gold-400" />
                       <span className="text-cream-muted">Name:</span>
-                      <span className="text-cream">{booking.customer.name}</span>
+                      <span className="text-cream">{booking.customerName}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Mail className="h-4 w-4 text-gold-400" />
                       <span className="text-cream-muted">Email:</span>
-                      <span className="text-cream">{booking.customer.email}</span>
+                      <span className="text-cream">{ booking.customerEmail}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Phone className="h-4 w-4 text-gold-400" />
                       <span className="text-cream-muted">Phone:</span>
-                      <span className="text-cream">{booking.customer.phone}</span>
+                      <span className="text-cream">{booking.customerPhone}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-gold-400" />
                       <span className="text-cream-muted">Booked:</span>
-                      <span className="text-cream">{formatDateTime(booking.created_at)}</span>
+                      <span className="text-cream">{formatDateTime(booking.createdAt)}</span>
                     </div>
                   </div>
-                  {booking.customer.notes && (
+                  {booking.notes && (
                     <div className="mt-3 rounded-lg bg-forest-800 p-3 text-sm text-cream-muted">
                       <span className="font-medium text-cream">Notes: </span>
-                      {booking.customer.notes}
+                      {booking.notes}
                     </div>
                   )}
                 </div>
@@ -262,7 +254,7 @@ export function Track() {
                       Payment
                     </h3>
                     <p className="mb-4 text-sm text-cream-muted">
-                      Send {formatCurrency(booking.total_amount)} to GCash{' '}
+                      Send {formatCurrency(booking.totalAmount)} to GCash{' '}
                       <span className="font-semibold text-gold-300">{APP_CONFIG.gcashNumber}</span>{' '}
                       and upload your screenshot.
                     </p>

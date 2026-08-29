@@ -36,6 +36,46 @@ export interface TimeSlot {
 }
 
 export interface BookingSlotItem {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+}
+export interface CustomerDetails {
+  name: string;
+  email: string;
+  phone: string;
+  notes?: string;
+}
+
+export interface BookingSlotItem {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+}
+
+export interface Booking {
+  id: string;
+  courtId: string;
+  courtName: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  referenceCode: string;
+  date: string;
+  slots: BookingSlotItem[];
+  totalAmount: number;
+  status: BookingStatus;
+  paymentMethod: string;
+  createdAt: string;
+  notes: string;
+  paymentScreenshot: string | null;
+  paymentExpiresAt: string | null;
+}
+export interface SlotSelection {
   slot_id: string;
   start_time: string;
   end_time: string;
@@ -44,31 +84,6 @@ export interface BookingSlotItem {
   price: number;
   is_peak: boolean;
 }
-
-export interface CustomerDetails {
-  name: string;
-  email: string;
-  phone: string;
-  notes?: string;
-}
-
-export interface Booking {
-  id: string;
-  reference_code: string;
-  court_id: string;
-  court_name: string;
-  date: string;
-  slots: BookingSlotItem[];
-  customer: CustomerDetails;
-  total_amount: number;
-  status: BookingStatus;
-  payment_screenshot_url?: string | null;
-  payment_reference?: string;
-  gcash_number: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface BlockedDate {
   id: string;
   court_id: string;

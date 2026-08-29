@@ -1,14 +1,13 @@
-import type { Booking, CustomerDetails, BookingSlotItem } from '@/types';
+import type { Booking, CustomerDetails, SlotSelection } from '@/types';
 import { apiRequest } from './api';
 
 export interface CreateBookingPayload {
   court_id: string;
   date: string;
-  slots: BookingSlotItem[];
+  slots: SlotSelection[];
   customer: CustomerDetails;
   total_amount: number;
 }
-
 export const bookingService = {
   async createBooking(payload: CreateBookingPayload): Promise<Booking> {
     return apiRequest<Booking>('/api/bookings', {
