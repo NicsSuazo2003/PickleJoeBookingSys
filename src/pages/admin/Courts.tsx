@@ -125,7 +125,7 @@ export function Courts() {
                     <div>
                       <p className="text-[10px] text-cream-muted">Peak</p>
                       <p className="text-sm font-bold text-gold-400">
-                        {formatCurrency(court.peak_price_per_hour)}/hr
+                       {formatCurrency(court.peak_price_per_hour)}/hr  
                       </p>
                     </div>
                   </div>
