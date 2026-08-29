@@ -33,6 +33,13 @@ export function Success() {
 
   if (!currentBooking) return null;
 
+  // ✅ Helper to format slot time range
+  const formatSlotTime = (slot: { startTime?: string; endTime?: string; start_time?: string; end_time?: string }): string => {
+    const start = slot.startTime || slot.start_time || '';
+    const end = slot.endTime || slot.end_time || '';
+    return formatTimeRange(start, end);
+  };
+
   return (
     <div className="min-h-screen bg-charcoal">
       <Navbar />
@@ -70,7 +77,7 @@ export function Success() {
               <div>
                 <p className="text-xs text-cream-muted">Reference Code</p>
                 <p className="font-display text-2xl font-bold tracking-wider text-gold-400">
-                  {currentBooking.referenceCode}
+                  {currentBooking.reference_code}
                 </p>
               </div>
               <StatusBadge status={currentBooking.status} />
@@ -81,7 +88,7 @@ export function Success() {
                 <MapPin className="h-5 w-5 text-gold-400" />
                 <div>
                   <p className="text-xs text-cream-muted">Court</p>
-                  <p className="font-medium text-cream">{currentBooking.courtName}</p>
+                  <p className="font-medium text-cream">{currentBooking.court_name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -95,8 +102,8 @@ export function Success() {
                 <Clock className="h-5 w-5 text-gold-400" />
                 <div>
                   <p className="text-xs text-cream-muted">Time Slots</p>
-                                    <p className="font-medium text-cream">
-                    {currentBooking.slots.map((s) => formatTimeRange(s.startTime, s.endTime)).join(', ')}
+                  <p className="font-medium text-cream">
+                    {currentBooking.slots.map((s) => formatSlotTime(s)).join(', ')}
                   </p>
                 </div>
               </div>
@@ -105,7 +112,7 @@ export function Success() {
             <div className="mt-4 flex items-center justify-between border-t border-forest-500 pt-4">
               <span className="text-sm text-cream-muted">Total Paid</span>
               <span className="font-display text-2xl font-bold text-gold-400">
-                {formatCurrency(currentBooking.totalAmount)}
+                {formatCurrency(currentBooking.total_amount)}
               </span>
             </div>
           </motion.div>
@@ -156,7 +163,7 @@ export function Success() {
           <p className="mt-6 text-center text-xs text-cream-muted">
             Bookmark this page or save your reference code:{' '}
             <span className="font-mono font-bold text-gold-400">
-              {currentBooking.referenceCode}
+              {currentBooking.reference_code}
             </span>
           </p>
         </div>
@@ -166,6 +173,3 @@ export function Success() {
     </div>
   );
 }
-
-void Link;
-void ArrowRight;

@@ -20,22 +20,22 @@ export interface Court {
   close_time: string;
   amenities: string[];
   surface: string;
-  dimensions?: string;      // ✅ Add this
-  images?: string[];        // ✅ Add this
-  rating?: number;          // ✅ Add this
-  type?: string;            // ✅ Add this (indoor/outdoor)
+  dimensions?: string;
+  images?: string[];
+  rating?: number;
+  type?: string;
   is_indoor: boolean;
   is_active: boolean;
-  status?: string;          // ✅ Add this
-  client_id?: string;       // ✅ Add this
+  status?: string;
+  client_id?: string;
 }
 
 export interface TimeSlot {
   id: string;
   court_id: string;
-  date: string; // ISO date "2026-08-26"
-  start_time: string; // "05:00"
-  end_time: string; // "06:00"
+  date: string;
+  start_time: string;
+  end_time: string;
   type: SlotType;
   price: number;
   is_available: boolean;
@@ -43,12 +43,16 @@ export interface TimeSlot {
 }
 
 export interface BookingSlotItem {
-  id: string;
+  id: string;           // ✅ Add this
+  slot_id: string;
+  start_time: string;
+  end_time: string;
   date: string;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
+  type: SlotType;
+  price: number;
+  is_peak: boolean;
 }
+
 export interface CustomerDetails {
   name: string;
   email: string;
@@ -56,32 +60,23 @@ export interface CustomerDetails {
   notes?: string;
 }
 
-export interface BookingSlotItem {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
-}
-
 export interface Booking {
   id: string;
-  courtId: string;
-  courtName: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  referenceCode: string;
+  reference_code: string;
+  court_id: string;
+  court_name: string;
   date: string;
   slots: BookingSlotItem[];
-  totalAmount: number;
+  customer: CustomerDetails;
+  total_amount: number;
   status: BookingStatus;
-  paymentMethod: string;
-  createdAt: string;
-  notes: string;
-  paymentScreenshot: string | null;
-  paymentExpiresAt: string | null;
+  payment_screenshot_url?: string | null;
+  payment_reference?: string;
+  gcash_number: string;
+  created_at: string;
+  updated_at: string;
 }
+
 export interface SlotSelection {
   slot_id: string;
   start_time: string;
@@ -91,6 +86,7 @@ export interface SlotSelection {
   price: number;
   is_peak: boolean;
 }
+
 export interface BlockedDate {
   id: string;
   court_id: string;
@@ -108,15 +104,17 @@ export interface PricingRule {
 }
 
 export interface Analytics {
-  totalRevenue: number;
-  totalBookings: number;
-  activeUsers: number;
-  revenueByDay: { date: string; revenue: number }[];
-  bookingsByDay: { date: string; bookings: number }[];
-  revenueGrowth: number;
-  bookingsGrowth: number;
-  usersGrowth: number;
+  total_bookings: number;
+  total_revenue: number;
+  pending_payments: number;
+  confirmed_bookings: number;
+  completed_bookings: number;
+  cancelled_bookings: number;
+  status_breakdown: Record<BookingStatus, number>;
+  revenue_by_day: { date: string; revenue: number; bookings: number }[];
+  court_breakdown: { court_id: string; court_name: string; bookings: number; revenue: number }[];
 }
+
 export interface AdminUser {
   id: string;
   email: string;
