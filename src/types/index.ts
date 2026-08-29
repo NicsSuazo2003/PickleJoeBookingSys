@@ -10,6 +10,7 @@ export type SlotType = 'standard' | 'fixed_2hr';
 
 export interface Court {
   id: string;
+  image_url?: string;
   name: string;
   description: string;
   image: string;

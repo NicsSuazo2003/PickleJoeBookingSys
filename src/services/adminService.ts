@@ -28,9 +28,25 @@ export const adminService = {
     });
   },
 
-  async getCourts(): Promise<Court[]> {
-    return apiRequest<Court[]>('/api/admin/courts');
-  },
+  // In adminService.ts
+async getCourts(): Promise<Court[]> {
+  const data = await apiRequest<any[]>('/api/admin/courts');
+  return data.map((court) => ({
+    id: court.id,
+    name: court.name,
+    description: court.description || '',
+    image: court.imageUrl || court.image || '',
+    image_url: court.imageUrl || court.image || '',
+    price_per_hour: court.pricePerHour || court.price_per_hour || 0,
+    peak_price_per_hour: court.peakPricePerHour || court.peak_price_per_hour || 0,
+    open_time: court.openTime || court.open_time || '08:00',
+    close_time: court.closeTime || court.close_time || '22:00',
+    amenities: court.amenities || [],
+    surface: court.surface || '',
+    is_indoor: court.indoor || court.is_indoor || false,
+    is_active: court.status === 'active' || court.is_active || false,
+  }));
+},
 
   async updateCourt(court: Court): Promise<Court> {
     return apiRequest<Court>(`/api/admin/courts/${court.id}`, {

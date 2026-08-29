@@ -12,7 +12,6 @@ import { AMENITIES_LIST } from '@/utils/constants';
 import type { Court } from '@/types';
 
 export function Courts() {
-  // ✅ Use individual selectors
   const courts = useAdminStore((state) => state.courts);
   const loadingCourts = useAdminStore((state) => state.loadingCourts);
   const loadCourts = useAdminStore((state) => state.loadCourts);
@@ -47,6 +46,11 @@ export function Courts() {
     });
   };
 
+  // ✅ Helper to get image URL with fallback
+  const getImageUrl = (court: Court): string => {
+    return court.image || court.image_url || 'https://images.pexels.com/photos/17299530/pexels-photo-17299530.jpeg?auto=compress&cs=tinysrgb&w=1200';
+  };
+
   return (
     <AdminLayout>
       <div className="container-page py-8">
@@ -57,6 +61,12 @@ export function Courts() {
 
         {loadingCourts ? (
           <LoadingSpinner className="py-12" />
+        ) : courts.length === 0 ? (
+          <div className="card py-12 text-center">
+            <Building2 className="mx-auto h-12 w-12 text-cream-muted/40" />
+            <p className="mt-4 text-sm text-cream-muted">No courts found for this client.</p>
+            <p className="text-xs text-cream-muted/60">Add a court to get started.</p>
+          </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {courts.map((court, i) => (
@@ -68,7 +78,14 @@ export function Courts() {
                 className="card overflow-hidden"
               >
                 <div className="relative h-40 overflow-hidden">
-                  <img src={court.image} alt={court.name} className="h-full w-full object-cover" />
+                  <img 
+                    src={getImageUrl(court)} 
+                    alt={court.name} 
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.pexels.com/photos/17299530/pexels-photo-17299530.jpeg?auto=compress&cs=tinysrgb&w=1200';
+                    }}
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-forest-900 to-transparent" />
                   <div className="absolute bottom-3 left-3">
                     <span
@@ -82,7 +99,7 @@ export function Courts() {
                 </div>
                 <div className="p-4">
                   <h3 className="font-display text-lg font-bold text-cream">{court.name}</h3>
-                  <p className="mt-1 line-clamp-2 text-xs text-cream-muted">{court.description}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-cream-muted">{court.description || 'No description'}</p>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {court.amenities.slice(0, 4).map((a) => (
                       <span
@@ -149,7 +166,7 @@ export function Courts() {
             <Textarea
               label="Description"
               rows={2}
-              value={editing.description}
+              value={editing.description || ''}
               onChange={(e) => setEditing({ ...editing, description: e.target.value })}
             />
             <div className="grid gap-4 sm:grid-cols-2">
@@ -184,12 +201,12 @@ export function Courts() {
             </div>
             <Input
               label="Image URL"
-              value={editing.image}
+              value={editing.image || editing.image_url || ''}
               onChange={(e) => setEditing({ ...editing, image: e.target.value })}
             />
             <Input
               label="Surface Type"
-              value={editing.surface}
+              value={editing.surface || ''}
               onChange={(e) => setEditing({ ...editing, surface: e.target.value })}
             />
             <div>
