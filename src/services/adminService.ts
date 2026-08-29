@@ -56,6 +56,7 @@ export const adminService = {
       indoor: court.is_indoor !== undefined ? court.is_indoor : court.type === 'indoor',
       pricePerHour: court.price_per_hour,
       peakPricePerHour: court.peak_price_per_hour,  // ✅ ADDED
+      description: court.description || '',
       amenities: court.amenities || [],
       openTime: court.open_time,
       closeTime: court.close_time,
