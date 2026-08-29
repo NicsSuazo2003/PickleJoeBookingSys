@@ -10,18 +10,24 @@ export type SlotType = 'standard' | 'fixed_2hr';
 
 export interface Court {
   id: string;
-  image_url?: string;
   name: string;
   description: string;
   image: string;
+  image_url?: string;
   price_per_hour: number;
   peak_price_per_hour: number;
-  open_time: string; // "05:00"
-  close_time: string; // "23:00"
+  open_time: string;
+  close_time: string;
   amenities: string[];
   surface: string;
+  dimensions?: string;      // ✅ Add this
+  images?: string[];        // ✅ Add this
+  rating?: number;          // ✅ Add this
+  type?: string;            // ✅ Add this (indoor/outdoor)
   is_indoor: boolean;
   is_active: boolean;
+  status?: string;          // ✅ Add this
+  client_id?: string;       // ✅ Add this
 }
 
 export interface TimeSlot {
