@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Upload, X, Loader2, Image } from 'lucide-react';
+import { apiRequest } from '@/services/api';
 
 interface ImageUploadProps {
   value: string;
@@ -44,21 +45,23 @@ export function ImageUpload({
       const formData = new FormData();
       formData.append('file', file);
 
+      // ✅ Use apiRequest to handle the upload properly
       const token = localStorage.getItem('admin_token');
       const clientSubdomain = import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe';
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-      
-      const response = await fetch(
-        `${apiBaseUrl}/api/files/upload?folder=${folder}`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-Client-Subdomain': clientSubdomain,
-          },
-          body: formData,
-        }
-      );
+
+      if (!apiBaseUrl) {
+        throw new Error('API base URL is not configured');
+      }
+
+      const response = await fetch(`${apiBaseUrl}/api/files/upload?folder=${folder}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Client-Subdomain': clientSubdomain,
+        },
+        body: formData,
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
