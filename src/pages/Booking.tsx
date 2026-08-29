@@ -15,7 +15,6 @@ import {
   User,
   Mail,
   Phone,
-  MessageSquare,
   MapPin,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
@@ -59,7 +58,6 @@ export function Booking() {
     loadCourts,
     selectCourt,
     setDate,
-    loadSlots,
     toggleSlot,
     setCustomer,
     createBooking,
@@ -73,7 +71,6 @@ export function Booking() {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
   } = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
     defaultValues: useBookingStore.getState().customer,
@@ -82,17 +79,18 @@ export function Booking() {
   useEffect(() => {
     if (courts.length === 0) {
       loadCourts();
-    } else if (selectedCourt) {
-      loadSlots();
     }
-  }, [courts.length, loadCourts, loadSlots, selectedCourt]);
+  }, [courts.length, loadCourts]);
 
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  const selectedSlots = getSelectedSlotItems(useBookingStore.getState());
-  const total = getSelectedTotal(useBookingStore.getState());
-  void watch;
+  const storeState = useBookingStore();
+  const selectedSlots = getSelectedSlotItems(storeState);
+  const total = getSelectedTotal(storeState);
+
+  const fixedSlots = slots.filter((s) => s.type === 'fixed_2hr');
+  const standardSlots = slots.filter((s) => s.type !== 'fixed_2hr');
 
   const onSubmit = async (data: CustomerForm) => {
     setSubmitting(true);
@@ -137,44 +135,48 @@ export function Booking() {
             Choose Your Court
           </h2>
           <div className="grid gap-4 sm:grid-cols-3">
-            {courts.map((court) => (
-              <button
-                key={court.id}
-                onClick={() => selectCourt(court)}
-                className={`group relative overflow-hidden rounded-2xl border-2 text-left transition-all ${
-                  selectedCourt?.id === court.id
-                    ? 'border-gold-400 shadow-glow-gold'
-                    : 'border-forest-500 hover:border-gold-400/50'
-                }`}
-              >
-                <div className="relative h-32 overflow-hidden">
-                  <img
-                    src={court.image}
-                    alt={court.name}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-forest-950 to-transparent" />
-                  {selectedCourt?.id === court.id && (
-                    <div className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-forest-950">
-                      <Check className="h-4 w-4" />
-                    </div>
-                  )}
-                </div>
-                <div className="bg-forest-700 p-4">
-                  <h3 className="font-display text-base font-bold text-cream">{court.name}</h3>
-                  <p className="mt-1 text-xs text-cream-muted line-clamp-1">{court.surface}</p>
-                  <p className="mt-2 text-sm font-semibold text-gold-400">
-                    {formatCurrency(court.price_per_hour)}
-                    <span className="text-xs font-normal text-cream-muted">/hr</span>
-                  </p>
-                </div>
-              </button>
-            ))}
+            {courts.map((court) => {
+              const isSelected = selectedCourt?.id === court.id;
+              return (
+                <button
+                  key={court.id}
+                  type="button"
+                  onClick={() => selectCourt(court)}
+                  className={`group relative overflow-hidden rounded-2xl border-2 text-left transition-all ${
+                    isSelected
+                      ? 'border-gold-400 shadow-glow-gold'
+                      : 'border-forest-500 hover:border-gold-400/50'
+                  }`}
+                >
+                  <div className="relative h-32 overflow-hidden bg-forest-900">
+                    <img
+                      src={court.image}
+                      alt={court.name}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-forest-950 to-transparent" />
+                    {isSelected && (
+                      <div className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-forest-950">
+                        <Check className="h-4 w-4" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="bg-forest-700 p-4">
+                    <h3 className="font-display text-base font-bold text-cream">{court.name}</h3>
+                    <p className="mt-1 text-xs text-cream-muted line-clamp-1">{court.surface || court.description}</p>
+                    <p className="mt-2 text-sm font-semibold text-gold-400">
+                      {formatCurrency(court.price_per_hour)}
+                      <span className="text-xs font-normal text-cream-muted">/hr</span>
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Left: Date + Slots + Form */}
+          {/* Left: Date + Slots + Customer Form */}
           <div className="lg:col-span-2 space-y-8">
             {/* Date Picker */}
             <div className="card p-5">
@@ -185,6 +187,7 @@ export function Booking() {
                 </h2>
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => setWeekOffset((w) => w - 1)}
                     className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300 disabled:opacity-30"
                     disabled={weekOffset === 0}
@@ -195,6 +198,7 @@ export function Booking() {
                     {weekOffset === 0 ? 'This Week' : weekOffset > 0 ? `+${weekOffset} Week${weekOffset > 1 ? 's' : ''}` : 'Past'}
                   </span>
                   <button
+                    type="button"
                     onClick={() => setWeekOffset((w) => w + 1)}
                     className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
                   >
@@ -212,6 +216,7 @@ export function Booking() {
                   return (
                     <button
                       key={iso}
+                      type="button"
                       onClick={() => !isPast && setDate(iso)}
                       disabled={isPast}
                       className={`flex flex-col items-center rounded-xl border py-3 transition-all ${
@@ -255,98 +260,96 @@ export function Booking() {
                 <div className="py-12 text-center">
                   <CalendarDays className="mx-auto h-10 w-10 text-cream-muted/40" />
                   <p className="mt-3 text-sm text-cream-muted">
-                    This court is not available on this date.
+                    No available time slots found for this court on this date.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Fixed 2hr slot — prominently displayed */}
-                  {slots
-                    .filter((s) => s.type === 'fixed_2hr')
-                    .map((slot) => (
-                      <button
-                        key={slot.id}
-                        onClick={() => slot.is_available && toggleSlot(slot.id)}
-                        disabled={!slot.is_available}
-                        className={`flex w-full items-center justify-between rounded-2xl border-2 p-4 transition-all ${
-                          selectedSlotIds.includes(slot.id)
-                            ? 'border-gold-400 bg-gold-400/15 shadow-glow-gold'
-                            : slot.is_available
-                              ? 'border-gold-400/40 bg-gradient-to-r from-forest-700 to-forest-800 hover:border-gold-400'
-                              : 'border-forest-600 bg-forest-800/40 opacity-40 cursor-not-allowed'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold-400/20">
-                            <Sparkles className="h-5 w-5 text-gold-400" />
-                          </div>
-                          <div className="text-left">
-                            <div className="flex items-center gap-2">
-                              <span className="font-display text-base font-bold text-cream">
-                                {formatTimeRange(slot.start_time, slot.end_time)}
-                              </span>
-                              <span className="badge bg-gold-400 text-forest-950">
-                                {FIXED_SLOT.label}
-                              </span>
+                  {/* Fixed 2hr Slots */}
+                  {fixedSlots.length > 0 &&
+                    fixedSlots.map((slot) => {
+                      const isSelected = selectedSlotIds.includes(slot.id);
+                      return (
+                        <button
+                          key={slot.id}
+                          type="button"
+                          onClick={() => slot.is_available && toggleSlot(slot.id)}
+                          disabled={!slot.is_available}
+                          className={`flex w-full items-center justify-between rounded-2xl border-2 p-4 transition-all ${
+                            isSelected
+                              ? 'border-gold-400 bg-gold-400/15 shadow-glow-gold'
+                              : slot.is_available
+                                ? 'border-gold-400/40 bg-gradient-to-r from-forest-700 to-forest-800 hover:border-gold-400'
+                                : 'border-forest-600 bg-forest-800/40 opacity-40 cursor-not-allowed'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold-400/20">
+                              <Sparkles className="h-5 w-5 text-gold-400" />
                             </div>
-                            <p className="text-xs text-cream-muted">
-                              2 hours of prime afternoon play
-                            </p>
+                            <div className="text-left">
+                              <div className="flex items-center gap-2">
+                                <span className="font-display text-base font-bold text-cream">
+                                  {formatTimeRange(slot.start_time, slot.end_time)}
+                                </span>
+                                <span className="badge bg-gold-400 text-forest-950">
+                                  {FIXED_SLOT.label}
+                                </span>
+                              </div>
+                              <p className="text-xs text-cream-muted">
+                                2 hours of prime afternoon play
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-gold-400">
-                            {formatCurrency(slot.price)}
-                          </span>
-                          {selectedSlotIds.includes(slot.id) && (
-                            <Check className="h-5 w-5 text-gold-400" />
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-gold-400">
+                              {formatCurrency(slot.price)}
+                            </span>
+                            {isSelected && <Check className="h-5 w-5 text-gold-400" />}
+                          </div>
+                        </button>
+                      );
+                    })}
 
-                  {/* Standard slots */}
+                  {/* Standard 1hr Slots */}
                   <div>
                     <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-cream-muted">
                       Standard 1-Hour Slots
                     </p>
                     <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                      {slots
-                        .filter((s) => s.type === 'standard')
-                        .map((slot) => {
-                          const isSelected = selectedSlotIds.includes(slot.id);
-                          return (
-                            <button
-                              key={slot.id}
-                              onClick={() => slot.is_available && toggleSlot(slot.id)}
-                              disabled={!slot.is_available}
-                              className={`flex flex-col items-start rounded-xl border p-3 transition-all ${
-                                isSelected
-                                  ? 'border-gold-400 bg-gold-400/15'
-                                  : slot.is_available
-                                    ? 'border-forest-500 bg-forest-700 hover:border-gold-400/50'
-                                    : 'border-forest-600 bg-forest-800/40 opacity-40 cursor-not-allowed'
-                              }`}
-                            >
-                              <span className="text-xs font-medium text-cream">
-                                {formatTimeRange(slot.start_time, slot.end_time)}
+                      {standardSlots.map((slot) => {
+                        const isSelected = selectedSlotIds.includes(slot.id);
+                        return (
+                          <button
+                            key={slot.id}
+                            type="button"
+                            onClick={() => slot.is_available && toggleSlot(slot.id)}
+                            disabled={!slot.is_available}
+                            className={`flex flex-col items-start rounded-xl border p-3 transition-all ${
+                              isSelected
+                                ? 'border-gold-400 bg-gold-400/15'
+                                : slot.is_available
+                                  ? 'border-forest-500 bg-forest-700 hover:border-gold-400/50'
+                                  : 'border-forest-600 bg-forest-800/40 opacity-40 cursor-not-allowed'
+                            }`}
+                          >
+                            <span className="text-xs font-medium text-cream">
+                              {formatTimeRange(slot.start_time, slot.end_time)}
+                            </span>
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <span className="text-sm font-bold text-gold-400">
+                                {formatCurrency(slot.price)}
                               </span>
-                              <div className="mt-1.5 flex items-center gap-2">
-                                <span className="text-sm font-bold text-gold-400">
-                                  {formatCurrency(slot.price)}
+                              {slot.is_peak && (
+                                <span className="text-[9px] font-semibold uppercase text-gold-300">
+                                  Peak
                                 </span>
-                                {slot.is_peak && (
-                                  <span className="text-[9px] font-semibold uppercase text-gold-300">
-                                    Peak
-                                  </span>
-                                )}
-                              </div>
-                              {isSelected && (
-                                <Check className="mt-1 h-3.5 w-3.5 text-gold-400" />
                               )}
-                            </button>
-                          );
-                        })}
+                            </div>
+                            {isSelected && <Check className="mt-1 h-3.5 w-3.5 text-gold-400" />}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -503,5 +506,4 @@ export function Booking() {
   );
 }
 
-// Keep CustomerDetails type import used
 export type { CustomerDetails };

@@ -103,13 +103,11 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
         return { selectedSlotIds: state.selectedSlotIds.filter((id) => id !== slotId) };
       }
 
-      // For fixed 2hr slot, select it exclusively
       const slot = state.slots.find((s) => s.id === slotId);
       if (slot && slot.type === 'fixed_2hr') {
         return { selectedSlotIds: [slotId] };
       }
 
-      // Deselect any fixed 2hr slot if selecting a standard slot
       const filtered = state.selectedSlotIds.filter((id) => {
         const s = state.slots.find((sl) => sl.id === id);
         return s?.type !== 'fixed_2hr';
@@ -128,12 +126,8 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
 
   createBooking: async () => {
     const { selectedCourt, selectedDate, selectedSlotIds, slots, customer } = get();
-    if (!selectedCourt) {
-      throw new Error('Please select a court');
-    }
-    if (selectedSlotIds.length === 0) {
-      throw new Error('Please select at least one time slot');
-    }
+    if (!selectedCourt) throw new Error('Please select a court');
+    if (selectedSlotIds.length === 0) throw new Error('Please select at least one time slot');
 
     const selectedSlots = slots.filter((s) => selectedSlotIds.includes(s.id));
     const bookingSlots: BookingSlotItem[] = selectedSlots.map((s) => ({
