@@ -50,12 +50,12 @@ export const adminService = {
   },
 
   async updateCourt(court: Court): Promise<Court> {
-    // ✅ Map frontend field names to backend field names
     const payload: any = {
       name: court.name,
       type: court.type || 'indoor',
       indoor: court.is_indoor !== undefined ? court.is_indoor : court.type === 'indoor',
       pricePerHour: court.price_per_hour,
+      peakPricePerHour: court.peak_price_per_hour,  // ✅ ADDED
       amenities: court.amenities || [],
       openTime: court.open_time,
       closeTime: court.close_time,
@@ -65,12 +65,10 @@ export const adminService = {
       surface: court.surface || '',
     };
 
-    // ✅ Only include images if they exist
     if (court.images && court.images.length > 0) {
       payload.images = court.images;
     }
 
-    // ✅ If rating exists, include it
     if (court.rating !== undefined) {
       payload.rating = court.rating;
     }
