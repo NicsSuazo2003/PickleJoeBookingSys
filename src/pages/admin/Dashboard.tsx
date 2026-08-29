@@ -63,37 +63,29 @@ export function Dashboard() {
     ? bookingsByDate.get(selectedDate) ?? []
     : [];
 
-  const statCards = [
+    const statCards = [
     {
       label: 'Total Bookings',
-      value: analytics?.total_bookings ?? 0,
+      value: analytics?.totalBookings ?? 0,
       icon: CalendarDays,
       color: 'text-gold-400',
       bg: 'bg-gold-400/10',
     },
     {
       label: 'Total Revenue',
-      value: formatCurrency(analytics?.total_revenue ?? 0),
+      value: formatCurrency(analytics?.totalRevenue ?? 0),
       icon: DollarSign,
       color: 'text-success',
       bg: 'bg-success/10',
     },
     {
-      label: 'Pending Payments',
-      value: analytics?.pending_payments ?? 0,
-      icon: Clock,
-      color: 'text-warning',
-      bg: 'bg-warning/10',
-    },
-    {
-      label: 'Confirmed',
-      value: analytics?.confirmed_bookings ?? 0,
-      icon: CheckCircle2,
+      label: 'Active Users',
+      value: analytics?.activeUsers ?? 0,
+      icon: Users,
       color: 'text-blue-400',
       bg: 'bg-blue-500/10',
     },
   ];
-
   return (
     <AdminLayout>
       <div className="container-page py-8">
@@ -126,16 +118,16 @@ export function Dashboard() {
           })}
         </div>
 
-        {/* Revenue chart */}
-        {analytics && (
+                {/* Revenue chart */}
+        {analytics?.revenueByDay && analytics.revenueByDay.length > 0 && (
           <div className="mb-8 card p-6">
             <div className="mb-4 flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-gold-400" />
               <h2 className="font-display text-lg font-bold text-cream">Revenue (Last 7 Days)</h2>
             </div>
             <div className="flex h-48 items-end gap-2">
-              {analytics.revenue_by_day.map((day) => {
-                const maxRev = Math.max(...analytics.revenue_by_day.map((d) => d.revenue), 1);
+              {analytics.revenueByDay.map((day) => {
+                const maxRev = Math.max(...analytics.revenueByDay.map((d) => d.revenue), 1);
                 const heightPct = (day.revenue / maxRev) * 100;
                 return (
                   <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
@@ -143,7 +135,7 @@ export function Dashboard() {
                       <div
                         className="w-full rounded-t-lg bg-gradient-to-t from-gold-600 to-gold-400 transition-all hover:from-gold-500 hover:to-gold-300"
                         style={{ height: `${Math.max(heightPct, 2)}%` }}
-                        title={`${formatCurrency(day.revenue)} - ${day.bookings} bookings`}
+                        title={formatCurrency(day.revenue)}
                       />
                     </div>
                     <span className="text-[10px] text-cream-muted">
@@ -155,22 +147,7 @@ export function Dashboard() {
             </div>
           </div>
         )}
-
-        {/* Court breakdown */}
-        {analytics && (
-          <div className="mb-8 grid gap-4 sm:grid-cols-3">
-            {analytics.court_breakdown.map((c) => (
-              <div key={c.court_id} className="card p-5">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-gold-400" />
-                  <h3 className="text-sm font-semibold text-cream">{c.court_name}</h3>
-                </div>
-                <p className="mt-3 text-2xl font-bold text-gold-400">{formatCurrency(c.revenue)}</p>
-                <p className="text-xs text-cream-muted">{c.bookings} bookings</p>
-              </div>
-            ))}
-          </div>
-        )}
+       
 
         {/* Calendar / List View */}
         <div className="card p-6">

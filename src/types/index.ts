@@ -86,17 +86,15 @@ export interface PricingRule {
 }
 
 export interface Analytics {
-  total_bookings: number;
-  total_revenue: number;
-  pending_payments: number;
-  confirmed_bookings: number;
-  completed_bookings: number;
-  cancelled_bookings: number;
-  status_breakdown: Record<BookingStatus, number>;
-  revenue_by_day: { date: string; revenue: number; bookings: number }[];
-  court_breakdown: { court_id: string; court_name: string; bookings: number; revenue: number }[];
+  totalRevenue: number;
+  totalBookings: number;
+  activeUsers: number;
+  revenueByDay: { date: string; revenue: number }[];
+  bookingsByDay: { date: string; bookings: number }[];
+  revenueGrowth: number;
+  bookingsGrowth: number;
+  usersGrowth: number;
 }
-
 export interface AdminUser {
   id: string;
   email: string;
