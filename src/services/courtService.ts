@@ -1,29 +1,42 @@
 import type { Court, TimeSlot, BlockedDate, SlotType } from '@/types';
 import { apiRequest } from './api';
 
+const BACKEND_BASE_URL = 'https://pickleballcourbookingv2.onrender.com';
+
 const DEFAULT_COURT_IMAGES = [
   'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80',
   'https://images.unsplash.com/photo-1622163642998-1ea32b0bbc67?auto=format&fit=crop&w=800&q=80',
   'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=800&q=80',
 ];
 
-function normalizeCourt(raw: any, index: number = 0): Court {
-  const img = raw.imageUrl || raw.image_url || raw.image || raw.images?.[0];
+export function resolveImageUrl(url?: string | null): string {
+  if (!url || typeof url !== 'string' || url.trim() === '') return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  return `${BACKEND_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
+export function normalizeCourt(raw: any, index: number = 0): Court {
+  const rawImg = raw.imageUrl || raw.image_url || raw.image || raw.images?.[0] || '';
+  const resolvedImg = resolveImageUrl(rawImg);
+  const fallback = DEFAULT_COURT_IMAGES[index % DEFAULT_COURT_IMAGES.length];
+
   return {
     id: raw.id,
-    name: raw.name,
+    name: raw.name || 'Court',
     description: raw.description || '',
-    image: img && img.trim() !== '' ? img : DEFAULT_COURT_IMAGES[index % DEFAULT_COURT_IMAGES.length],
-    image_url: img || '',
+    image: resolvedImg || fallback,
+    image_url: resolvedImg || '',
     price_per_hour: Number(raw.pricePerHour ?? raw.price_per_hour ?? 0),
     peak_price_per_hour: Number(raw.peakPricePerHour ?? raw.peak_price_per_hour ?? 0),
     open_time: raw.openTime ?? raw.open_time ?? '08:00',
     close_time: raw.closeTime ?? raw.close_time ?? '22:00',
-    amenities: raw.amenities || [],
+    amenities: Array.isArray(raw.amenities) ? raw.amenities : [],
     surface: raw.surface || 'Standard',
     dimensions: raw.dimensions || '44ft x 20ft',
-    images: raw.images || [],
-    rating: raw.rating || 4.8,
+    images: Array.isArray(raw.images) ? raw.images.map(resolveImageUrl) : [],
+    rating: Number(raw.rating ?? 4.8),
     type: raw.type || 'indoor',
     is_indoor: raw.indoor ?? raw.is_indoor ?? true,
     is_active: raw.status ? raw.status === 'active' : (raw.is_active ?? true),
@@ -31,11 +44,34 @@ function normalizeCourt(raw: any, index: number = 0): Court {
   };
 }
 
-function normalizeSlot(raw: any, fallbackDate: string): TimeSlot {
+export function buildCourtPayload(court: Court): Record<string, any> {
+  const img = court.image_url || court.image || '';
+  return {
+    id: court.id,
+    name: court.name,
+    type: court.type || 'indoor',
+    indoor: court.is_indoor !== undefined ? court.is_indoor : true,
+    pricePerHour: Number(court.price_per_hour),
+    peakPricePerHour: Number(court.peak_price_per_hour),
+    description: court.description || '',
+    amenities: court.amenities || [],
+    openTime: court.open_time,
+    closeTime: court.close_time,
+    status: court.is_active ? 'active' : 'inactive',
+    imageUrl: img,
+    image: img,
+    image_url: img,
+    dimensions: court.dimensions || '44ft x 20ft',
+    surface: court.surface || 'Standard',
+    images: court.images && court.images.length > 0 ? court.images : img ? [img] : [],
+    rating: court.rating ?? 4.8,
+  };
+}
+
+export function normalizeSlot(raw: any, fallbackDate: string): TimeSlot {
   const startTime = raw.startTime ?? raw.start_time ?? '';
   const endTime = raw.endTime ?? raw.end_time ?? '';
-  
-  // Detect if 2-hour fixed slot or standard 1-hour slot
+
   let slotType: SlotType = raw.type;
   if (!slotType) {
     const startHour = parseInt(startTime.split(':')[0], 10);
@@ -83,9 +119,12 @@ export const courtService = {
   },
 
   async updateCourt(court: Court): Promise<Court> {
-    return apiRequest<Court>(`/api/admin/courts/${court.id}`, {
+    const payload = buildCourtPayload(court);
+    const res = await apiRequest<any>(`/api/admin/courts/${court.id}`, {
       method: 'PUT',
-      body: JSON.stringify(court),
+      body: JSON.stringify(payload),
     });
+    const updated = res?.data ?? res?.court ?? res;
+    return normalizeCourt(updated);
   },
 };
