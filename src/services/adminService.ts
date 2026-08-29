@@ -28,30 +28,56 @@ export const adminService = {
     });
   },
 
-  // In adminService.ts
-async getCourts(): Promise<Court[]> {
-  const data = await apiRequest<any[]>('/api/admin/courts');
-  return data.map((court) => ({
-    id: court.id,
-    name: court.name,
-    description: court.description || '',
-    image: court.imageUrl || court.image || '',
-    image_url: court.imageUrl || court.image || '',
-    price_per_hour: court.pricePerHour || court.price_per_hour || 0,
-    peak_price_per_hour: court.peakPricePerHour || court.peak_price_per_hour || 0,
-    open_time: court.openTime || court.open_time || '08:00',
-    close_time: court.closeTime || court.close_time || '22:00',
-    amenities: court.amenities || [],
-    surface: court.surface || '',
-    is_indoor: court.indoor || court.is_indoor || false,
-    is_active: court.status === 'active' || court.is_active || false,
-  }));
-},
+  async getCourts(): Promise<Court[]> {
+    const data = await apiRequest<any[]>('/api/admin/courts');
+    return data.map((court) => ({
+      id: court.id,
+      name: court.name,
+      description: court.description || '',
+      image: court.imageUrl || court.image || '',
+      image_url: court.imageUrl || court.image || '',
+      price_per_hour: court.pricePerHour || court.price_per_hour || 0,
+      peak_price_per_hour: court.peakPricePerHour ?? court.peak_price_per_hour ?? 0,
+      open_time: court.openTime || court.open_time || '08:00',
+      close_time: court.closeTime || court.close_time || '22:00',
+      amenities: court.amenities || [],
+      surface: court.surface || '',
+      dimensions: court.dimensions || '',
+      images: court.images || [],
+      is_indoor: court.indoor || court.is_indoor || false,
+      is_active: court.status === 'active' || court.is_active || false,
+    }));
+  },
 
   async updateCourt(court: Court): Promise<Court> {
+    // ✅ Map frontend field names to backend field names
+    const payload: any = {
+      name: court.name,
+      type: court.type || 'indoor',
+      indoor: court.is_indoor !== undefined ? court.is_indoor : court.type === 'indoor',
+      pricePerHour: court.price_per_hour,
+      amenities: court.amenities || [],
+      openTime: court.open_time,
+      closeTime: court.close_time,
+      status: court.is_active ? 'active' : 'inactive',
+      imageUrl: court.image || court.image_url || '',
+      dimensions: court.dimensions || '',
+      surface: court.surface || '',
+    };
+
+    // ✅ Only include images if they exist
+    if (court.images && court.images.length > 0) {
+      payload.images = court.images;
+    }
+
+    // ✅ If rating exists, include it
+    if (court.rating !== undefined) {
+      payload.rating = court.rating;
+    }
+
     return apiRequest<Court>(`/api/admin/courts/${court.id}`, {
       method: 'PUT',
-      body: JSON.stringify(court),
+      body: JSON.stringify(payload),
     });
   },
 
