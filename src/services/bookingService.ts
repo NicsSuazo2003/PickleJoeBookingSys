@@ -8,9 +8,10 @@ export interface CreateBookingPayload {
   customer: CustomerDetails;
   total_amount: number;
 }
+
 export const bookingService = {
   async createBooking(payload: CreateBookingPayload): Promise<Booking> {
-    return apiRequest<Booking>('/api/bookings', {
+    const res = await apiRequest<Booking | { data: Booking }>('/api/bookings', {
       method: 'POST',
       body: JSON.stringify({
         courtId: payload.court_id,
@@ -26,11 +27,13 @@ export const bookingService = {
         notes: payload.customer.notes,
       }),
     });
+    return (res as { data?: Booking }).data ?? (res as Booking);
   },
 
   async trackBooking(referenceCode: string, email?: string): Promise<Booking> {
     const query = email ? `?email=${encodeURIComponent(email)}` : '';
-    return apiRequest<Booking>(`/api/bookings/track/${referenceCode}${query}`);
+    const res = await apiRequest<Booking | { data: Booking }>(`/api/bookings/track/${referenceCode}${query}`);
+    return (res as { data?: Booking }).data ?? (res as Booking);
   },
 
   async uploadPayment(
@@ -38,16 +41,18 @@ export const bookingService = {
     screenshotDataUrl: string,
     paymentReference: string
   ): Promise<Booking> {
-    return apiRequest<Booking>(`/api/bookings/${bookingId}/upload-payment`, {
+    const res = await apiRequest<Booking | { data: Booking }>(`/api/bookings/${bookingId}/upload-payment`, {
       method: 'POST',
       body: JSON.stringify({
         screenshot: screenshotDataUrl,
         paymentReference: paymentReference,
       }),
     });
+    return (res as { data?: Booking }).data ?? (res as Booking);
   },
 
   async getBooking(id: string): Promise<Booking> {
-    return apiRequest<Booking>(`/api/bookings/${id}`);
+    const res = await apiRequest<Booking | { data: Booking }>(`/api/bookings/${id}`);
+    return (res as { data?: Booking }).data ?? (res as Booking);
   },
 };

@@ -22,7 +22,7 @@ interface BookingStoreState {
   loadSlots: () => Promise<void>;
   toggleSlot: (slotId: string) => void;
   clearSlots: () => void;
-  setCustomer: (customer: CustomerDetails) => void;
+  setCustomer: (customer: Partial<CustomerDetails>) => void;
   createBooking: () => Promise<Booking>;
   reset: () => void;
 }
@@ -50,12 +50,18 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
     set({ loadingCourts: true, error: null });
     try {
       const courts = await courtService.getCourts();
-      const activeCourts = courts.filter((c) => c.is_active);
+      const activeCourts = courts.filter((c) => c.is_active !== false);
+      const initialCourt = activeCourts[0] ?? null;
+
       set({
         courts: activeCourts,
-        selectedCourt: activeCourts[0] ?? null,
+        selectedCourt: initialCourt,
         loadingCourts: false,
       });
+
+      if (initialCourt) {
+        get().loadSlots();
+      }
     } catch (err) {
       set({
         loadingCourts: false,
@@ -65,18 +71,19 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
   },
 
   selectCourt: (court) => {
-    set({ selectedCourt: court, selectedSlotIds: [] });
+    set({ selectedCourt: court, selectedSlotIds: [], error: null });
     get().loadSlots();
   },
 
   setDate: (date) => {
-    set({ selectedDate: date, selectedSlotIds: [] });
+    set({ selectedDate: date, selectedSlotIds: [], error: null });
     get().loadSlots();
   },
 
   loadSlots: async () => {
     const { selectedCourt, selectedDate } = get();
     if (!selectedCourt) return;
+
     set({ loadingSlots: true, error: null });
     try {
       const slots = await courtService.getAvailability(selectedCourt.id, selectedDate);
@@ -95,38 +102,48 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
       if (exists) {
         return { selectedSlotIds: state.selectedSlotIds.filter((id) => id !== slotId) };
       }
-      // For fixed 2hr slot, it's a single selection — replace standard slots in that range
+
+      // For fixed 2hr slot, select it exclusively
       const slot = state.slots.find((s) => s.id === slotId);
       if (slot && slot.type === 'fixed_2hr') {
         return { selectedSlotIds: [slotId] };
       }
-      // If selecting a standard slot, remove any fixed slot (mutually exclusive with its hours)
+
+      // Deselect any fixed 2hr slot if selecting a standard slot
       const filtered = state.selectedSlotIds.filter((id) => {
         const s = state.slots.find((sl) => sl.id === id);
         return s?.type !== 'fixed_2hr';
       });
+
       return { selectedSlotIds: [...filtered, slotId] };
     });
   },
 
   clearSlots: () => set({ selectedSlotIds: [] }),
 
-  setCustomer: (customer) => set({ customer }),
+  setCustomer: (customerData) =>
+    set((state) => ({
+      customer: { ...state.customer, ...customerData },
+    })),
 
   createBooking: async () => {
     const { selectedCourt, selectedDate, selectedSlotIds, slots, customer } = get();
-    if (!selectedCourt || selectedSlotIds.length === 0) {
+    if (!selectedCourt) {
+      throw new Error('Please select a court');
+    }
+    if (selectedSlotIds.length === 0) {
       throw new Error('Please select at least one time slot');
     }
 
     const selectedSlots = slots.filter((s) => selectedSlotIds.includes(s.id));
     const bookingSlots: BookingSlotItem[] = selectedSlots.map((s) => ({
+      id: s.id,
       slot_id: s.id,
       start_time: s.start_time,
       end_time: s.end_time,
-      date: s.date,
+      date: s.date || selectedDate,
       type: s.type,
-      price: s.price,
+      price: Number(s.price || 0),
       is_peak: s.is_peak,
     }));
 
@@ -157,12 +174,13 @@ export function getSelectedSlotItems(state: BookingStoreState): BookingSlotItem[
   return state.slots
     .filter((s) => state.selectedSlotIds.includes(s.id))
     .map((s) => ({
+      id: s.id,
       slot_id: s.id,
       start_time: s.start_time,
       end_time: s.end_time,
-      date: s.date,
+      date: s.date || state.selectedDate,
       type: s.type,
-      price: s.price,
+      price: Number(s.price || 0),
       is_peak: s.is_peak,
     }));
 }
@@ -170,5 +188,5 @@ export function getSelectedSlotItems(state: BookingStoreState): BookingSlotItem[
 export function getSelectedTotal(state: BookingStoreState): number {
   return state.slots
     .filter((s) => state.selectedSlotIds.includes(s.id))
-    .reduce((sum, s) => sum + s.price, 0);
+    .reduce((sum, s) => sum + Number(s.price || 0), 0);
 }
