@@ -34,41 +34,23 @@ export const MOCK_COURT_GUIDS = {
 
 // Resolve court ID to valid GUID
 function resolveCourtId(courtId: string): string {
-  // If it's already a valid GUID, return as-is
   if (isValidGuid(courtId)) {
     return courtId;
   }
   
-  // Check if it's a mock court ID
   if (courtId in MOCK_COURT_GUIDS) {
     const guid = MOCK_COURT_GUIDS[courtId as keyof typeof MOCK_COURT_GUIDS];
     console.warn(`Converting mock court ID "${courtId}" to GUID: ${guid}`);
     return guid;
   }
   
-  // If it's a number, convert to string
   if (!isNaN(Number(courtId))) {
     console.warn(`Converting numeric court ID to string: ${courtId}`);
     return String(courtId);
   }
   
-  // Last resort: generate a new GUID
   const guid = generateGuid();
   console.warn(`Unknown court ID "${courtId}" - generating new GUID: ${guid}`);
-  return guid;
-}
-
-// Resolve slot ID to valid GUID
-function resolveSlotId(slotId: string): string {
-  // If it's already a valid GUID, return as-is
-  if (isValidGuid(slotId)) {
-    return slotId;
-  }
-  
-  // Generate a deterministic GUID based on the slot ID string
-  // This ensures the same slot gets the same GUID for consistency
-  const guid = generateGuid();
-  console.warn(`Converting mock slot ID "${slotId}" to GUID: ${guid}`);
   return guid;
 }
 
@@ -104,20 +86,16 @@ export const bookingService = {
     
     // Build the payload exactly as backend expects
     const requestBody = {
-      courtId: courtId,
+      courtId: courtId,  // Backend expects "courtId" (camelCase)
       customerName: payload.customer.name.trim(),
       customerEmail: payload.customer.email.trim().toLowerCase(),
       customerPhone: payload.customer.phone.trim(),
       date: payload.date,
+      // Backend expects slots as: { startTime: string, endTime: string }[]
+      // It does NOT expect slotId, date, type, price, or is_peak
       slots: payload.slots.map((s) => ({
-        // SlotSelection has: slot_id, start_time, end_time, date, type, price, is_peak
-        slotId: resolveSlotId(s.slot_id), // Use slot_id from SlotSelection
         startTime: s.start_time,
-        endTime: s.end_time,
-        date: s.date,
-        type: s.type,
-        price: s.price,
-        isPeak: s.is_peak
+        endTime: s.end_time
       })),
       totalAmount: payload.total_amount,
       notes: payload.customer.notes?.trim() || ''
@@ -125,7 +103,6 @@ export const bookingService = {
 
     console.log('📤 Creating booking with payload:', JSON.stringify(requestBody, null, 2));
     console.log('📍 Court ID:', courtId, '(valid GUID:', isValidGuid(courtId), ')');
-    console.log('📍 Slots count:', payload.slots.length);
 
     try {
       const res = await apiRequest<Booking | { data: Booking }>('/api/bookings', {
@@ -176,20 +153,38 @@ export const bookingService = {
       throw new Error('Payment reference is required');
     }
 
-    const requestBody = {
-      screenshot: screenshotDataUrl,
-      paymentReference: paymentReference.trim()
-    };
+    // Note: The backend expects a file upload, not base64
+    // You'll need to convert the data URL to a file
+    // Or use FormData to upload the file
+    const formData = new FormData();
+    
+    // Convert base64 to blob
+    const response = await fetch(screenshotDataUrl);
+    const blob = await response.blob();
+    const file = new File([blob], `payment-${bookingId}.jpg`, { type: 'image/jpeg' });
+    formData.append('screenshot', file);
 
     try {
-      const res = await apiRequest<Booking | { data: Booking }>(
-        `/api/bookings/${bookingId}/upload-payment`,
+      // Use direct fetch with FormData instead of apiRequest
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || 'https://pickleballcourbookingv2.onrender.com'}/api/bookings/${bookingId}/upload-payment`,
         {
           method: 'POST',
-          body: JSON.stringify(requestBody),
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'X-Client-Subdomain': import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
+          },
+          body: formData,
         }
       );
-      return (res as { data?: Booking }).data ?? (res as Booking);
+
+      if (!res.ok) {
+        throw new Error(`Upload failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+      return data as Booking;
     } catch (error) {
       console.error('❌ Failed to upload payment:', error);
       throw error;
@@ -210,12 +205,10 @@ export const bookingService = {
     }
   },
 
-  // Helper method to check if a booking reference is valid
   async checkBookingStatus(referenceCode: string): Promise<Booking> {
     return this.trackBooking(referenceCode);
   },
 
-  // Cancel a booking (if your backend supports it)
   async cancelBooking(bookingId: string, reason?: string): Promise<Booking> {
     if (!bookingId) {
       throw new Error('Booking ID is required');
@@ -242,6 +235,5 @@ export const bookingHelpers = {
   isValidGuid,
   generateGuid,
   resolveCourtId,
-  resolveSlotId,
   MOCK_COURT_GUIDS,
 };
