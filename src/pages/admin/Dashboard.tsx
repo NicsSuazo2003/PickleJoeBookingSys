@@ -31,7 +31,7 @@ const monthNames = [
 
 export function Dashboard() {
   const analytics = useAdminStore((state) => state.analytics);
-  const bookings = useAdminStore((state) => state.bookings);
+  const bookings = useAdminStore((state) => state.bookings || []); // ✅ Ensure array
   const loadingAnalytics = useAdminStore((state) => state.loadingAnalytics);
   const loadingBookings = useAdminStore((state) => state.loadingBookings);
   const loadAnalytics = useAdminStore((state) => state.loadAnalytics);
@@ -50,55 +50,46 @@ export function Dashboard() {
   const month = calendarDate.getMonth();
   const weeks = getMonthMatrix(year, month);
 
+  // ✅ Filter out undefined/null bookings when grouping by date
   const bookingsByDate = new Map<string, Booking[]>();
   bookings.forEach((b) => {
-    if (!b) return;
+    if (!b || !b.date) return; // Skip invalid bookings
     const existing = bookingsByDate.get(b.date) ?? [];
     existing.push(b);
     bookingsByDate.set(b.date, existing);
   });
 
   const selectedDateBookings = selectedDate
-    ? bookingsByDate.get(selectedDate) ?? []
+    ? (bookingsByDate.get(selectedDate) ?? []).filter(b => b) // Filter out undefined
     : [];
 
-  // ✅ Helper to format slot time (handles both camelCase and snake_case)
+  // ✅ Helper to format slot time (uses snake_case)
   const formatSlotTime = (slot: any): string => {
     if (!slot) return '?';
-    const start = slot.startTime || slot.start_time || '?';
-    const end = slot.endTime || slot.end_time || '?';
+    const start = slot.start_time || '?';
+    const end = slot.end_time || '?';
     return `${start}-${end}`;
   };
 
-  // ✅ Helper to get slot start time (handles both camelCase and snake_case)
+  // ✅ Helper to get slot start time
   const getSlotStartTime = (slot: any): string => {
     if (!slot) return 'N/A';
-    return slot.startTime || slot.start_time || 'N/A';
+    return slot.start_time || 'N/A';
   };
 
-  // ✅ Helper to get customer name safely
+  // ✅ Helper to safely get customer first name
+  const getCustomerFirstName = (booking: any): string => {
+    if (!booking) return 'Unknown';
+    if (!booking.customer) return 'Unknown';
+    if (!booking.customer.name) return 'Unknown';
+    return booking.customer.name.split(' ')[0] || 'Unknown';
+  };
+
+  // ✅ Helper to safely get customer full name
   const getCustomerName = (booking: any): string => {
     if (!booking) return 'Unknown';
     if (!booking.customer) return 'Unknown';
-    if (!booking.customer.name) return 'Unknown';
-    return booking.customer.name;
-  };
-
-  // ✅ Helper to get customer first name safely - FIXED to handle undefined properly
-  const getCustomerFirstName = (booking: any): string => {
-    // Guard against undefined or null booking
-    if (!booking) return 'Unknown';
-    
-    // Guard against undefined or null customer
-    if (!booking.customer) return 'Unknown';
-    
-    // Guard against undefined or null name
-    if (!booking.customer.name) return 'Unknown';
-    
-    // Now safe to call split
-    const name = booking.customer.name;
-    const parts = name.split(' ');
-    return parts[0] || 'Unknown';
+    return booking.customer.name || 'Unknown';
   };
 
   const statCards = [
@@ -290,19 +281,21 @@ export function Dashboard() {
                       </div>
                       <div className="mt-1 space-y-0.5">
                         {dayBookings.slice(0, 2).map((b) => {
-                          // ✅ FIX: Use optional chaining and nullish coalescing
-                          const firstName = b?.customer?.name ? b.customer.name.split(' ')[0] : 'Unknown';
-                          const startTime = b?.slots?.[0]?.start_time || b?.slots?.[0]?.start_time || '';
+                          // ✅ Skip if booking is undefined
+                          if (!b) return null;
+                          
+                          const firstName = getCustomerFirstName(b);
+                          const startTime = b.slots?.[0]?.start_time || '';
                           
                           return (
                             <div
-                              key={b?.id || Math.random()}
+                              key={b.id || Math.random()}
                               className={`truncate rounded px-1 py-0.5 text-[9px] ${
-                                b?.status === 'confirmed'
+                                b.status === 'confirmed'
                                   ? 'bg-success/20 text-success'
-                                  : b?.status === 'pending_payment'
+                                  : b.status === 'pending_payment'
                                     ? 'bg-warning/20 text-warning'
-                                    : b?.status === 'cancelled'
+                                    : b.status === 'cancelled'
                                       ? 'bg-error/20 text-error'
                                       : 'bg-blue-500/20 text-blue-300'
                               }`}
@@ -333,15 +326,15 @@ export function Dashboard() {
                   ) : (
                     <div className="space-y-2">
                       {selectedDateBookings.map((b) => {
-                        // ✅ FIX: Use optional chaining
-                        const customerName = b?.customer?.name || 'Unknown';
-                        const courtName = b?.court_name || 'Unknown Court';
-                        const totalAmount = b?.total_amount || 0;
-                        const slotDisplay = b?.slots?.map((s) => formatSlotTime(s)).join(', ') || 'No slots';
-                        const startTime = b?.slots?.[0]?.start_time || b?.slots?.[0]?.start_time || 'N/A';
+                        if (!b) return null;
+                        const customerName = getCustomerName(b);
+                        const courtName = b.court_name || 'Unknown Court';
+                        const totalAmount = b.total_amount || 0;
+                        const slotDisplay = b.slots?.map((s) => formatSlotTime(s)).join(', ') || 'No slots';
+                        const startTime = b.slots?.[0]?.start_time || 'N/A';
                         
                         return (
-                          <div key={b?.id || Math.random()} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div key={b.id || Math.random()} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
                               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
                                 {startTime}
@@ -357,7 +350,7 @@ export function Dashboard() {
                               <span className="text-sm font-semibold text-gold-400">
                                 {formatCurrency(totalAmount)}
                               </span>
-                              <StatusBadge status={b?.status} size="sm" />
+                              <StatusBadge status={b.status} size="sm" />
                             </div>
                           </div>
                         );
@@ -373,15 +366,15 @@ export function Dashboard() {
                 <p className="py-8 text-center text-sm text-cream-muted">No bookings yet.</p>
               ) : (
                 bookings.map((b) => {
-                  // ✅ FIX: Use optional chaining
-                  const customerName = b?.customer?.name || 'Unknown';
-                  const courtName = b?.court_name || 'Unknown Court';
-                  const totalAmount = b?.total_amount || 0;
-                  const referenceCode = b?.reference_code || 'No ref';
-                  const startTime = b?.slots?.[0]?.start_time || b?.slots?.[0]?.start_time || 'N/A';
+                  if (!b) return null;
+                  const customerName = getCustomerName(b);
+                  const courtName = b.court_name || 'Unknown Court';
+                  const totalAmount = b.total_amount || 0;
+                  const referenceCode = b.reference_code || 'No ref';
+                  const startTime = b.slots?.[0]?.start_time || 'N/A';
                   
                   return (
-                    <div key={b?.id || Math.random()} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div key={b.id || Math.random()} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
                           {startTime}
@@ -389,7 +382,7 @@ export function Dashboard() {
                         <div>
                           <p className="text-sm font-medium text-cream">{customerName}</p>
                           <p className="text-xs text-cream-muted">
-                            {referenceCode} — {courtName} — {formatDate(b?.date)}
+                            {referenceCode} — {courtName} — {formatDate(b.date)}
                           </p>
                         </div>
                       </div>
@@ -397,7 +390,7 @@ export function Dashboard() {
                         <span className="text-sm font-semibold text-gold-400">
                           {formatCurrency(totalAmount)}
                         </span>
-                        <StatusBadge status={b?.status} size="sm" />
+                        <StatusBadge status={b.status} size="sm" />
                       </div>
                     </div>
                   );
