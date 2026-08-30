@@ -1,5 +1,11 @@
+// src/services/courtService.ts
 import type { Court, TimeSlot, BlockedDate, SlotType } from '@/types';
 import { apiRequest } from './api';
+import { mockCourts, generateMockSlots, mockBlockedDates } from './mockData';
+import { MOCK_COURT_GUIDS } from './bookingService';
+
+// Check if we should use mock data
+const USE_MOCK_DATA = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_DATA === 'true';
 
 const BACKEND_BASE_URL = 'https://pickleballcourbookingv2.onrender.com';
 
@@ -22,8 +28,19 @@ export function normalizeCourt(raw: any, index: number = 0): Court {
   const resolvedImg = resolveImageUrl(rawImg);
   const fallback = DEFAULT_COURT_IMAGES[index % DEFAULT_COURT_IMAGES.length];
 
+  // If ID is not a valid GUID, generate one for frontend use
+  let id = raw.id;
+  const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  
+  if (!isGuid && USE_MOCK_DATA) {
+    // In mock mode, map to our mock GUIDs
+    if (id === 'court-1') id = MOCK_COURT_GUIDS['court-1'];
+    else if (id === 'court-2') id = MOCK_COURT_GUIDS['court-2'];
+    else if (id === 'court-3') id = MOCK_COURT_GUIDS['court-3'];
+  }
+
   return {
-    id: raw.id,
+    id: id || `court-${index}`,
     name: raw.name || 'Court',
     description: raw.description || '',
     image: resolvedImg || fallback,
@@ -95,30 +112,134 @@ export function normalizeSlot(raw: any, fallbackDate: string): TimeSlot {
 
 export const courtService = {
   async getCourts(): Promise<Court[]> {
-    const res = await apiRequest<any>('/api/courts');
-    const rawList = Array.isArray(res) ? res : res?.data || res?.courts || [];
-    return rawList.map((item: any, idx: number) => normalizeCourt(item, idx));
+    // If mock mode is enabled, return mock data
+    if (USE_MOCK_DATA) {
+      console.warn('🔧 Using mock court data (development mode)');
+      return mockCourts;
+    }
+
+    try {
+      console.log('📡 Fetching courts from backend...');
+      const res = await apiRequest<any>('/api/courts');
+      console.log('📡 Backend response:', res);
+      
+      let rawList = [];
+      if (Array.isArray(res)) {
+        rawList = res;
+      } else if (res?.data && Array.isArray(res.data)) {
+        rawList = res.data;
+      } else if (res?.courts && Array.isArray(res.courts)) {
+        rawList = res.courts;
+      } else {
+        console.warn('Unexpected courts response format:', res);
+        return [];
+      }
+      
+      if (rawList.length === 0) {
+        console.warn('⚠️ No courts found in backend');
+        // In development, fallback to mock data
+        if (import.meta.env.DEV) {
+          console.warn('🔧 Backend returned no courts, using mock data as fallback');
+          return mockCourts;
+        }
+        return [];
+      }
+      
+      const courts = rawList.map((item: any, idx: number) => normalizeCourt(item, idx));
+      console.log(`✅ Loaded ${courts.length} courts from backend`);
+      return courts;
+    } catch (error) {
+      console.error('❌ Failed to fetch courts:', error);
+      // In development, fallback to mock data
+      if (import.meta.env.DEV) {
+        console.warn('🔧 Backend unavailable, using mock data as fallback');
+        return mockCourts;
+      }
+      throw error;
+    }
   },
 
   async getCourt(id: string): Promise<Court> {
-    const res = await apiRequest<any>(`/api/courts/${id}`);
-    const data = res?.data ?? res?.court ?? res;
-    return normalizeCourt(data);
+    // If mock mode is enabled, return mock data
+    if (USE_MOCK_DATA) {
+      const court = mockCourts.find((c) => c.id === id);
+      if (court) return court;
+    }
+
+    try {
+      const res = await apiRequest<any>(`/api/courts/${id}`);
+      const data = res?.data ?? res?.court ?? res;
+      return normalizeCourt(data);
+    } catch (error) {
+      console.error('❌ Failed to fetch court:', error);
+      if (import.meta.env.DEV) {
+        const court = mockCourts.find((c) => c.id === id);
+        if (court) return court;
+      }
+      throw error;
+    }
   },
 
   async getAvailability(courtId: string, date: string): Promise<TimeSlot[]> {
-    const res = await apiRequest<any>(`/api/courts/${courtId}/availability?date=${date}`);
-    const rawList = Array.isArray(res) ? res : res?.data || res?.slots || [];
-    return rawList.map((item: any) => normalizeSlot(item, date));
+    // If mock mode is enabled, return mock slots
+    if (USE_MOCK_DATA) {
+      console.warn('🔧 Using mock slot data (development mode)');
+      return generateMockSlots(courtId, date);
+    }
+
+    try {
+      console.log(`📡 Fetching availability for court ${courtId} on ${date}...`);
+      const res = await apiRequest<any>(`/api/courts/${courtId}/availability?date=${date}`);
+      console.log('📡 Availability response:', res);
+      
+      const rawList = Array.isArray(res) ? res : res?.data || res?.slots || [];
+      
+      if (rawList.length === 0) {
+        console.warn('⚠️ No slots found in backend');
+        if (import.meta.env.DEV) {
+          console.warn('🔧 Using mock slots as fallback');
+          return generateMockSlots(courtId, date);
+        }
+        return [];
+      }
+      
+      const slots = rawList.map((item: any) => normalizeSlot(item, date));
+      console.log(`✅ Loaded ${slots.length} slots from backend`);
+      return slots;
+    } catch (error) {
+      console.error('❌ Failed to fetch slots:', error);
+      if (import.meta.env.DEV) {
+        console.warn('🔧 Backend unavailable, using mock slots as fallback');
+        return generateMockSlots(courtId, date);
+      }
+      throw error;
+    }
   },
 
   async getBlockedDates(courtId?: string): Promise<BlockedDate[]> {
-    const query = courtId ? `?court_id=${courtId}` : '';
-    const res = await apiRequest<any>(`/api/courts/blocked-dates${query}`);
-    return Array.isArray(res) ? res : res?.data || [];
+    if (USE_MOCK_DATA) {
+      return mockBlockedDates;
+    }
+
+    try {
+      const query = courtId ? `?court_id=${courtId}` : '';
+      const res = await apiRequest<any>(`/api/courts/blocked-dates${query}`);
+      return Array.isArray(res) ? res : res?.data || [];
+    } catch (error) {
+      console.error('❌ Failed to fetch blocked dates:', error);
+      if (import.meta.env.DEV) {
+        return mockBlockedDates;
+      }
+      return [];
+    }
   },
 
   async updateCourt(court: Court): Promise<Court> {
+    if (USE_MOCK_DATA) {
+      console.warn('🔧 Mock mode: Court update simulated');
+      return court;
+    }
+
     const payload = buildCourtPayload(court);
     const res = await apiRequest<any>(`/api/admin/courts/${court.id}`, {
       method: 'PUT',

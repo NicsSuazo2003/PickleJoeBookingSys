@@ -1,3 +1,4 @@
+// src/services/mockData.ts
 import type {
   Booking,
   BookingStatus,
@@ -8,10 +9,16 @@ import type {
 } from '@/types';
 import { COURT_IMAGES, FIXED_SLOT } from '@/utils/constants';
 import { addDays, toISODate, todayISO } from '@/utils/format';
+import { MOCK_COURT_GUIDS } from './bookingService';
+
+// Helper to generate deterministic IDs for mock data
+function generateMockId(prefix: string, ...parts: string[]): string {
+  return `${prefix}-${parts.join('-')}`;
+}
 
 export const mockCourts: Court[] = [
   {
-    id: 'court-1',
+    id: MOCK_COURT_GUIDS['court-1'], // Use UUID instead of 'court-1'
     name: 'Cedar Court',
     description:
       'Premium indoor court with professional-grade flooring and climate control. Perfect for competitive play year-round.',
@@ -26,7 +33,7 @@ export const mockCourts: Court[] = [
     is_active: true,
   },
   {
-    id: 'court-2',
+    id: MOCK_COURT_GUIDS['court-2'], // Use UUID instead of 'court-2'
     name: 'Pine Grove Court',
     description:
       'Open-air court surrounded by greenery with premium lighting for evening games. Enjoy the fresh air while you play.',
@@ -41,7 +48,7 @@ export const mockCourts: Court[] = [
     is_active: true,
   },
   {
-    id: 'court-3',
+    id: MOCK_COURT_GUIDS['court-3'], // Use UUID instead of 'court-3'
     name: 'Mosswood Arena',
     description:
       'Our flagship court with stadium seating and tournament-grade surfaces. Host your leagues and events here.',
@@ -82,7 +89,7 @@ function generateSlotsForCourt(court: Court, date: string, bookedSlots: string[]
 
     const isPeak = h >= peakStartH && h < peakEndH;
     const price = isPeak ? court.peak_price_per_hour : court.price_per_hour;
-    const slotId = `${court.id}-${date}-${start}`;
+    const slotId = generateMockId('slot', court.id, date, start);
     const isAvailable = !bookedSlots.includes(start);
 
     slots.push({
@@ -99,7 +106,7 @@ function generateSlotsForCourt(court: Court, date: string, bookedSlots: string[]
   }
 
   // Add the fixed 2hr slot (4:00 PM - 6:00 PM)
-  const fixedSlotId = `${court.id}-${date}-fixed`;
+  const fixedSlotId = generateMockId('slot', court.id, date, 'fixed');
   const fixedBooked = bookedSlots.includes('16:00') || bookedSlots.includes('17:00');
   slots.push({
     id: fixedSlotId,
@@ -143,14 +150,15 @@ export function generateMockSlots(courtId: string, date: string): TimeSlot[] {
 
 export const mockBookings: Booking[] = [
   {
-    id: 'booking-1',
+    id: generateMockId('booking', '1'),
     reference_code: 'PJAB12CD',
-    court_id: 'court-1',
+    court_id: MOCK_COURT_GUIDS['court-1'],
     court_name: 'Cedar Court',
     date: todayISO(),
     slots: [
       {
-        slot_id: 'court-1-today-16:00',
+        id: generateMockId('slot', MOCK_COURT_GUIDS['court-1'], todayISO(), '1600'),
+        slot_id: generateMockId('slot', MOCK_COURT_GUIDS['court-1'], todayISO(), '1600'),
         start_time: '16:00',
         end_time: '18:00',
         date: todayISO(),
@@ -174,14 +182,15 @@ export const mockBookings: Booking[] = [
     updated_at: new Date(Date.now() - 80000000).toISOString(),
   },
   {
-    id: 'booking-2',
+    id: generateMockId('booking', '2'),
     reference_code: 'PJEF34GH',
-    court_id: 'court-2',
+    court_id: MOCK_COURT_GUIDS['court-2'],
     court_name: 'Pine Grove Court',
     date: todayISO(),
     slots: [
       {
-        slot_id: 'court-2-today-18:00',
+        id: generateMockId('slot', MOCK_COURT_GUIDS['court-2'], todayISO(), '1800'),
+        slot_id: generateMockId('slot', MOCK_COURT_GUIDS['court-2'], todayISO(), '1800'),
         start_time: '18:00',
         end_time: '19:00',
         date: todayISO(),
@@ -190,7 +199,8 @@ export const mockBookings: Booking[] = [
         is_peak: true,
       },
       {
-        slot_id: 'court-2-today-19:00',
+        id: generateMockId('slot', MOCK_COURT_GUIDS['court-2'], todayISO(), '1900'),
+        slot_id: generateMockId('slot', MOCK_COURT_GUIDS['court-2'], todayISO(), '1900'),
         start_time: '19:00',
         end_time: '20:00',
         date: todayISO(),
@@ -214,14 +224,15 @@ export const mockBookings: Booking[] = [
     updated_at: new Date(Date.now() - 3600000).toISOString(),
   },
   {
-    id: 'booking-3',
+    id: generateMockId('booking', '3'),
     reference_code: 'PJIJ56KL',
-    court_id: 'court-3',
+    court_id: MOCK_COURT_GUIDS['court-3'],
     court_name: 'Mosswood Arena',
     date: toISODate(addDays(new Date(), 1)),
     slots: [
       {
-        slot_id: 'court-3-tomorrow-16:00',
+        id: generateMockId('slot', MOCK_COURT_GUIDS['court-3'], toISODate(addDays(new Date(), 1)), '1600'),
+        slot_id: generateMockId('slot', MOCK_COURT_GUIDS['court-3'], toISODate(addDays(new Date(), 1)), '1600'),
         start_time: '16:00',
         end_time: '18:00',
         date: toISODate(addDays(new Date(), 1)),
@@ -245,14 +256,15 @@ export const mockBookings: Booking[] = [
     updated_at: new Date(Date.now() - 3600000).toISOString(),
   },
   {
-    id: 'booking-4',
+    id: generateMockId('booking', '4'),
     reference_code: 'PJMN78OP',
-    court_id: 'court-1',
+    court_id: MOCK_COURT_GUIDS['court-1'],
     court_name: 'Cedar Court',
     date: toISODate(addDays(new Date(), 2)),
     slots: [
       {
-        slot_id: 'court-1-d2-19:00',
+        id: generateMockId('slot', MOCK_COURT_GUIDS['court-1'], toISODate(addDays(new Date(), 2)), '1900'),
+        slot_id: generateMockId('slot', MOCK_COURT_GUIDS['court-1'], toISODate(addDays(new Date(), 2)), '1900'),
         start_time: '19:00',
         end_time: '20:00',
         date: toISODate(addDays(new Date(), 2)),
@@ -276,14 +288,15 @@ export const mockBookings: Booking[] = [
     updated_at: new Date(Date.now() - 86400000).toISOString(),
   },
   {
-    id: 'booking-5',
+    id: generateMockId('booking', '5'),
     reference_code: 'PJQR90ST',
-    court_id: 'court-3',
+    court_id: MOCK_COURT_GUIDS['court-3'],
     court_name: 'Mosswood Arena',
     date: toISODate(addDays(new Date(), -1)),
     slots: [
       {
-        slot_id: 'court-3-yesterday-16:00',
+        id: generateMockId('slot', MOCK_COURT_GUIDS['court-3'], toISODate(addDays(new Date(), -1)), '1600'),
+        slot_id: generateMockId('slot', MOCK_COURT_GUIDS['court-3'], toISODate(addDays(new Date(), -1)), '1600'),
         start_time: '16:00',
         end_time: '18:00',
         date: toISODate(addDays(new Date(), -1)),
@@ -307,14 +320,15 @@ export const mockBookings: Booking[] = [
     updated_at: new Date(Date.now() - 172800000).toISOString(),
   },
   {
-    id: 'booking-6',
+    id: generateMockId('booking', '6'),
     reference_code: 'PJUV12WX',
-    court_id: 'court-2',
+    court_id: MOCK_COURT_GUIDS['court-2'],
     court_name: 'Pine Grove Court',
     date: toISODate(addDays(new Date(), 3)),
     slots: [
       {
-        slot_id: 'court-2-d3-16:00',
+        id: generateMockId('slot', MOCK_COURT_GUIDS['court-2'], toISODate(addDays(new Date(), 3)), '1600'),
+        slot_id: generateMockId('slot', MOCK_COURT_GUIDS['court-2'], toISODate(addDays(new Date(), 3)), '1600'),
         start_time: '16:00',
         end_time: '18:00',
         date: toISODate(addDays(new Date(), 3)),
@@ -338,14 +352,15 @@ export const mockBookings: Booking[] = [
     updated_at: new Date(Date.now() - 43200000).toISOString(),
   },
   {
-    id: 'booking-7',
+    id: generateMockId('booking', '7'),
     reference_code: 'PJYZ34AB',
-    court_id: 'court-1',
+    court_id: MOCK_COURT_GUIDS['court-1'],
     court_name: 'Cedar Court',
     date: toISODate(addDays(new Date(), 5)),
     slots: [
       {
-        slot_id: 'court-1-d5-17:00',
+        id: generateMockId('slot', MOCK_COURT_GUIDS['court-1'], toISODate(addDays(new Date(), 5)), '1700'),
+        slot_id: generateMockId('slot', MOCK_COURT_GUIDS['court-1'], toISODate(addDays(new Date(), 5)), '1700'),
         start_time: '17:00',
         end_time: '18:00',
         date: toISODate(addDays(new Date(), 5)),
@@ -354,7 +369,8 @@ export const mockBookings: Booking[] = [
         is_peak: true,
       },
       {
-        slot_id: 'court-1-d5-18:00',
+        id: generateMockId('slot', MOCK_COURT_GUIDS['court-1'], toISODate(addDays(new Date(), 5)), '1800'),
+        slot_id: generateMockId('slot', MOCK_COURT_GUIDS['court-1'], toISODate(addDays(new Date(), 5)), '1800'),
         start_time: '18:00',
         end_time: '19:00',
         date: toISODate(addDays(new Date(), 5)),
@@ -381,14 +397,14 @@ export const mockBookings: Booking[] = [
 
 export const mockBlockedDates: BlockedDate[] = [
   {
-    id: 'blocked-1',
-    court_id: 'court-2',
+    id: generateMockId('blocked', '1'),
+    court_id: MOCK_COURT_GUIDS['court-2'],
     date: toISODate(addDays(new Date(), 4)),
     reason: 'Surface maintenance',
   },
   {
-    id: 'blocked-2',
-    court_id: 'court-3',
+    id: generateMockId('blocked', '2'),
+    court_id: MOCK_COURT_GUIDS['court-3'],
     date: toISODate(addDays(new Date(), 6)),
     reason: 'Tournament setup',
   },
