@@ -176,14 +176,14 @@ export function Checkout() {
               <div className="mt-4 rounded-xl border-2 border-gold-400/30 bg-gold-400/10 p-4">
                 <p className="text-xs text-cream-muted">Amount to Send</p>
                 <p className="font-display text-3xl font-bold text-gold-400">
-                  {formatCurrency(currentBooking.totalAmount)}
+                  {formatCurrency(currentBooking.total_amount)}
                 </p>
               </div>
 
               <div className="mt-4 rounded-xl bg-forest-800 p-4">
                 <p className="text-xs text-cream-muted">Reference Code</p>
                 <p className="font-display text-lg font-bold tracking-wider text-cream">
-                  {currentBooking.referenceCode}
+                  {currentBooking.reference_code}
                 </p>
                 <p className="mt-1 text-xs text-cream-muted">
                   Use this as your GCash note or memo
@@ -319,13 +319,13 @@ export function Checkout() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-cream-muted">Reference</span>
                   <span className="font-mono font-bold text-gold-400">
-                    {currentBooking.referenceCode}
+                    {currentBooking.reference_code}
                   </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-xs text-cream-muted">Court</span>
                   <span className="text-sm font-medium text-cream">
-                    {currentBooking.courtName}
+                    {currentBooking.court_name}
                   </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
@@ -344,7 +344,7 @@ export function Checkout() {
                     className="flex items-center justify-between rounded-lg bg-forest-800 p-3"
                   >
                     <p className="text-sm font-medium text-cream">
-                      {formatTimeRange(slot.startTime, slot.endTime)}
+                      {formatTimeRange(slot.start_time, slot.end_time)}
                     </p>
                   </div>
                 ))}
@@ -353,7 +353,7 @@ export function Checkout() {
               <div className="mt-4 space-y-2 border-t border-forest-500 pt-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-cream-muted">Subtotal</span>
-                  <span className="text-cream">{formatCurrency(currentBooking.totalAmount)}</span>
+                  <span className="text-cream">{formatCurrency(currentBooking.total_amount)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-cream-muted">Service Fee</span>
@@ -362,7 +362,7 @@ export function Checkout() {
                 <div className="mt-2 flex items-center justify-between border-t border-forest-500 pt-2">
                   <span className="font-display text-lg font-bold text-cream">Total</span>
                   <span className="font-display text-2xl font-bold text-gold-400">
-                    {formatCurrency(currentBooking.totalAmount)}
+                    {formatCurrency(currentBooking.total_amount)}
                   </span>
                 </div>
               </div>
@@ -370,11 +370,11 @@ export function Checkout() {
                             <div className="mt-4 rounded-xl bg-forest-800 p-4">
                 <p className="mb-2 text-xs font-semibold text-cream">Customer Details</p>
                 <div className="space-y-1 text-xs text-cream-muted">
-                  <p>{currentBooking.customerName}</p>
-                  <p>{currentBooking.customerEmail}</p>
-                  <p>{currentBooking.customerPhone}</p>
-                  {currentBooking.notes && (
-                    <p className="italic">"{currentBooking.notes}"</p>
+                  <p>{currentBooking.customer.name}</p>
+                  <p>{currentBooking.customer.email}</p>
+                  <p>{currentBooking.customer.phone}</p>
+                  {currentBooking.customer.notes && (
+                    <p className="italic">"{currentBooking.customer.notes}"</p>
                   )}
                 </div>
               </div>

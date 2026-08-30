@@ -470,6 +470,10 @@ export function Settings() {
                   <p className="text-xs text-cream-muted">Established</p>
                   <p className="text-sm font-medium text-cream">Est. {APP_CONFIG.established}</p>
                 </div>
+                <div className="rounded-xl bg-forest-800 p-4">
+                  <p className="text-xs text-cream-muted">Developer</p>
+                  <p className="text-sm font-medium text-cream">Est. {APP_CONFIG.developer}</p>
+                </div>
               </div>
             </div>
           </div>
