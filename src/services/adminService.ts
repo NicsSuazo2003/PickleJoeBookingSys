@@ -46,7 +46,7 @@ function normalizeBooking(raw: any): Booking {
       end_time: s.endTime ?? s.end_time,
       date: s.date ?? raw.date,
       type: s.type ?? 'standard',
-      price: s.price ?? 0,
+      price: s.price ?? s.amount ?? s.total ?? s.Price ?? 0,
       is_peak: s.isPeak ?? s.is_peak ?? false,
     })),
     customer: {
