@@ -5,12 +5,21 @@ import { Menu, X, CalendarPlus, Search, Shield, Phone } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { APP_CONFIG } from '@/utils/constants';
+import { useClientStore } from '@/stores/clientStore';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  const settings = useClientStore((state) => state.settings);
+  const loadSettings = useClientStore((state) => state.loadSettings);
+  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber;
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -60,11 +69,11 @@ export function Navbar() {
 
         <div className="hidden items-center gap-3 md:flex">
           <a
-            href={`tel:${APP_CONFIG.gcashNumber.replace(/\s/g, '')}`}
+            href={`tel:${displayNumber.replace(/\s/g, '')}`}
             className="flex items-center gap-1.5 text-sm text-cream-muted hover:text-gold-300 transition"
           >
             <Phone className="h-4 w-4" />
-            {APP_CONFIG.gcashNumber}
+            {displayNumber}
           </a>
           <Button size="sm" to="/booking" leftIcon={<CalendarPlus className="h-4 w-4" />}>
             Book Now

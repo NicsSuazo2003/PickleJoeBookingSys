@@ -2,8 +2,12 @@ import { Link } from 'react-router-dom';
 import { Shield, MapPin, Phone, Clock, Instagram, Facebook } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { APP_CONFIG } from '@/utils/constants';
+import { useClientStore } from '@/stores/clientStore';
 
 export function Footer() {
+  const settings = useClientStore((state) => state.settings);
+  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber;
+
   return (
     <footer className="border-t border-forest-500 bg-forest-950">
       <div className="container-page py-12">
@@ -62,11 +66,11 @@ export function Footer() {
             <ul className="space-y-2.5 text-sm text-cream-muted">
               <li className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gold-400" />
-                123 Greenfield Ave, Quezon City
+                San Agustin Sur "Dawis", Tandag City, Surigao del Sur, Philippines 
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-gold-400" />
-                {APP_CONFIG.gcashNumber}
+                {displayNumber}
               </li>
               <li className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-gold-400" />
@@ -84,7 +88,7 @@ export function Footer() {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-cream">GCash</p>
-                  <p className="text-xs text-cream-muted">{APP_CONFIG.gcashNumber}</p>
+                  <p className="text-xs text-cream-muted">{displayNumber}</p>
                 </div>
               </div>
             </div>
