@@ -10,7 +10,6 @@ import { formatCurrency } from '@/utils/format';
 import type { Court, PricingRule } from '@/types';
 
 export function Pricing() {
-  // ✅ Use individual selectors
   const courts = useAdminStore((state) => state.courts);
   const loadingCourts = useAdminStore((state) => state.loadingCourts);
   const loadCourts = useAdminStore((state) => state.loadCourts);
@@ -25,12 +24,13 @@ export function Pricing() {
   useEffect(() => {
     const initial: Record<string, PricingRule> = {};
     courts.forEach((c) => {
+      if (!c) return; // ✅ Skip if court is undefined
       initial[c.id] = {
         court_id: c.id,
         peak_start: '17:00',
         peak_end: '21:00',
-        peak_price: c.peak_price_per_hour,
-        off_peak_price: c.price_per_hour,
+        peak_price: c.peak_price_per_hour || 0,
+        off_peak_price: c.price_per_hour || 0,
         weekend_multiplier: 1.0,
       };
     });
@@ -45,6 +45,7 @@ export function Pricing() {
   };
 
   const handleSave = async (court: Court) => {
+    if (!court) return; // ✅ Skip if court is undefined
     const rule = rules[court.id];
     if (!rule) return;
     await updateCourt({
@@ -69,11 +70,15 @@ export function Pricing() {
         ) : (
           <div className="space-y-6">
             {courts.map((court, i) => {
+              // ✅ Skip if court is undefined or null
+              if (!court) return null;
+              
               const rule = rules[court.id];
               if (!rule) return null;
+              
               return (
                 <motion.div
-                  key={court.id}
+                  key={court.id || `court-${i}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
@@ -84,10 +89,10 @@ export function Pricing() {
                       <Tag className="h-5 w-5 text-gold-400" />
                     </div>
                     <div>
-                      <h3 className="font-display text-lg font-bold text-cream">{court.name}</h3>
+                      <h3 className="font-display text-lg font-bold text-cream">{court?.name || 'Unnamed Court'}</h3>
                       <p className="text-xs text-cream-muted">
-                        Current: {formatCurrency(court.price_per_hour)}/hr off-peak,{' '}
-                        {formatCurrency(court.peak_price_per_hour)}/hr peak
+                        Current: {formatCurrency(court?.price_per_hour || 0)}/hr off-peak,{' '}
+                        {formatCurrency(court?.peak_price_per_hour || 0)}/hr peak
                       </p>
                     </div>
                   </div>
@@ -96,7 +101,7 @@ export function Pricing() {
                     <Input
                       label="Off-Peak Price"
                       type="number"
-                      value={rule.off_peak_price}
+                      value={rule.off_peak_price || 0}
                       onChange={(e) =>
                         updateRule(court.id, 'off_peak_price', Number(e.target.value))
                       }
@@ -105,7 +110,7 @@ export function Pricing() {
                     <Input
                       label="Peak Price"
                       type="number"
-                      value={rule.peak_price}
+                      value={rule.peak_price || 0}
                       onChange={(e) =>
                         updateRule(court.id, 'peak_price', Number(e.target.value))
                       }
@@ -114,14 +119,14 @@ export function Pricing() {
                     <Input
                       label="Peak Start"
                       type="time"
-                      value={rule.peak_start}
+                      value={rule.peak_start || '17:00'}
                       onChange={(e) => updateRule(court.id, 'peak_start', e.target.value)}
                       leftIcon={<Clock className="h-4 w-4" />}
                     />
                     <Input
                       label="Peak End"
                       type="time"
-                      value={rule.peak_end}
+                      value={rule.peak_end || '21:00'}
                       onChange={(e) => updateRule(court.id, 'peak_end', e.target.value)}
                       leftIcon={<Clock className="h-4 w-4" />}
                     />
@@ -132,7 +137,7 @@ export function Pricing() {
                       label="Weekend Multiplier"
                       type="number"
                       step="0.1"
-                      value={rule.weekend_multiplier}
+                      value={rule.weekend_multiplier || 1.0}
                       onChange={(e) =>
                         updateRule(court.id, 'weekend_multiplier', Number(e.target.value))
                       }
@@ -144,7 +149,7 @@ export function Pricing() {
                         <p className="text-xs text-cream-muted">Weekend Peak Price</p>
                         <p className="font-display text-xl font-bold text-gold-400">
                           {formatCurrency(
-                            Math.round(rule.peak_price * rule.weekend_multiplier)
+                            Math.round((rule.peak_price || 0) * (rule.weekend_multiplier || 1.0))
                           )}
                           <span className="text-xs font-normal text-cream-muted">/hr</span>
                         </p>
@@ -178,15 +183,19 @@ export function Pricing() {
             It replaces the individual 4-5 PM and 5-6 PM slots and cannot be combined with standard slots in that time range.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {courts.map((c) => (
-              <div key={c.id} className="rounded-lg bg-forest-800 p-3">
-                <p className="text-xs text-cream-muted">{c.name}</p>
-                <p className="font-display text-lg font-bold text-gold-400">
-                  {formatCurrency(c.price_per_hour * 2)}
-                </p>
-                <p className="text-[10px] text-cream-muted">for 2 hours</p>
-              </div>
-            ))}
+            {courts.map((c) => {
+              // ✅ Skip if court is undefined
+              if (!c) return null;
+              return (
+                <div key={c.id} className="rounded-lg bg-forest-800 p-3">
+                  <p className="text-xs text-cream-muted">{c?.name || 'Unnamed Court'}</p>
+                  <p className="font-display text-lg font-bold text-gold-400">
+                    {formatCurrency((c?.price_per_hour || 0) * 2)}
+                  </p>
+                  <p className="text-[10px] text-cream-muted">for 2 hours</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

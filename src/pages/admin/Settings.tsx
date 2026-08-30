@@ -19,7 +19,6 @@ import { formatDateLong, todayISO, toISODate, addDays } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
 
 export function Settings() {
-  // ✅ Use individual selectors
   const courts = useAdminStore((state) => state.courts);
   const loadingCourts = useAdminStore((state) => state.loadingCourts);
   const blockedDates = useAdminStore((state) => state.blockedDates);
@@ -41,7 +40,7 @@ export function Settings() {
 
   useEffect(() => {
     if (courts.length > 0 && !selectedCourtId) {
-      setSelectedCourtId(courts[0].id);
+      setSelectedCourtId(courts[0]?.id || '');
     }
   }, [courts]);
 
@@ -142,20 +141,24 @@ export function Settings() {
               <div className="mb-4">
                 <label className="mb-1.5 block text-sm font-medium text-cream">Select Court</label>
                 <div className="flex flex-wrap gap-2">
-                  {courts.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedCourtId(c.id)}
-                      className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
-                        selectedCourtId === c.id
-                          ? 'border-gold-400 bg-gold-400/10 text-gold-300'
-                          : 'border-forest-500 text-cream-muted hover:border-gold-400/40'
-                      }`}
-                    >
-                      <Building2 className="h-3.5 w-3.5" />
-                      {c.name}
-                    </button>
-                  ))}
+                  {courts.map((c) => {
+                    // ✅ Skip if court is undefined
+                    if (!c) return null;
+                    return (
+                      <button
+                        key={c.id || `court-${Math.random()}`}
+                        onClick={() => setSelectedCourtId(c.id)}
+                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                          selectedCourtId === c.id
+                            ? 'border-gold-400 bg-gold-400/10 text-gold-300'
+                            : 'border-forest-500 text-cream-muted hover:border-gold-400/40'
+                        }`}
+                      >
+                        <Building2 className="h-3.5 w-3.5" />
+                        {c?.name || 'Unnamed Court'}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

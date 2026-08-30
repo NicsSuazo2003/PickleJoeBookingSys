@@ -57,10 +57,10 @@ export function Bookings() {
     if (search) {
       const q = search.toLowerCase();
       return (
-        b.reference_code.toLowerCase().includes(q) ||
-        b.customer.name.toLowerCase().includes(q) ||
-        b.customer.email.toLowerCase().includes(q) ||
-        b.court_name.toLowerCase().includes(q)
+        b.reference_code?.toLowerCase().includes(q) ||
+        b.customer?.name?.toLowerCase().includes(q) ||
+        b.customer?.email?.toLowerCase().includes(q) ||
+        b.court_name?.toLowerCase().includes(q)
       );
     }
     return true;
@@ -109,11 +109,15 @@ export function Bookings() {
               className="input-field"
             >
               <option value="all" className="bg-forest-800">All Courts</option>
-              {courts.map((c) => (
-                <option key={c.id} value={c.id} className="bg-forest-800">
-                  {c.name}
-                </option>
-              ))}
+              {courts.map((c) => {
+                // ✅ Skip if court is undefined
+                if (!c) return null;
+                return (
+                  <option key={c.id || `court-${Math.random()}`} value={c.id} className="bg-forest-800">
+                    {c?.name || 'Unnamed Court'}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="mt-3 flex items-center gap-2 text-xs text-cream-muted">
@@ -148,19 +152,19 @@ export function Bookings() {
                   {filtered.map((b) => (
                     <tr key={b.id} className="border-b border-forest-600 transition hover:bg-forest-600/30">
                       <td className="px-4 py-3">
-                        <span className="font-mono font-bold text-gold-400">{b.reference_code}</span>
+                        <span className="font-mono font-bold text-gold-400">{b.reference_code || 'N/A'}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-cream">{b.customer.name}</p>
-                        <p className="text-xs text-cream-muted">{b.customer.email}</p>
+                        <p className="font-medium text-cream">{b.customer?.name || 'Unknown'}</p>
+                        <p className="text-xs text-cream-muted">{b.customer?.email || 'No email'}</p>
                       </td>
-                      <td className="px-4 py-3 text-cream">{b.court_name}</td>
+                      <td className="px-4 py-3 text-cream">{b.court_name || 'Unknown Court'}</td>
                       <td className="px-4 py-3 text-cream-muted">{formatDateLong(b.date)}</td>
                       <td className="px-4 py-3 text-cream-muted">
-                        {b.slots.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ')}
+                        {b.slots?.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ') || 'No slots'}
                       </td>
                       <td className="px-4 py-3 font-semibold text-gold-400">
-                        {formatCurrency(b.total_amount)}
+                        {formatCurrency(b.total_amount || 0)}
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={b.status} size="sm" />
@@ -183,16 +187,16 @@ export function Bookings() {
               {filtered.map((b) => (
                 <div key={b.id} className="rounded-xl bg-forest-800 p-4">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-gold-400">{b.reference_code}</span>
+                    <span className="font-mono font-bold text-gold-400">{b.reference_code || 'N/A'}</span>
                     <StatusBadge status={b.status} size="sm" />
                   </div>
-                  <p className="mt-2 font-medium text-cream">{b.customer.name}</p>
-                  <p className="text-xs text-cream-muted">{b.court_name} — {formatDateLong(b.date)}</p>
+                  <p className="mt-2 font-medium text-cream">{b.customer?.name || 'Unknown'}</p>
+                  <p className="text-xs text-cream-muted">{b.court_name || 'Unknown Court'} — {formatDateLong(b.date)}</p>
                   <p className="mt-1 text-xs text-cream-muted">
-                    {b.slots.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ')}
+                    {b.slots?.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ') || 'No slots'}
                   </p>
                   <div className="mt-3 flex items-center justify-between border-t border-forest-600 pt-3">
-                    <span className="font-semibold text-gold-400">{formatCurrency(b.total_amount)}</span>
+                    <span className="font-semibold text-gold-400">{formatCurrency(b.total_amount || 0)}</span>
                     <Button size="sm" variant="secondary" onClick={() => setSelectedBooking(b)}>
                       View
                     </Button>
@@ -209,7 +213,7 @@ export function Bookings() {
           <Modal
             isOpen={!!selectedBooking}
             onClose={() => setSelectedBooking(null)}
-            title={`Booking ${selectedBooking.reference_code}`}
+            title={`Booking ${selectedBooking.reference_code || 'N/A'}`}
             size="lg"
           >
             <div className="space-y-4">
@@ -223,19 +227,19 @@ export function Bookings() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-xl bg-forest-800 p-4">
                   <p className="text-xs font-semibold text-gold-300">Customer</p>
-                  <p className="mt-1 text-sm text-cream">{selectedBooking.customer.name}</p>
-                  <p className="text-xs text-cream-muted">{selectedBooking.customer.email}</p>
-                  <p className="text-xs text-cream-muted">{selectedBooking.customer.phone}</p>
-                  {selectedBooking.customer.notes && (
+                  <p className="mt-1 text-sm text-cream">{selectedBooking.customer?.name || 'Unknown'}</p>
+                  <p className="text-xs text-cream-muted">{selectedBooking.customer?.email || 'No email'}</p>
+                  <p className="text-xs text-cream-muted">{selectedBooking.customer?.phone || 'No phone'}</p>
+                  {selectedBooking.customer?.notes && (
                     <p className="mt-2 text-xs italic text-cream-muted">"{selectedBooking.customer.notes}"</p>
                   )}
                 </div>
                 <div className="rounded-xl bg-forest-800 p-4">
                   <p className="text-xs font-semibold text-gold-300">Booking</p>
-                  <p className="mt-1 text-sm text-cream">{selectedBooking.court_name}</p>
+                  <p className="mt-1 text-sm text-cream">{selectedBooking.court_name || 'Unknown Court'}</p>
                   <p className="text-xs text-cream-muted">{formatDateLong(selectedBooking.date)}</p>
                   <p className="mt-1 text-xs text-cream-muted">
-                    {selectedBooking.slots.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ')}
+                    {selectedBooking.slots?.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ') || 'No slots'}
                   </p>
                 </div>
               </div>
@@ -243,7 +247,7 @@ export function Bookings() {
               <div className="flex items-center justify-between rounded-xl bg-gold-400/10 p-4">
                 <span className="text-sm text-cream-muted">Total Amount</span>
                 <span className="font-display text-xl font-bold text-gold-400">
-                  {formatCurrency(selectedBooking.total_amount)}
+                  {formatCurrency(selectedBooking.total_amount || 0)}
                 </span>
               </div>
 

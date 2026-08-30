@@ -262,7 +262,7 @@ export function Dashboard() {
                                     : 'bg-blue-500/20 text-blue-300'
                             }`}
                           >
-                            {b.slots[0]?.start_time} {b.customer?.name?.split(' ')[0]}
+                            {b.slots?.[0]?.start_time || ''} {b.customer?.name?.split(' ')?.[0] || 'Unknown'}
                           </div>
                         ))}
                         {dayBookings.length > 2 && (
@@ -290,18 +290,18 @@ export function Dashboard() {
                         <div key={b.id} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
-                              {b.slots[0]?.start_time}
+                              {b.slots?.[0]?.start_time || 'N/A'}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-cream">{b.customer.name}</p>
+                              <p className="text-sm font-medium text-cream">{b.customer?.name || 'Unknown'}</p>
                               <p className="text-xs text-cream-muted">
-                                {b.court_name} — {b.slots.map((s) => `${s.start_time}-${s.end_time}`).join(', ')}
+                                {b.court_name || 'Unknown Court'} — {b.slots?.map((s) => `${s.start_time}-${s.end_time}`).join(', ') || 'No slots'}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-sm font-semibold text-gold-400">
-                              {formatCurrency(b.total_amount)}
+                              {formatCurrency(b.total_amount || 0)}
                             </span>
                             <StatusBadge status={b.status} size="sm" />
                           </div>
@@ -321,18 +321,18 @@ export function Dashboard() {
                   <div key={b.id} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
-                        {b.slots[0]?.start_time}
+                        {b.slots?.[0]?.start_time || 'N/A'}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-cream">{b.customer.name}</p>
+                        <p className="text-sm font-medium text-cream">{b.customer?.name || 'Unknown'}</p>
                         <p className="text-xs text-cream-muted">
-                          {b.reference_code} — {b.court_name} — {formatDate(b.date)}
+                          {b.reference_code || 'No ref'} — {b.court_name || 'Unknown Court'} — {formatDate(b.date)}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-semibold text-gold-400">
-                        {formatCurrency(b.total_amount)}
+                        {formatCurrency(b.total_amount || 0)}
                       </span>
                       <StatusBadge status={b.status} size="sm" />
                     </div>

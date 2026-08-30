@@ -1,3 +1,4 @@
+// src/pages/Success.tsx
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -39,6 +40,11 @@ export function Success() {
     const end = slot.endTime || slot.end_time || '';
     return formatTimeRange(start, end);
   };
+
+  // ✅ Ensure total_amount is a valid number
+  const totalAmount = typeof currentBooking.total_amount === 'number' 
+    ? currentBooking.total_amount 
+    : 0;
 
   return (
     <div className="min-h-screen bg-charcoal">
@@ -112,7 +118,7 @@ export function Success() {
             <div className="mt-4 flex items-center justify-between border-t border-forest-500 pt-4">
               <span className="text-sm text-cream-muted">Total Paid</span>
               <span className="font-display text-2xl font-bold text-gold-400">
-                {formatCurrency(currentBooking.total_amount)}
+                {formatCurrency(totalAmount)}
               </span>
             </div>
           </motion.div>
