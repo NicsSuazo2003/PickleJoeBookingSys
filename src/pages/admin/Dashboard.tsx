@@ -78,14 +78,17 @@ export function Dashboard() {
 
   // ✅ Helper to get customer name safely
   const getCustomerName = (booking: Booking): string => {
+    if (!booking) return 'Unknown';
     if (!booking.customer) return 'Unknown';
     return booking.customer.name || 'Unknown';
   };
 
-  // ✅ Helper to get customer first name safely
+  // ✅ Helper to get customer first name safely (FIXES THE SPLIT ERROR)
   const getCustomerFirstName = (booking: Booking): string => {
     const name = getCustomerName(booking);
-    return name.split(' ')[0] || 'Unknown';
+    if (!name || name === 'Unknown') return 'Unknown';
+    const parts = name.split(' ');
+    return parts[0] || 'Unknown';
   };
 
   const statCards = [
@@ -276,30 +279,30 @@ export function Dashboard() {
                         )}
                       </div>
                       <div className="mt-1 space-y-0.5">
-                        {dayBookings.slice(0, 2).map((b) => (
-                          <div
-                            key={b.id}
-                            className={`truncate rounded px-1 py-0.5 text-[9px] ${
-                              b.status === 'confirmed'
-                                ? 'bg-success/20 text-success'
-                                : b.status === 'pending_payment'
-                                  ? 'bg-warning/20 text-warning'
-                                  : b.status === 'cancelled'
-                                    ? 'bg-error/20 text-error'
-                                    : 'bg-blue-500/20 text-blue-300'
-                            }`}
-                          >
-                            {/* ✅ Fixed: Handle both camelCase and snake_case with safety checks */}
-                            {b.slots && b.slots.length > 0 ? (
-                              <>
-                                {getSlotStartTime(b.slots[0])} 
-                                {getCustomerFirstName(b)}
-                              </>
-                            ) : (
-                              getCustomerFirstName(b)
-                            )}
-                          </div>
-                        ))}
+                        {dayBookings.slice(0, 2).map((b) => {
+                          // ✅ FIX: Use the helper function that handles undefined safely
+                          const firstName = getCustomerFirstName(b);
+                          const startTime = b.slots && b.slots.length > 0 
+                            ? getSlotStartTime(b.slots[0]) 
+                            : '';
+                          
+                          return (
+                            <div
+                              key={b.id}
+                              className={`truncate rounded px-1 py-0.5 text-[9px] ${
+                                b.status === 'confirmed'
+                                  ? 'bg-success/20 text-success'
+                                  : b.status === 'pending_payment'
+                                    ? 'bg-warning/20 text-warning'
+                                    : b.status === 'cancelled'
+                                      ? 'bg-error/20 text-error'
+                                      : 'bg-blue-500/20 text-blue-300'
+                              }`}
+                            >
+                              {startTime} {firstName}
+                            </div>
+                          );
+                        })}
                         {dayBookings.length > 2 && (
                           <div className="text-[9px] text-cream-muted">
                             +{dayBookings.length - 2} more
