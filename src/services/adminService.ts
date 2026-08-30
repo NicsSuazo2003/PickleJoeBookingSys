@@ -2,6 +2,24 @@ import type { Analytics, Booking, BookingStatus, Court, BlockedDate } from '@/ty
 import { apiRequest } from './api';
 import { normalizeCourt, buildCourtPayload } from './courtService';
 
+
+function normalizeAnalytics(raw: any): Analytics {
+  return {
+    total_bookings: raw.totalBookings ?? 0,
+    total_revenue: raw.totalRevenue ?? 0,
+    pending_payments: raw.pendingPayments ?? 0,
+    confirmed_bookings: raw.confirmedBookings ?? 0,
+    completed_bookings: raw.completedBookings ?? 0,
+    cancelled_bookings: raw.cancelledBookings ?? 0,
+    status_breakdown: raw.statusBreakdown ?? {},
+    revenue_by_day: (raw.revenueByDay ?? []).map((d: any) => ({
+      date: d.date,
+      revenue: d.revenue ?? 0,
+      bookings: 0, // backend's revenueByDay doesn't include a per-day booking count; bookingsByDay is separate
+    })),
+    court_breakdown: [], // requires a separate call to /api/admin/analytics/courts — not wired up yet
+  };
+}
 function normalizeBooking(raw: any): Booking {
   return {
     id: raw.id,
@@ -36,8 +54,9 @@ function normalizeBooking(raw: any): Booking {
 }
 export const adminService = {
   async getAnalytics(): Promise<Analytics> {
-    return apiRequest<Analytics>('/api/admin/analytics');
-  },
+  const res = await apiRequest<any>('/api/admin/analytics');
+  return normalizeAnalytics(res?.data ?? res);
+},
 
   async getBookings(filters?: {
     status?: BookingStatus;

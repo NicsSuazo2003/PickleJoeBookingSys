@@ -93,36 +93,35 @@ export function Dashboard() {
   };
 
   const statCards = [
-    {
-      label: 'Total Bookings',
-      value: analytics?.total_bookings ?? 0,
-      icon: CalendarDays,
-      color: 'text-gold-400',
-      bg: 'bg-gold-400/10',
-    },
-    {
-      label: 'Total Revenue',
-      value: formatCurrency(analytics?.total_revenue ?? 0),
-      icon: DollarSign,
-      color: 'text-success',
-      bg: 'bg-success/10',
-    },
-    {
-      label: 'Confirmed Bookings',
-      value: analytics?.confirmed_bookings ?? 0,
-      icon: CheckCircle2,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-    },
-    {
-      label: 'Pending Payments',
-      value: analytics?.pending_payments ?? 0,
-      icon: Clock,
-      color: 'text-warning',
-      bg: 'bg-warning/10',
-    },
-  ];
-
+  {
+    label: 'Total Bookings',
+    value: analytics?.total_bookings ?? 0,
+    icon: CalendarDays,
+    color: 'text-gold-400',
+    bg: 'bg-gold-400/10',
+  },
+  {
+    label: 'Total Revenue',
+    value: formatCurrency(analytics?.total_revenue ?? 0),
+    icon: DollarSign,
+    color: 'text-success',
+    bg: 'bg-success/10',
+  },
+  {
+    label: 'Confirmed Bookings',
+    value: analytics?.confirmed_bookings ?? 0,
+    icon: CheckCircle2,
+    color: 'text-blue-400',
+    bg: 'bg-blue-500/10',
+  },
+  {
+    label: 'Pending Payments',
+    value: analytics?.pending_payments ?? 0,
+    icon: Clock,
+    color: 'text-warning',
+    bg: 'bg-warning/10',
+  },
+];
   return (
     <AdminLayout>
       <div className="container-page py-8">
