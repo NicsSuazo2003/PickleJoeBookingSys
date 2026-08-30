@@ -77,16 +77,26 @@ export function Dashboard() {
   };
 
   // ✅ Helper to get customer name safely
-  const getCustomerName = (booking: Booking): string => {
+  const getCustomerName = (booking: any): string => {
     if (!booking) return 'Unknown';
     if (!booking.customer) return 'Unknown';
-    return booking.customer.name || 'Unknown';
+    if (!booking.customer.name) return 'Unknown';
+    return booking.customer.name;
   };
 
-  // ✅ Helper to get customer first name safely (FIXES THE SPLIT ERROR)
-  const getCustomerFirstName = (booking: Booking): string => {
-    const name = getCustomerName(booking);
-    if (!name || name === 'Unknown') return 'Unknown';
+  // ✅ Helper to get customer first name safely - FIXED to handle undefined properly
+  const getCustomerFirstName = (booking: any): string => {
+    // Guard against undefined or null booking
+    if (!booking) return 'Unknown';
+    
+    // Guard against undefined or null customer
+    if (!booking.customer) return 'Unknown';
+    
+    // Guard against undefined or null name
+    if (!booking.customer.name) return 'Unknown';
+    
+    // Now safe to call split
+    const name = booking.customer.name;
     const parts = name.split(' ');
     return parts[0] || 'Unknown';
   };
@@ -280,21 +290,19 @@ export function Dashboard() {
                       </div>
                       <div className="mt-1 space-y-0.5">
                         {dayBookings.slice(0, 2).map((b) => {
-                          // ✅ FIX: Use the helper function that handles undefined safely
-                          const firstName = getCustomerFirstName(b);
-                          const startTime = b.slots && b.slots.length > 0 
-                            ? getSlotStartTime(b.slots[0]) 
-                            : '';
+                          // ✅ FIX: Use optional chaining and nullish coalescing
+                          const firstName = b?.customer?.name ? b.customer.name.split(' ')[0] : 'Unknown';
+                          const startTime = b?.slots?.[0]?.start_time || b?.slots?.[0]?.start_time || '';
                           
                           return (
                             <div
-                              key={b.id}
+                              key={b?.id || Math.random()}
                               className={`truncate rounded px-1 py-0.5 text-[9px] ${
-                                b.status === 'confirmed'
+                                b?.status === 'confirmed'
                                   ? 'bg-success/20 text-success'
-                                  : b.status === 'pending_payment'
+                                  : b?.status === 'pending_payment'
                                     ? 'bg-warning/20 text-warning'
-                                    : b.status === 'cancelled'
+                                    : b?.status === 'cancelled'
                                       ? 'bg-error/20 text-error'
                                       : 'bg-blue-500/20 text-blue-300'
                               }`}
@@ -324,30 +332,36 @@ export function Dashboard() {
                     <p className="text-sm text-cream-muted py-4 text-center">No bookings for this date.</p>
                   ) : (
                     <div className="space-y-2">
-                      {selectedDateBookings.map((b) => (
-                        <div key={b.id} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
-                              {b.slots && b.slots.length > 0 ? getSlotStartTime(b.slots[0]) : 'N/A'}
+                      {selectedDateBookings.map((b) => {
+                        // ✅ FIX: Use optional chaining
+                        const customerName = b?.customer?.name || 'Unknown';
+                        const courtName = b?.court_name || 'Unknown Court';
+                        const totalAmount = b?.total_amount || 0;
+                        const slotDisplay = b?.slots?.map((s) => formatSlotTime(s)).join(', ') || 'No slots';
+                        const startTime = b?.slots?.[0]?.start_time || b?.slots?.[0]?.start_time || 'N/A';
+                        
+                        return (
+                          <div key={b?.id || Math.random()} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
+                                {startTime}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-cream">{customerName}</p>
+                                <p className="text-xs text-cream-muted">
+                                  {courtName} — {slotDisplay}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-cream">{getCustomerName(b)}</p>
-                              <p className="text-xs text-cream-muted">
-                                {b.court_name || 'Unknown Court'} — 
-                                {b.slots && b.slots.length > 0 
-                                  ? b.slots.map((s) => formatSlotTime(s)).join(', ') 
-                                  : 'No slots'}
-                              </p>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-semibold text-gold-400">
+                                {formatCurrency(totalAmount)}
+                              </span>
+                              <StatusBadge status={b?.status} size="sm" />
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-semibold text-gold-400">
-                              {formatCurrency(b.total_amount || 0)}
-                            </span>
-                            <StatusBadge status={b.status} size="sm" />
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -358,27 +372,36 @@ export function Dashboard() {
               {bookings.length === 0 ? (
                 <p className="py-8 text-center text-sm text-cream-muted">No bookings yet.</p>
               ) : (
-                bookings.map((b) => (
-                  <div key={b.id} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
-                        {b.slots && b.slots.length > 0 ? getSlotStartTime(b.slots[0]) : 'N/A'}
+                bookings.map((b) => {
+                  // ✅ FIX: Use optional chaining
+                  const customerName = b?.customer?.name || 'Unknown';
+                  const courtName = b?.court_name || 'Unknown Court';
+                  const totalAmount = b?.total_amount || 0;
+                  const referenceCode = b?.reference_code || 'No ref';
+                  const startTime = b?.slots?.[0]?.start_time || b?.slots?.[0]?.start_time || 'N/A';
+                  
+                  return (
+                    <div key={b?.id || Math.random()} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
+                          {startTime}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-cream">{customerName}</p>
+                          <p className="text-xs text-cream-muted">
+                            {referenceCode} — {courtName} — {formatDate(b?.date)}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-cream">{getCustomerName(b)}</p>
-                        <p className="text-xs text-cream-muted">
-                          {b.reference_code || 'No ref'} — {b.court_name || 'Unknown Court'} — {formatDate(b.date)}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-gold-400">
+                          {formatCurrency(totalAmount)}
+                        </span>
+                        <StatusBadge status={b?.status} size="sm" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-gold-400">
-                        {formatCurrency(b.total_amount || 0)}
-                      </span>
-                      <StatusBadge status={b.status} size="sm" />
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
