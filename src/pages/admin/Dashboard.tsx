@@ -52,6 +52,7 @@ export function Dashboard() {
 
   const bookingsByDate = new Map<string, Booking[]>();
   bookings.forEach((b) => {
+    if (!b) return;
     const existing = bookingsByDate.get(b.date) ?? [];
     existing.push(b);
     bookingsByDate.set(b.date, existing);
@@ -60,6 +61,32 @@ export function Dashboard() {
   const selectedDateBookings = selectedDate
     ? bookingsByDate.get(selectedDate) ?? []
     : [];
+
+  // ✅ Helper to format slot time (handles both camelCase and snake_case)
+  const formatSlotTime = (slot: any): string => {
+    if (!slot) return '?';
+    const start = slot.startTime || slot.start_time || '?';
+    const end = slot.endTime || slot.end_time || '?';
+    return `${start}-${end}`;
+  };
+
+  // ✅ Helper to get slot start time (handles both camelCase and snake_case)
+  const getSlotStartTime = (slot: any): string => {
+    if (!slot) return 'N/A';
+    return slot.startTime || slot.start_time || 'N/A';
+  };
+
+  // ✅ Helper to get customer name safely
+  const getCustomerName = (booking: Booking): string => {
+    if (!booking.customer) return 'Unknown';
+    return booking.customer.name || 'Unknown';
+  };
+
+  // ✅ Helper to get customer first name safely
+  const getCustomerFirstName = (booking: Booking): string => {
+    const name = getCustomerName(booking);
+    return name.split(' ')[0] || 'Unknown';
+  };
 
   const statCards = [
     {
@@ -262,7 +289,15 @@ export function Dashboard() {
                                     : 'bg-blue-500/20 text-blue-300'
                             }`}
                           >
-                            {b.slots?.[0]?.start_time || ''} {b.customer?.name?.split(' ')?.[0] || 'Unknown'}
+                            {/* ✅ Fixed: Handle both camelCase and snake_case with safety checks */}
+                            {b.slots && b.slots.length > 0 ? (
+                              <>
+                                {getSlotStartTime(b.slots[0])} 
+                                {getCustomerFirstName(b)}
+                              </>
+                            ) : (
+                              getCustomerFirstName(b)
+                            )}
                           </div>
                         ))}
                         {dayBookings.length > 2 && (
@@ -290,12 +325,15 @@ export function Dashboard() {
                         <div key={b.id} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
-                              {b.slots?.[0]?.start_time || 'N/A'}
+                              {b.slots && b.slots.length > 0 ? getSlotStartTime(b.slots[0]) : 'N/A'}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-cream">{b.customer?.name || 'Unknown'}</p>
+                              <p className="text-sm font-medium text-cream">{getCustomerName(b)}</p>
                               <p className="text-xs text-cream-muted">
-                                {b.court_name || 'Unknown Court'} — {b.slots?.map((s) => `${s.start_time}-${s.end_time}`).join(', ') || 'No slots'}
+                                {b.court_name || 'Unknown Court'} — 
+                                {b.slots && b.slots.length > 0 
+                                  ? b.slots.map((s) => formatSlotTime(s)).join(', ') 
+                                  : 'No slots'}
                               </p>
                             </div>
                           </div>
@@ -321,10 +359,10 @@ export function Dashboard() {
                   <div key={b.id} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
-                        {b.slots?.[0]?.start_time || 'N/A'}
+                        {b.slots && b.slots.length > 0 ? getSlotStartTime(b.slots[0]) : 'N/A'}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-cream">{b.customer?.name || 'Unknown'}</p>
+                        <p className="text-sm font-medium text-cream">{getCustomerName(b)}</p>
                         <p className="text-xs text-cream-muted">
                           {b.reference_code || 'No ref'} — {b.court_name || 'Unknown Court'} — {formatDate(b.date)}
                         </p>
