@@ -119,7 +119,18 @@ export interface AdminUser {
   id: string;
   email: string;
   name: string;
+  phone?: string;
   role: 'admin';
+}
+export interface ClientSettings {
+  id: string;
+  name: string;
+  subdomain: string;
+  logo_url?: string | null;
+  primary_color: string;
+  accent_color: string;
+  gcash_number?: string | null;
+  gcash_account_name?: string | null;
 }
 
 export type AdminView = 'calendar' | 'list';

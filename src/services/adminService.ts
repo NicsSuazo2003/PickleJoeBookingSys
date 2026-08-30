@@ -1,7 +1,19 @@
-import type { Analytics, Booking, BookingStatus, Court, BlockedDate } from '@/types';
+import type { Analytics, Booking, BookingStatus, Court, BlockedDate, ClientSettings  } from '@/types';
 import { apiRequest } from './api';
 import { normalizeCourt, buildCourtPayload } from './courtService';
 
+function normalizeClientSettings(raw: any): ClientSettings {
+  return {
+    id: raw.id,
+    name: raw.name,
+    subdomain: raw.subdomain,
+    logo_url: raw.logoUrl ?? raw.logo_url ?? null,
+    primary_color: raw.primaryColor ?? raw.primary_color,
+    accent_color: raw.accentColor ?? raw.accent_color,
+    gcash_number: raw.gcashNumber ?? raw.gcash_number ?? null,
+    gcash_account_name: raw.gcashAccountName ?? raw.gcash_account_name ?? null,
+  };
+}
 
 function normalizeAnalytics(raw: any): Analytics {
   return {
@@ -56,6 +68,26 @@ export const adminService = {
   async getAnalytics(): Promise<Analytics> {
   const res = await apiRequest<any>('/api/admin/analytics');
   return normalizeAnalytics(res?.data ?? res);
+},
+async getSettings(): Promise<ClientSettings> {
+  const res = await apiRequest<any>('/api/admin/settings');
+  return normalizeClientSettings(res?.data ?? res);
+},
+
+async updateSettings(payload: {
+  name?: string;
+  gcash_number?: string;
+  gcash_account_name?: string;
+}): Promise<ClientSettings> {
+  const res = await apiRequest<any>('/api/admin/settings', {
+    method: 'PUT',
+    body: JSON.stringify({
+      name: payload.name,
+      gcashNumber: payload.gcash_number,
+      gcashAccountName: payload.gcash_account_name,
+    }),
+  });
+  return normalizeClientSettings(res?.data ?? res);
 },
 
   async getBookings(filters?: {
