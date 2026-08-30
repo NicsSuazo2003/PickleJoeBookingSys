@@ -6,7 +6,7 @@ export const APP_CONFIG = {
   established: '2026',
   gcashNumber: '09XX XXX XXXX',
   gcashAccountName: 'PickleJoe Courts',
-  developer: 'astravex',
+  developer: 'Astravex Systems',
   paymentTimerSeconds: 15 * 60,
 };
 
