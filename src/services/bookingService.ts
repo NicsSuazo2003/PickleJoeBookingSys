@@ -2,6 +2,40 @@
 import type { Booking, CustomerDetails, SlotSelection } from '@/types';
 import { apiRequest } from './api';
 
+// ✅ Normalizes raw API booking data (camelCase, flat customer fields) into the app's Booking shape
+function normalizeBooking(raw: any): Booking {
+  return {
+    id: raw.id,
+    reference_code: raw.referenceCode ?? raw.reference_code,
+    court_id: raw.courtId ?? raw.court_id,
+    court_name: raw.courtName ?? raw.court_name,
+    date: raw.date,
+    slots: (raw.slots ?? []).map((s: any) => ({
+      id: s.id,
+      slot_id: s.slotId ?? s.slot_id ?? s.id,
+      start_time: s.startTime ?? s.start_time,
+      end_time: s.endTime ?? s.end_time,
+      date: s.date ?? raw.date,
+      type: s.type ?? 'standard',
+      price: s.price ?? 0,
+      is_peak: s.isPeak ?? s.is_peak ?? false,
+    })),
+    customer: {
+      name: raw.customerName ?? raw.customer?.name,
+      email: raw.customerEmail ?? raw.customer?.email,
+      phone: raw.customerPhone ?? raw.customer?.phone,
+      notes: raw.notes ?? raw.customer?.notes,
+    },
+    total_amount: raw.totalAmount ?? raw.total_amount,
+    status: raw.status,
+    payment_screenshot_url: raw.paymentScreenshot ?? raw.payment_screenshot_url ?? null,
+    payment_reference: raw.paymentReference ?? raw.payment_reference,
+    gcash_number: raw.gcashNumber ?? raw.gcash_number ?? '',
+    created_at: raw.createdAt ?? raw.created_at,
+    updated_at: raw.updatedAt ?? raw.updated_at ?? raw.createdAt ?? raw.created_at,
+  };
+}
+
 export interface CreateBookingPayload {
   court_id: string;
   date: string;
@@ -110,9 +144,9 @@ export const bookingService = {
         body: JSON.stringify(requestBody),
       });
       
-      const booking = (res as { data?: Booking }).data ?? (res as Booking);
-      console.log('✅ Booking created successfully:', booking.reference_code);
-      return booking;
+      const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
+console.log('✅ Booking created successfully:', booking.reference_code);
+return booking;
     } catch (error) {
       console.error('❌ Failed to create booking:', error);
       throw error;
@@ -129,7 +163,9 @@ export const bookingService = {
     
     try {
       const res = await apiRequest<Booking | { data: Booking }>(url);
-      return (res as { data?: Booking }).data ?? (res as Booking);
+      const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
+console.log('✅ Booking created successfully:', booking.reference_code);
+return booking;
     } catch (error) {
       console.error('❌ Failed to track booking:', error);
       throw error;
@@ -184,7 +220,7 @@ export const bookingService = {
       }
 
       const data = await res.json();
-      return data as Booking;
+return normalizeBooking(data);
     } catch (error) {
       console.error('❌ Failed to upload payment:', error);
       throw error;
@@ -198,8 +234,9 @@ export const bookingService = {
     
     try {
       const res = await apiRequest<Booking | { data: Booking }>(`/api/bookings/${id}`);
-      return (res as { data?: Booking }).data ?? (res as Booking);
-    } catch (error) {
+const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
+console.log(' Booking created successfully:', booking.reference_code);
+return booking;    } catch (error) {
       console.error('❌ Failed to get booking:', error);
       throw error;
     }
@@ -222,7 +259,9 @@ export const bookingService = {
           body: JSON.stringify({ reason: reason || 'Cancelled by customer' }),
         }
       );
-      return (res as { data?: Booking }).data ?? (res as Booking);
+      const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
+      console.log(' Booking cancelled successfully:', booking.reference_code);
+      return booking;
     } catch (error) {
       console.error('❌ Failed to cancel booking:', error);
       throw error;
