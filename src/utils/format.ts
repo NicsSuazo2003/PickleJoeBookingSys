@@ -1,15 +1,17 @@
-export function formatTime(time: string): string {
+export function formatTime(time?: string | null): string {
   // "05:00" -> "5:00 AM"
+  if (!time) return '?';
   const [h, m] = time.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return '?';
   const period = h >= 12 ? 'PM' : 'AM';
   const hour12 = h % 12 === 0 ? 12 : h % 12;
   return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-export function formatTimeRange(start: string, end: string): string {
+export function formatTimeRange(start?: string | null, end?: string | null): string {
+  if (!start || !end) return 'Time TBD';
   return `${formatTime(start)} - ${formatTime(end)}`;
 }
-
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-PH', {
     style: 'currency',
