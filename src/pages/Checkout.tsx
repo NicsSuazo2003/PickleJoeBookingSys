@@ -16,6 +16,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
+import { useClientStore } from '@/stores/clientStore'; // ✅ NEW
 import { bookingService } from '@/services/bookingService';
 import {
   formatTimeRange,
@@ -28,6 +29,12 @@ import { APP_CONFIG } from '@/utils/constants';
 export function Checkout() {
   const navigate = useNavigate();
   const { currentBooking, reset } = useBookingStore();
+  const settings = useClientStore((state) => state.settings); // ✅ NEW
+  const loadSettings = useClientStore((state) => state.loadSettings); // ✅ NEW
+
+  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber; // ✅ NEW
+  const displayAccountName = settings?.gcash_account_name || APP_CONFIG.gcashAccountName; // ✅ NEW
+
   const [timeLeft, setTimeLeft] = useState(APP_CONFIG.paymentTimerSeconds);
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [paymentRef, setPaymentRef] = useState('');
@@ -35,6 +42,10 @@ export function Checkout() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+
+  useEffect(() => {
+    loadSettings(); // ✅ NEW - Load client settings
+  }, [loadSettings]);
 
   useEffect(() => {
     if (!currentBooking) {
@@ -86,7 +97,7 @@ export function Checkout() {
   };
 
   const copyGcash = () => {
-    navigator.clipboard.writeText(APP_CONFIG.gcashNumber.replace(/\s/g, ''));
+    navigator.clipboard.writeText(displayNumber.replace(/\s/g, '')); // ✅ Changed
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -160,9 +171,9 @@ export function Checkout() {
                   <div>
                     <p className="text-xs text-cream-muted">Send to GCash Number</p>
                     <p className="font-display text-xl font-bold text-cream">
-                      {APP_CONFIG.gcashNumber}
+                      {displayNumber} {/* ✅ Changed */}
                     </p>
-                    <p className="text-xs text-cream-muted">{APP_CONFIG.gcashAccountName}</p>
+                    <p className="text-xs text-cream-muted">{displayAccountName}</p> {/* ✅ Changed */}
                   </div>
                   <button
                     onClick={copyGcash}
@@ -336,7 +347,7 @@ export function Checkout() {
                 </div>
               </div>
 
-                           <div className="space-y-2">
+              <div className="space-y-2">
                 <p className="text-sm font-semibold text-cream">Selected Slots</p>
                 {currentBooking.slots.map((slot) => (
                   <div
@@ -367,7 +378,7 @@ export function Checkout() {
                 </div>
               </div>
 
-                            <div className="mt-4 rounded-xl bg-forest-800 p-4">
+              <div className="mt-4 rounded-xl bg-forest-800 p-4">
                 <p className="mb-2 text-xs font-semibold text-cream">Customer Details</p>
                 <div className="space-y-1 text-xs text-cream-muted">
                   <p>{currentBooking.customer.name}</p>

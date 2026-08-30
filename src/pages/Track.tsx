@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { bookingService } from '@/services/bookingService';
+import { useClientStore } from '@/stores/clientStore'; // ✅ NEW
 import {
   formatTimeRange,
   formatCurrency,
@@ -30,6 +31,10 @@ import { APP_CONFIG } from '@/utils/constants';
 import type { Booking } from '@/types';
 
 export function Track() {
+  const settings = useClientStore((state) => state.settings); // ✅ NEW
+  const loadSettings = useClientStore((state) => state.loadSettings); // ✅ NEW
+  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber; // ✅ NEW
+
   const [reference, setReference] = useState('');
   const [email, setEmail] = useState('');
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -39,6 +44,11 @@ export function Track() {
   const [paymentRef, setPaymentRef] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+
+  // ✅ Load client settings
+  useState(() => {
+    loadSettings();
+  });
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +101,6 @@ export function Track() {
     booking &&
     (booking.status === 'pending_payment' || booking.status === 'payment_submitted');
 
-  // ✅ Helper to format slot time range
   const formatSlotTime = (slot: { startTime?: string; endTime?: string; start_time?: string; end_time?: string }): string => {
     const start = slot.startTime || slot.start_time || '';
     const end = slot.endTime || slot.end_time || '';
@@ -265,7 +274,7 @@ export function Track() {
                     </h3>
                     <p className="mb-4 text-sm text-cream-muted">
                       Send {formatCurrency(booking.total_amount)} to GCash{' '}
-                      <span className="font-semibold text-gold-300">{APP_CONFIG.gcashNumber}</span>{' '}
+                      <span className="font-semibold text-gold-300">{displayNumber}</span>{' '}
                       and upload your screenshot.
                     </p>
 
