@@ -20,6 +20,7 @@ interface BookingStoreState {
   selectCourt: (court: Court) => void;
   setDate: (date: string) => void;
   loadSlots: () => Promise<void>;
+  loadAllCourtsSlots: () => Promise<void>;
   toggleSlot: (slotId: string) => void;
   clearSlots: () => void;
   setCustomer: (customer: Partial<CustomerDetails>) => void;
@@ -80,6 +81,7 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
     get().loadSlots();
   },
 
+  // After
   loadSlots: async () => {
     const { selectedCourt, selectedDate } = get();
     if (!selectedCourt) return;
@@ -88,6 +90,24 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
     try {
       const slots = await courtService.getAvailability(selectedCourt.id, selectedDate);
       set({ slots, loadingSlots: false });
+    } catch (err) {
+      set({
+        loadingSlots: false,
+        error: err instanceof Error ? err.message : 'Failed to load slots',
+      });
+    }
+  },
+
+  loadAllCourtsSlots: async () => {
+    const { courts, selectedDate } = get();
+    if (courts.length === 0) return;
+
+    set({ loadingSlots: true, error: null });
+    try {
+      const results = await Promise.all(
+        courts.map((c) => courtService.getAvailability(c.id, selectedDate))
+      );
+      set({ slots: results.flat(), loadingSlots: false });
     } catch (err) {
       set({
         loadingSlots: false,

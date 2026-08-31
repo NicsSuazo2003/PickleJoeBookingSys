@@ -39,6 +39,7 @@ import type { TimeSlot, Court } from '@/types';
 
 export function Landing() {
   const navigate = useNavigate();
+ // After
   const {
     courts,
     selectedDate,
@@ -50,13 +51,14 @@ export function Landing() {
     loadCourts,
     setDate,
     toggleSlot,
-    loadSlots,
+    loadAllCourtsSlots,
   } = useBookingStore();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  // After
   useEffect(() => {
     if (courts.length === 0) {
       loadCourts();
@@ -64,8 +66,10 @@ export function Landing() {
   }, [courts.length, loadCourts]);
 
   useEffect(() => {
-    loadSlots();
-  }, [selectedDate, loadSlots]);
+    if (courts.length > 0) {
+      loadAllCourtsSlots();
+    }
+  }, [selectedDate, courts.length, loadAllCourtsSlots]);
 
   // Extract distinct time intervals for each period across all courts
   const getTimeIntervalsByPeriod = (slotsList: TimeSlot[]) => {
