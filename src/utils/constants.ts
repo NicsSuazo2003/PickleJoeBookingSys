@@ -1,11 +1,11 @@
 export const APP_CONFIG = {
-  name: import.meta.env.VITE_APP_NAME ?? 'PickleJoe',
+  name: import.meta.env.VITE_APP_NAME ?? 'Center Court',
   demoMode: (import.meta.env.VITE_DEMO_MODE ?? 'false') === 'true', // ✅ Default to false
   apiUrl: import.meta.env.VITE_API_BASE_URL ?? 'https://pickleballcourbookingv2.onrender.com',
   tagline: 'Book Your Court. Play Your Game.',
   established: '2026',
   gcashNumber: '09XX XXX XXXX',
-  gcashAccountName: 'PickleJoe Courts',
+  gcashAccountName: 'Center Court',
   developer: 'Astravex Systems',
   paymentTimerSeconds: 15 * 60,
 };

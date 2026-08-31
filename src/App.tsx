@@ -12,6 +12,7 @@ import { Courts } from '@/pages/admin/Courts';
 import { Pricing } from '@/pages/admin/Pricing';
 import { Settings } from '@/pages/admin/Settings';
 import { useAuthStore } from '@/stores/authStore';
+import { IntroSplash } from '@/components/IntroSplash'; // ✅ NEW
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -29,6 +30,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <IntroSplash /> {/* ✅ NEW - sits above everything, self-manages its own visibility */}
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Landing />} />

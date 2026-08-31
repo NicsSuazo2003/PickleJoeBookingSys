@@ -35,7 +35,7 @@ export function Logo({ size = 'md', withText = true, to = '/' }: LogoProps) {
       </svg>
       {withText && (
         <span className={`font-display ${s.text} font-bold tracking-tight text-cream`}>
-          Pickle<span className="text-gold-400">Joe</span>
+          Center<span className="text-gold-400">Court</span>
         </span>
       )}
     </div>

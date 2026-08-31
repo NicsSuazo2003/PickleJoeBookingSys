@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   CalendarPlus,
@@ -11,45 +11,113 @@ import {
   MapPin,
   Sparkles,
   CheckCircle2,
-  Zap,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Sun,
+  Moon,
+  CloudSun,
+  Check,
+  X,
+  Clock3,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
-import { courtService } from '@/services/courtService';
-import { COURT_IMAGES, APP_CONFIG, FIXED_SLOT } from '@/utils/constants';
-import { formatTimeRange, formatCurrency, todayISO, formatDate } from '@/utils/format';
-import type { TimeSlot } from '@/types';
+import { COURT_IMAGES, APP_CONFIG } from '@/utils/constants';
+import {
+  formatTimeRange,
+  formatCurrency,
+  todayISO,
+  formatDateLong,
+  toISODate,
+  addDays,
+} from '@/utils/format';
+import type { TimeSlot, Court } from '@/types';
 
 export function Landing() {
-  const { courts, loadCourts } = useBookingStore();
-  const [todaySlots, setTodaySlots] = useState<TimeSlot[]>([]);
-  const [loadingSlots, setLoadingSlots] = useState(true);
+  const navigate = useNavigate();
+  const {
+    courts,
+    selectedDate,
+    slots,
+    selectedSlotIds,
+    loadingCourts,
+    loadingSlots,
+    error,
+    loadCourts,
+    setDate,
+    toggleSlot,
+    loadSlots,
+  } = useBookingStore();
+
+  const [weekOffset, setWeekOffset] = useState(0);
+  const weekStart = addDays(new Date(), weekOffset * 7);
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   useEffect(() => {
-    loadCourts();
-  }, [loadCourts]);
-
-  useEffect(() => {
-    if (courts.length > 0) {
-      courtService.getAvailability(courts[0].id, todayISO()).then((slots) => {
-        setTodaySlots(slots);
-        setLoadingSlots(false);
-      });
+    if (courts.length === 0) {
+      loadCourts();
     }
-  }, [courts]);
+  }, [courts.length, loadCourts]);
 
-  const availableSlots = todaySlots.filter((s) => s.is_available);
-  const fixedSlot = todaySlots.find((s) => s.type === 'fixed_2hr' && s.is_available);
+  useEffect(() => {
+    loadSlots();
+  }, [selectedDate, loadSlots]);
+
+  // Extract distinct time intervals for each period across all courts
+  const getTimeIntervalsByPeriod = (slotsList: TimeSlot[]) => {
+    const morningMap = new Map<string, { start_time: string; end_time: string }>();
+    const afternoonMap = new Map<string, { start_time: string; end_time: string }>();
+    const eveningMap = new Map<string, { start_time: string; end_time: string }>();
+
+    slotsList.forEach((slot) => {
+      const hour = parseInt(slot.start_time.split(':')[0], 10);
+      const key = `${slot.start_time}-${slot.end_time}`;
+      const timeObj = { start_time: slot.start_time, end_time: slot.end_time };
+
+      if (hour < 12) {
+        morningMap.set(key, timeObj);
+      } else if (hour < 17) {
+        afternoonMap.set(key, timeObj);
+      } else {
+        eveningMap.set(key, timeObj);
+      }
+    });
+
+    const sortFn = (a: { start_time: string }, b: { start_time: string }) =>
+      a.start_time.localeCompare(b.start_time);
+
+    return {
+      morningTimes: Array.from(morningMap.values()).sort(sortFn),
+      afternoonTimes: Array.from(afternoonMap.values()).sort(sortFn),
+      eveningTimes: Array.from(eveningMap.values()).sort(sortFn),
+    };
+  };
+
+  const { morningTimes, afternoonTimes, eveningTimes } = getTimeIntervalsByPeriod(slots);
+
+  const totalSelected = slots
+    .filter((s) => selectedSlotIds.includes(s.id))
+    .reduce((sum, s) => sum + s.price, 0);
+
+  // Helper to find slot for a specific court and time range
+  const getSlotForCourtAndTime = (courtId: string, startTime: string, endTime: string) => {
+    return slots.find(
+      (s) =>
+        s.court_id === courtId &&
+        s.start_time === startTime &&
+        s.end_time === endTime
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-charcoal">
+    <div className="min-h-screen bg-charcoal text-cream">
       <Navbar />
 
-      {/* Hero */}
+      {/* Hero Section */}
       <section className="relative flex min-h-screen items-center overflow-hidden pt-20">
         <div className="absolute inset-0">
           <img
@@ -57,8 +125,8 @@ export function Landing() {
             alt="Pickleball court"
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/85 to-forest-950/40" />
-          <div className="absolute inset-0 bg-grid opacity-30" />
+          <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/90 to-forest-950/40" />
+          <div className="absolute inset-0 bg-grid opacity-25" />
         </div>
 
         <div className="container-page relative z-10 py-20">
@@ -68,7 +136,7 @@ export function Landing() {
             transition={{ duration: 0.7, ease: 'easeOut' }}
             className="max-w-2xl"
           >
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/10 px-4 py-1.5">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/10 px-4 py-1.5 backdrop-blur-md">
               <Sparkles className="h-4 w-4 text-gold-400" />
               <span className="text-sm font-medium text-gold-300">
                 Premium Pickleball Courts in the City
@@ -76,7 +144,7 @@ export function Landing() {
             </div>
 
             <h1 className="font-display text-5xl font-bold leading-[1.1] tracking-tight text-cream sm:text-6xl lg:text-7xl">
-              Pickle<span className="text-gold-400">Joe</span>
+              Center<span className="text-gold-400">Court</span>
             </h1>
             <p className="mt-4 font-display text-2xl font-medium text-cream-dark sm:text-3xl">
               {APP_CONFIG.tagline}
@@ -122,184 +190,268 @@ export function Landing() {
         </div>
       </section>
 
-      {/* Today's Availability */}
-      <section className="border-y border-forest-500 bg-forest-900 py-16">
-        <div className="container-page">
-          <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <Zap className="h-5 w-5 text-gold-400" />
-                <span className="text-sm font-semibold uppercase tracking-wider text-gold-400">
-                  Today's Availability
-                </span>
+      {/* Structured Multi-Court Booking Section */}
+      <section className="relative z-20 border-y border-forest-500 bg-forest-950 py-16">
+        <div className="container-page max-w-6xl">
+          {/* Main Container Card */}
+          <div className="overflow-hidden rounded-3xl border border-forest-600/60 bg-forest-900 shadow-2xl">
+            
+            {/* Header Banner */}
+            <div className="border-b border-forest-700 bg-forest-950 px-6 py-7 sm:px-8">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-2xl font-bold tracking-tight text-cream sm:text-3xl">
+                    Book a Court
+                  </h2>
+                  <p className="mt-1 text-sm text-cream-muted">
+                    Pick a date, then tap any number of time slots — they all go into one reservation.
+                  </p>
+                </div>
+                <div className="hidden rounded-2xl border border-forest-600/50 bg-forest-800/80 p-3 text-gold-400 sm:block">
+                  <CalendarDays className="h-6 w-6" />
+                </div>
               </div>
-              <h2 className="section-title">{formatDate(todayISO())}</h2>
-              <p className="mt-2 text-cream-muted">
-                {courts[0] ? `Live slots for ${courts[0].name}` : 'Live slots for all courts'}
-              </p>
             </div>
-            <Button variant="secondary" size="md" to="/booking" rightIcon={<ArrowRight className="h-4 w-4" />}>
-              See All Slots
-            </Button>
-          </div>
 
-          {loadingSlots ? (
-            <LoadingSpinner size="lg" className="py-12" />
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-4">
-              {/* Featured fixed 2hr slot */}
-              {fixedSlot && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="lg:col-span-1"
-                >
-                  <div className="relative h-full overflow-hidden rounded-2xl border-2 border-gold-400 bg-gradient-to-br from-forest-700 to-forest-800 p-6 shadow-glow-gold">
-                    <div className="absolute right-4 top-4">
-                      <span className="badge bg-gold-400 text-forest-950">
-                        <Sparkles className="h-3 w-3" />
-                        {FIXED_SLOT.label}
-                      </span>
-                    </div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gold-300">
-                      Featured Slot
-                    </p>
-                    <p className="mt-3 font-display text-2xl font-bold text-cream">
-                      4:00 PM - 6:00 PM
-                    </p>
-                    <p className="mt-1 text-sm text-cream-muted">2 hours of prime play time</p>
-                    <div className="mt-4 border-t border-gold-400/20 pt-4">
-                      <p className="text-3xl font-bold text-gold-400">
-                        {formatCurrency(fixedSlot.price)}
-                      </p>
-                      <p className="text-xs text-cream-muted">for 2 hours</p>
-                    </div>
-                    <Link
-                      to="/booking"
-                      className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-gold-400 py-2.5 text-sm font-semibold text-forest-950 transition hover:bg-gold-300"
-                    >
-                      Reserve Now <ArrowRight className="h-4 w-4" />
-                    </Link>
+            <div className="p-6 sm:p-8">
+              {/* STEP 1: Date Selection Carousel */}
+              <div className="mb-10">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-xs font-bold text-forest-950 shadow-sm">
+                    1
                   </div>
-                </motion.div>
-              )}
+                  <div>
+                    <span className="block text-[11px] font-bold uppercase tracking-widest text-gold-400">
+                      STEP 1
+                    </span>
+                    <h3 className="font-display text-lg font-bold text-cream">Choose Date</h3>
+                  </div>
+                </div>
 
-              {/* Standard slots preview */}
-              <div className="grid grid-cols-2 gap-3 lg:col-span-3 sm:grid-cols-3 lg:grid-cols-4">
-                {availableSlots
-                  .filter((s) => s.type === 'standard')
-                  .slice(0, 8)
-                  .map((slot, i) => (
-                    <motion.div
-                      key={slot.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="rounded-xl border border-forest-500 bg-forest-700 p-4 transition hover:border-gold-400/50"
-                    >
-                      <p className="text-xs font-medium text-cream-muted">
-                        {formatTimeRange(slot.start_time, slot.end_time)}
-                      </p>
-                      <p className="mt-2 text-lg font-bold text-cream">
-                        {formatCurrency(slot.price)}
-                      </p>
-                      {slot.is_peak && (
-                        <span className="mt-1 inline-block text-[10px] font-semibold text-gold-300">
-                          Peak
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
+                    disabled={weekOffset === 0}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30"
+                    aria-label="Previous week"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+
+                  <div className="grid flex-1 grid-cols-7 gap-2">
+                    {weekDays.map((day) => {
+                      const iso = toISODate(day);
+                      const isSelected = selectedDate === iso;
+                      const isToday = iso === todayISO();
+                      const dayName = day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+                      const dayNumber = day.getDate();
+                      const monthName = day.toLocaleDateString('en-US', { month: 'short' });
+
+                      return (
+                        <button
+                          key={iso}
+                          onClick={() => setDate(iso)}
+                          className={`relative flex flex-col items-center justify-center rounded-xl border py-3 transition-all ${
+                            isSelected
+                              ? 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold'
+                              : 'border-forest-600/70 bg-forest-800 text-cream-muted hover:border-gold-400/50 hover:bg-forest-700/80 hover:text-cream'
+                          }`}
+                        >
+                          {isToday && (
+                            <span
+                              className={`absolute -top-2.5 right-1/2 translate-x-1/2 rounded-full px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-wider ${
+                                isSelected
+                                  ? 'bg-forest-950 text-gold-400'
+                                  : 'bg-gold-400 text-forest-950'
+                              }`}
+                            >
+                              TODAY
+                            </span>
+                          )}
+                          <span
+                            className={`text-[10px] font-semibold tracking-wider ${
+                              isSelected ? 'text-forest-900' : 'text-cream-muted/80'
+                            }`}
+                          >
+                            {dayName}
+                          </span>
+                          <span className="my-0.5 text-base font-extrabold sm:text-lg">
+                            {dayNumber}
+                          </span>
+                          <span
+                            className={`text-[9px] uppercase ${
+                              isSelected ? 'text-forest-900 font-semibold' : 'text-cream-muted/70'
+                            }`}
+                          >
+                            {monthName}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => setWeekOffset((w) => w + 1)}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300"
+                    aria-label="Next week"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* STEP 2: Multi-Court & Time Slot Matrix */}
+              <div>
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-xs font-bold text-forest-950 shadow-sm">
+                    2
+                  </div>
+                  <div>
+                    <span className="block text-[11px] font-bold uppercase tracking-widest text-gold-400">
+                      STEP 2
+                    </span>
+                    <h3 className="font-display text-lg font-bold text-cream">
+                      Choose Court and Time
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Status Legend Bar */}
+                <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-forest-700/80 pb-4 text-xs font-semibold">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-500 bg-forest-800/80 px-3 py-1 text-cream-muted">
+                    <Check className="h-3.5 w-3.5 text-gold-400" />
+                    Available
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-amber-300">
+                    <Clock3 className="h-3.5 w-3.5" />
+                    Pending Payment
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-red-400">
+                    <X className="h-3.5 w-3.5" />
+                    Booked
+                  </span>
+                </div>
+
+                {/* Date Highlight Badge */}
+                <div className="mb-8 flex justify-center">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-forest-800/90 px-5 py-1.5 text-xs font-bold text-gold-300 shadow-inner">
+                    <CalendarDays className="h-4 w-4 text-gold-400" />
+                    {formatDateLong(selectedDate)}
+                  </div>
+                </div>
+
+                {/* Multi-Court Column Table / Grid Layout */}
+                {loadingSlots || loadingCourts ? (
+                  <LoadingSpinner className="py-16" />
+                ) : error ? (
+                  <div className="py-12 text-center font-medium text-red-400">{error}</div>
+                ) : courts.length === 0 ? (
+                  <div className="py-12 text-center text-sm font-medium text-cream-muted">
+                    No courts found.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto pb-4">
+                    <div className="min-w-[620px]">
+                      {/* Court Column Headers */}
+                      <div
+                        className="grid gap-3 pb-4 text-center"
+                        style={{
+                          gridTemplateColumns: `repeat(${courts.length}, minmax(0, 1fr))`,
+                        }}
+                      >
+                        {courts.map((court) => (
+                          <div
+                            key={court.id}
+                            className="font-display text-sm font-extrabold tracking-wider uppercase text-gold-400"
+                          >
+                            {court.name}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Period Sections */}
+                      <div className="space-y-7">
+                        {/* MORNING */}
+                        {morningTimes.length > 0 && (
+                          <PeriodSection
+                            title="MORNING"
+                            icon={<CloudSun className="h-4 w-4 text-gold-400" />}
+                            courts={courts}
+                            timeIntervals={morningTimes}
+                            getSlotForCourtAndTime={getSlotForCourtAndTime}
+                            selectedSlotIds={selectedSlotIds}
+                            onToggleSlot={toggleSlot}
+                          />
+                        )}
+
+                        {/* AFTERNOON */}
+                        {afternoonTimes.length > 0 && (
+                          <PeriodSection
+                            title="AFTERNOON"
+                            icon={<Sun className="h-4 w-4 text-gold-400" />}
+                            courts={courts}
+                            timeIntervals={afternoonTimes}
+                            getSlotForCourtAndTime={getSlotForCourtAndTime}
+                            selectedSlotIds={selectedSlotIds}
+                            onToggleSlot={toggleSlot}
+                          />
+                        )}
+
+                        {/* EVENING */}
+                        {eveningTimes.length > 0 && (
+                          <PeriodSection
+                            title="EVENING"
+                            icon={<Moon className="h-4 w-4 text-gold-400" />}
+                            courts={courts}
+                            timeIntervals={eveningTimes}
+                            getSlotForCourtAndTime={getSlotForCourtAndTime}
+                            selectedSlotIds={selectedSlotIds}
+                            onToggleSlot={toggleSlot}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bottom Reservation Summary Bar */}
+                <div className="mt-10 flex flex-col items-center justify-between gap-4 rounded-2xl border border-forest-600 bg-forest-800/90 p-5 sm:flex-row">
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                      Selected Slots
+                    </span>
+                    <div className="font-display text-lg font-bold text-cream">
+                      {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
+                      {selectedSlotIds.length > 0 && (
+                        <span className="ml-2 font-sans text-sm font-semibold text-gold-400">
+                          ({formatCurrency(totalSelected)})
                         </span>
                       )}
-                    </motion.div>
-                  ))}
-                {availableSlots.filter((s) => s.type === 'standard').length === 0 && (
-                  <p className="col-span-full py-8 text-center text-cream-muted">
-                    No standard slots available today. Check the booking page for more dates.
-                  </p>
-                )}
+                    </div>
+                  </div>
+
+                  <Button
+                    size="lg"
+                    onClick={() => navigate('/booking')}
+                    disabled={selectedSlotIds.length === 0}
+                    rightIcon={<ArrowRight className="h-5 w-5" />}
+                    className="w-full sm:w-auto"
+                  >
+                    Proceed to Reservation
+                  </Button>
+                </div>
               </div>
             </div>
-          )}
-        </div>
-      </section>
-
-      {/* Court Showcase */}
-      <section className="py-20">
-        <div className="container-page">
-          <div className="mb-12 text-center">
-            <span className="text-sm font-semibold uppercase tracking-wider text-gold-400">
-              Our Courts
-            </span>
-            <h2 className="section-title mt-2">Choose Your Court</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-cream-muted">
-              Three premium courts designed for every level of play, from casual rallies to
-              competitive tournaments.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {courts.map((court, i) => (
-              <motion.div
-                key={court.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="group overflow-hidden rounded-2xl border border-forest-500 bg-forest-700"
-              >
-                <div className="relative h-56 overflow-hidden">
-                  <img
-                    src={court.image}
-                    alt={court.name}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-forest-900 via-transparent to-transparent" />
-                  <div className="absolute bottom-3 left-3 flex gap-2">
-                    {court.is_indoor ? (
-                      <span className="badge bg-forest-700/90 text-cream">Indoor</span>
-                    ) : (
-                      <span className="badge bg-forest-700/90 text-cream">Outdoor</span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-5">
-                  <h3 className="font-display text-xl font-bold text-cream">{court.name}</h3>
-                  <p className="mt-2 line-clamp-2 text-sm text-cream-muted">
-                    {court.description}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {court.amenities.slice(0, 3).map((a) => (
-                      <span
-                        key={a}
-                        className="rounded-md bg-forest-600 px-2 py-0.5 text-[11px] text-cream-muted"
-                      >
-                        {a}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-forest-500 pt-4">
-                    <div>
-                      <span className="text-xs text-cream-muted">from</span>
-                      <p className="text-lg font-bold text-gold-400">
-                        {formatCurrency(court.price_per_hour)}
-                        <span className="text-xs font-normal text-cream-muted">/hr</span>
-                      </p>
-                    </div>
-                    <Button size="sm" to="/booking" rightIcon={<ArrowRight className="h-3.5 w-3.5" />}>
-                      Book
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="border-y border-forest-500 bg-forest-900 py-20">
+      {/* Features Section */}
+      <section className="border-b border-forest-500 bg-forest-900 py-20">
         <div className="container-page">
           <div className="mb-12 text-center">
-            <span className="text-sm font-semibold uppercase tracking-wider text-gold-400">
-              Why PickleJoe
+            <span className="text-xs font-bold uppercase tracking-wider text-gold-400">
+              Why CenterCourt
             </span>
             <h2 className="section-title mt-2">Built for Players</h2>
           </div>
@@ -343,11 +495,11 @@ export function Landing() {
         </div>
       </section>
 
-      {/* How It Works */}
+      {/* How It Works Section */}
       <section className="py-20">
         <div className="container-page">
           <div className="mb-12 text-center">
-            <span className="text-sm font-semibold uppercase tracking-wider text-gold-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-gold-400">
               Simple Process
             </span>
             <h2 className="section-title mt-2">How It Works</h2>
@@ -382,36 +534,110 @@ export function Landing() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="relative overflow-hidden py-20">
-        <div className="absolute inset-0 bg-gradient-to-br from-forest-800 to-forest-950" />
-        <div className="absolute inset-0 bg-grid opacity-20" />
-        <div className="container-page relative z-10 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="section-title mx-auto max-w-2xl text-balance">
-              Ready to Hit the Court?
-            </h2>
-            <p className="mx-auto mt-4 max-w-lg text-cream-muted">
-              Book your slot now and get playing in minutes. Courts fill up fast during peak hours.
-            </p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button size="lg" to="/booking" leftIcon={<CalendarPlus className="h-5 w-5" />}>
-                Book Now
-              </Button>
-              <div className="flex items-center gap-2 text-sm text-cream-muted">
-                <CheckCircle2 className="h-4 w-4 text-success" />
-                Free cancellation up to 24 hours before
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
+      {/* Footer */}
       <Footer />
     </div>
+  );
+}
+
+// Period Section Subcomponent (Morning / Afternoon / Evening)
+function PeriodSection({
+  title,
+  icon,
+  courts,
+  timeIntervals,
+  getSlotForCourtAndTime,
+  selectedSlotIds,
+  onToggleSlot,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  courts: Court[];
+  timeIntervals: { start_time: string; end_time: string }[];
+  getSlotForCourtAndTime: (courtId: string, startTime: string, endTime: string) => TimeSlot | undefined;
+  selectedSlotIds: string[];
+  onToggleSlot: (slotId: string) => void;
+}) {
+  return (
+    <div>
+      <div className="mb-3.5 flex items-center gap-2">
+        {icon}
+        <span className="text-xs font-bold tracking-widest uppercase text-gold-400">
+          {title}
+        </span>
+        <div className="h-px flex-1 bg-forest-700/80" />
+      </div>
+
+      <div className="space-y-2.5">
+        {timeIntervals.map((interval) => (
+          <div
+            key={`${interval.start_time}-${interval.end_time}`}
+            className="grid gap-3"
+            style={{
+              gridTemplateColumns: `repeat(${courts.length}, minmax(0, 1fr))`,
+            }}
+          >
+            {courts.map((court) => {
+              const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
+
+              if (!slot) {
+                return (
+                  <div
+                    key={`${court.id}-${interval.start_time}`}
+                    className="flex h-11 items-center justify-center rounded-xl border border-forest-800 bg-forest-950/40 text-xs text-forest-600 select-none"
+                  >
+                    —
+                  </div>
+                );
+              }
+
+              return (
+                <SlotPill
+                  key={slot.id}
+                  slot={slot}
+                  isSelected={selectedSlotIds.includes(slot.id)}
+                  onToggle={() => onToggleSlot(slot.id)}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Slot Pill Component
+function SlotPill({
+  slot,
+  isSelected,
+  onToggle,
+}: {
+  slot: TimeSlot;
+  isSelected: boolean;
+  onToggle: () => void;
+}) {
+  const isAvailable = slot.is_available;
+  const isPending = (slot as unknown as { is_pending?: boolean }).is_pending;
+
+  let styleClasses =
+    'border-forest-600/70 bg-forest-800 text-cream-muted hover:border-gold-400/60 hover:bg-forest-700/80 hover:text-cream cursor-pointer';
+
+  if (!isAvailable) {
+    styleClasses = 'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
+  } else if (isPending) {
+    styleClasses = 'border-amber-500/30 bg-amber-500/10 text-amber-300/80 cursor-not-allowed';
+  } else if (isSelected) {
+    styleClasses = 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold';
+  }
+
+  return (
+    <button
+      onClick={isAvailable && !isPending ? onToggle : undefined}
+      disabled={!isAvailable || isPending}
+      className={`flex h-11 w-full items-center justify-center rounded-xl border text-xs font-semibold tracking-wide transition-all ${styleClasses}`}
+    >
+      <span>{formatTimeRange(slot.start_time, slot.end_time)}</span>
+    </button>
   );
 }
