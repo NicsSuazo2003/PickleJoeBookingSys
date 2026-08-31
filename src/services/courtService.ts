@@ -98,13 +98,13 @@ export function normalizeSlot(raw: any, fallbackDate: string): TimeSlot {
   }
 
   return {
-    id: raw.id,
+    id: raw.id || '',
     court_id: raw.courtId ?? raw.court_id ?? '',
     date: raw.date ?? fallbackDate,
     start_time: startTime,
     end_time: endTime,
     type: slotType,
-    price: Number(raw.price ?? 0),
+    price: Number(raw.price ?? raw.Price ?? 0),
     is_available: raw.isAvailable ?? raw.is_available ?? true,
     is_peak: raw.isPeak ?? raw.is_peak ?? false,
   };
@@ -203,7 +203,15 @@ export const courtService = {
         return [];
       }
       
-      const slots = rawList.map((item: any) => normalizeSlot(item, date));
+      // ✅ Add court_id to each slot (backend doesn't include it in response)
+      const slots = rawList.map((item: any) => {
+        const normalized = normalizeSlot(item, date);
+        return {
+          ...normalized,
+          court_id: courtId // ✅ Force the court_id from the request
+        };
+      });
+      
       console.log(`✅ Loaded ${slots.length} slots from backend`);
       return slots;
     } catch (error) {
