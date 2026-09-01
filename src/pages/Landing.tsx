@@ -37,6 +37,22 @@ import {
 } from '@/utils/format';
 import type { TimeSlot, Court } from '@/types';
 
+// Distinct accent color per court column, cycled by index so any number of
+// courts gets a repeatable, visually distinct identity. Chosen to stay clear
+// of the status colors used elsewhere (amber = pending, red = booked, gold = selected).
+const COURT_ACCENTS = [
+  { header: 'text-blue-400', dot: 'bg-blue-400', border: 'border-blue-500/40', bg: 'bg-blue-500/10', text: 'text-blue-200', hoverBorder: 'hover:border-blue-400/70', hoverBg: 'hover:bg-blue-500/20' },
+  { header: 'text-purple-400', dot: 'bg-purple-400', border: 'border-purple-500/40', bg: 'bg-purple-500/10', text: 'text-purple-200', hoverBorder: 'hover:border-purple-400/70', hoverBg: 'hover:bg-purple-500/20' },
+  { header: 'text-teal-400', dot: 'bg-teal-400', border: 'border-teal-500/40', bg: 'bg-teal-500/10', text: 'text-teal-200', hoverBorder: 'hover:border-teal-400/70', hoverBg: 'hover:bg-teal-500/20' },
+  { header: 'text-pink-400', dot: 'bg-pink-400', border: 'border-pink-500/40', bg: 'bg-pink-500/10', text: 'text-pink-200', hoverBorder: 'hover:border-pink-400/70', hoverBg: 'hover:bg-pink-500/20' },
+  { header: 'text-cyan-400', dot: 'bg-cyan-400', border: 'border-cyan-500/40', bg: 'bg-cyan-500/10', text: 'text-cyan-200', hoverBorder: 'hover:border-cyan-400/70', hoverBg: 'hover:bg-cyan-500/20' },
+  { header: 'text-indigo-400', dot: 'bg-indigo-400', border: 'border-indigo-500/40', bg: 'bg-indigo-500/10', text: 'text-indigo-200', hoverBorder: 'hover:border-indigo-400/70', hoverBg: 'hover:bg-indigo-500/20' },
+];
+
+function getCourtAccent(index: number) {
+  return COURT_ACCENTS[index % COURT_ACCENTS.length];
+}
+
 export function Landing() {
   const navigate = useNavigate();
   const {
@@ -356,16 +372,20 @@ export function Landing() {
                           gridTemplateColumns: `repeat(${courts.length}, minmax(40px, 1fr))`,
                         }}
                       >
-                        {courts.map((court, idx) => (
-                          <div
-                            key={court.id}
-                            className={`truncate text-[6px] sm:text-[8px] md:text-sm ${
-                              idx !== 0 ? 'border-l border-forest-600/50 pl-1 sm:pl-1.5 md:pl-3' : ''
-                            }`}
-                          >
-                            {court.name}
-                          </div>
-                        ))}
+                        {courts.map((court, idx) => {
+                          const accent = getCourtAccent(idx);
+                          return (
+                            <div
+                              key={court.id}
+                              className={`flex items-center justify-center gap-1 truncate text-[6px] sm:text-[8px] md:text-sm ${accent.header} ${
+                                idx !== 0 ? 'border-l border-forest-600/50 pl-1 sm:pl-1.5 md:pl-3' : ''
+                              }`}
+                            >
+                              <span className={`inline-block h-1 w-1 shrink-0 rounded-full sm:h-1.5 sm:w-1.5 md:h-2 md:w-2 ${accent.dot}`} />
+                              <span className="truncate">{court.name}</span>
+                            </div>
+                          );
+                        })}
                       </div>
 
                       {/* Period Sections - ULTRA COMPRESSED */}
@@ -580,6 +600,7 @@ function PeriodSection({
           >
             {courts.map((court, idx) => {
               const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
+              const accent = getCourtAccent(idx);
               // ✅ Vertical divider between court columns, aligned with the header row above
               const dividerClass =
                 idx !== 0 ? 'border-l border-forest-700/50 pl-0.5 sm:pl-1 md:pl-2' : '';
@@ -602,6 +623,7 @@ function PeriodSection({
                     isSelected={selectedSlotIds.includes(slot.id)}
                     onToggle={() => onToggleSlot(slot.id)}
                     compact={compact}
+                    accent={accent}
                   />
                 </div>
               );
@@ -614,22 +636,28 @@ function PeriodSection({
 }
 
 // Slot Pill Component - ULTRA COMPRESSED
+type CourtAccent = ReturnType<typeof getCourtAccent>;
+
 function SlotPill({
   slot,
   isSelected,
   onToggle,
   compact = false,
+  accent,
 }: {
   slot: TimeSlot;
   isSelected: boolean;
   onToggle: () => void;
   compact?: boolean;
+  accent: CourtAccent;
 }) {
   const isAvailable = slot.is_available;
   const isPending = (slot as unknown as { is_pending?: boolean }).is_pending;
 
-  let styleClasses =
-    'border-forest-600/70 bg-forest-800 text-cream-muted hover:border-gold-400/60 hover:bg-forest-700/80 hover:text-cream cursor-pointer';
+  // Base state: tinted by the slot's court so each column reads as a distinct
+  // color at a glance. Status states (booked/pending/selected) take priority
+  // over the court color since those are more important to notice.
+  let styleClasses = `${accent.border} ${accent.bg} ${accent.text} ${accent.hoverBorder} ${accent.hoverBg} cursor-pointer`;
 
   if (!isAvailable) {
     styleClasses = 'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
