@@ -364,85 +364,86 @@ export function Landing() {
                   </div>
                 </div>
 
-                {/* Multi-Court Column Table with Sticky Headers */}
-                {loadingSlots || loadingCourts ? (
-                  <LoadingSpinner className="py-8 md:py-16" />
-                ) : error ? (
-                  <div className="py-6 text-center font-medium text-red-400 md:py-12">{error}</div>
-                ) : courts.length === 0 ? (
-                  <div className="py-6 text-center text-sm font-medium text-cream-muted md:py-12">
-                    No courts found.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto pb-2 md:pb-4">
-                    <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[520px]">
-                      
-                      {/* ✅ Sticky Court Column Headers */}
-                      <div
-                        className="sticky top-0 z-10 grid gap-2 bg-forest-900 pb-3 text-center text-[10px] font-extrabold uppercase tracking-wider text-gold-400 sm:gap-2.5 sm:pb-4 md:gap-3 md:pb-4 md:text-sm"
-                        style={{
-                          gridTemplateColumns: `repeat(${courts.length}, minmax(50px, 1fr))`,
-                        }}
-                      >
-                        {courts.map((court, idx) => {
-                          const accent = getCourtAccent(idx);
-                          return (
-                            <div
-                              key={court.id}
-                              className={`flex items-center justify-center gap-1.5 truncate bg-forest-900 px-1 py-2 text-[9px] sm:text-[10px] md:text-sm ${accent.header}`}
-                            >
-                              <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2 md:h-2 md:w-2 ${accent.dot}`} />
-                              <span className="truncate font-bold">{court.name}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                {/* Multi-Court Column Table */}
+{loadingSlots || loadingCourts ? (
+  <LoadingSpinner className="py-8 md:py-16" />
+) : error ? (
+  <div className="py-6 text-center font-medium text-red-400 md:py-12">{error}</div>
+) : courts.length === 0 ? (
+  <div className="py-6 text-center text-sm font-medium text-cream-muted md:py-12">
+    No courts found.
+  </div>
+) : (
+  <div className="overflow-x-auto pb-2 md:pb-4">
+    <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[520px]">
+      
+      {/* ✅ Sticky Court Column Headers */}
+      <div
+        className="sticky top-16 z-20 -mx-1 border-b border-forest-700/80 bg-forest-900/95 px-1 py-3 text-center text-[10px] font-extrabold uppercase tracking-wider text-gold-400 backdrop-blur-md sm:top-20 sm:py-3.5 md:text-sm"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${courts.length}, minmax(50px, 1fr))`,
+          gap: '0.5rem',
+        }}
+      >
+        {courts.map((court, idx) => {
+          const accent = getCourtAccent(idx);
+          return (
+            <div
+              key={court.id}
+              className={`flex items-center justify-center gap-1.5 truncate text-[9px] sm:text-[10px] md:text-sm ${accent.header}`}
+            >
+              <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2 md:h-2 md:w-2 ${accent.dot}`} />
+              <span className="truncate font-bold">{court.name}</span>
+            </div>
+          );
+        })}
+      </div>
 
-                      {/* Period Sections */}
-                      <div className="space-y-3 md:space-y-5">
-                        {morningTimes.length > 0 && (
-                          <PeriodSection
-                            title="MORNING"
-                            icon={<CloudSun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
-                            courts={courts}
-                            timeIntervals={morningTimes}
-                            getSlotForCourtAndTime={getSlotForCourtAndTime}
-                            selectedSlotIds={selectedSlotIds}
-                            onToggleSlot={toggleSlot}
-                            compact={true}
-                          />
-                        )}
+      {/* Period Sections */}
+      <div className="mt-3 space-y-3 md:mt-5 md:space-y-5">
+        {morningTimes.length > 0 && (
+          <PeriodSection
+            title="MORNING"
+            icon={<CloudSun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+            courts={courts}
+            timeIntervals={morningTimes}
+            getSlotForCourtAndTime={getSlotForCourtAndTime}
+            selectedSlotIds={selectedSlotIds}
+            onToggleSlot={toggleSlot}
+            compact={true}
+          />
+        )}
 
-                        {afternoonTimes.length > 0 && (
-                          <PeriodSection
-                            title="AFTERNOON"
-                            icon={<Sun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
-                            courts={courts}
-                            timeIntervals={afternoonTimes}
-                            getSlotForCourtAndTime={getSlotForCourtAndTime}
-                            selectedSlotIds={selectedSlotIds}
-                            onToggleSlot={toggleSlot}
-                            compact={true}
-                          />
-                        )}
+        {afternoonTimes.length > 0 && (
+          <PeriodSection
+            title="AFTERNOON"
+            icon={<Sun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+            courts={courts}
+            timeIntervals={afternoonTimes}
+            getSlotForCourtAndTime={getSlotForCourtAndTime}
+            selectedSlotIds={selectedSlotIds}
+            onToggleSlot={toggleSlot}
+            compact={true}
+          />
+        )}
 
-                        {eveningTimes.length > 0 && (
-                          <PeriodSection
-                            title="EVENING"
-                            icon={<Moon className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
-                            courts={courts}
-                            timeIntervals={eveningTimes}
-                            getSlotForCourtAndTime={getSlotForCourtAndTime}
-                            selectedSlotIds={selectedSlotIds}
-                            onToggleSlot={toggleSlot}
-                            compact={true}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
+        {eveningTimes.length > 0 && (
+          <PeriodSection
+            title="EVENING"
+            icon={<Moon className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+            courts={courts}
+            timeIntervals={eveningTimes}
+            getSlotForCourtAndTime={getSlotForCourtAndTime}
+            selectedSlotIds={selectedSlotIds}
+            onToggleSlot={toggleSlot}
+            compact={true}
+          />
+        )}
+      </div>
+    </div>
+  </div>
+)}
                 {/* Bottom Reservation Summary Bar */}
                 <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-xl border border-forest-600 bg-forest-800/90 p-3 sm:mt-6 sm:flex-row sm:gap-4 sm:p-4 md:mt-10 md:p-5">
                   <div className="text-center sm:text-left">
