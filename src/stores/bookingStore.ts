@@ -48,28 +48,27 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
   error: null,
 
   loadCourts: async () => {
-    set({ loadingCourts: true, error: null });
-    try {
-      const courts = await courtService.getCourts();
-      const activeCourts = courts.filter((c) => c.is_active !== false);
-      const initialCourt = activeCourts[0] ?? null;
+  set({ loadingCourts: true, error: null });
+  try {
+    const courts = await courtService.getCourts();
+    const activeCourts = courts.filter((c) => c.is_active !== false);
+    const initialCourt = activeCourts[0] ?? null;
 
-      set({
-        courts: activeCourts,
-        selectedCourt: initialCourt,
-        loadingCourts: false,
-      });
-
-      if (initialCourt) {
-        get().loadSlots();
-      }
-    } catch (err) {
-      set({
-        loadingCourts: false,
-        error: err instanceof Error ? err.message : 'Failed to load courts',
-      });
-    }
-  },
+    set({
+      courts: activeCourts,
+      selectedCourt: initialCourt,
+      loadingCourts: false,
+    });
+    // Removed: if (initialCourt) get().loadSlots();
+    // Landing's useEffect on [selectedDate, courts.length] handles the
+    // initial slot fetch via loadAllCourtsSlots() once courts arrive.
+  } catch (err) {
+    set({
+      loadingCourts: false,
+      error: err instanceof Error ? err.message : 'Failed to load courts',
+    });
+  }
+},
 
   selectCourt: (court) => {
     set({ selectedCourt: court, selectedSlotIds: [], error: null });
@@ -78,7 +77,7 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
 
   setDate: (date) => {
     set({ selectedDate: date, selectedSlotIds: [], error: null });
-    get().loadSlots();
+    
   },
 
   // After
@@ -99,22 +98,27 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
   },
 
   loadAllCourtsSlots: async () => {
-    const { courts, selectedDate } = get();
-    if (courts.length === 0) return;
+  const { courts, selectedDate } = get();
+  if (courts.length === 0) return;
 
-    set({ loadingSlots: true, error: null });
-    try {
-      const results = await Promise.all(
-        courts.map((c) => courtService.getAvailability(c.id, selectedDate))
-      );
+  const requestDate = selectedDate;
+  set({ loadingSlots: true, error: null });
+  try {
+    const results = await Promise.all(
+      courts.map((c) => courtService.getAvailability(c.id, requestDate))
+    );
+    if (get().selectedDate === requestDate) {
       set({ slots: results.flat(), loadingSlots: false });
-    } catch (err) {
+    }
+  } catch (err) {
+    if (get().selectedDate === requestDate) {
       set({
         loadingSlots: false,
         error: err instanceof Error ? err.message : 'Failed to load slots',
       });
     }
-  },
+  }
+},
 
   toggleSlot: (slotId) => {
     set((state) => {
