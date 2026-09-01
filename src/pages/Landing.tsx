@@ -20,7 +20,6 @@ import {
   Check,
   X,
   Clock3,
-  ChevronDown,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -52,16 +51,11 @@ export function Landing() {
     setDate,
     toggleSlot,
     loadAllCourtsSlots,
-    selectCourt,
-    selectedCourt,
   } = useBookingStore();
 
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-
-  // For mobile: track which court is selected
-  const [activeCourtId, setActiveCourtId] = useState<string | null>(null);
 
   useEffect(() => {
     if (courts.length === 0) {
@@ -72,61 +66,27 @@ export function Landing() {
   useEffect(() => {
     if (courts.length > 0) {
       loadAllCourtsSlots();
-      if (!activeCourtId && courts.length > 0) {
-        setActiveCourtId(courts[0].id);
-      }
     }
   }, [selectedDate, courts.length, loadAllCourtsSlots]);
 
-  // Get slots for the active court (mobile view)
-  const getSlotsForCourt = (courtId: string) => {
-    return slots.filter((s) => s.court_id === courtId);
-  };
-
-  // ✅ Helper to find slot for a specific court and time range (for desktop grid)
-  const getSlotForCourtAndTime = (courtId: string, startTime: string, endTime: string) => {
-    return slots.find(
-      (s) =>
-        s.court_id === courtId &&
-        s.start_time === startTime &&
-        s.end_time === endTime
-    );
-  };
-
-  // Group slots by period for a specific court
-  const groupSlotsByPeriod = (courtSlots: TimeSlot[]) => {
-    const morning: TimeSlot[] = [];
-    const afternoon: TimeSlot[] = [];
-    const evening: TimeSlot[] = [];
-
-    courtSlots.forEach((slot) => {
-      const hour = parseInt(slot.start_time.split(':')[0], 10);
-      if (hour < 12) morning.push(slot);
-      else if (hour < 17) afternoon.push(slot);
-      else evening.push(slot);
-    });
-
-    return { morning, afternoon, evening };
-  };
-
-  // Get active court's slots
-  const activeCourtSlots = activeCourtId ? getSlotsForCourt(activeCourtId) : [];
-  const { morning, afternoon, evening } = groupSlotsByPeriod(activeCourtSlots);
-
-  // Extract time intervals for the active court
-  const getTimeIntervals = (courtSlots: TimeSlot[]) => {
+  // Extract distinct time intervals for each period across all courts
+  const getTimeIntervalsByPeriod = (slotsList: TimeSlot[]) => {
     const morningMap = new Map<string, { start_time: string; end_time: string }>();
     const afternoonMap = new Map<string, { start_time: string; end_time: string }>();
     const eveningMap = new Map<string, { start_time: string; end_time: string }>();
 
-    courtSlots.forEach((slot) => {
+    slotsList.forEach((slot) => {
       const hour = parseInt(slot.start_time.split(':')[0], 10);
       const key = `${slot.start_time}-${slot.end_time}`;
       const timeObj = { start_time: slot.start_time, end_time: slot.end_time };
 
-      if (hour < 12) morningMap.set(key, timeObj);
-      else if (hour < 17) afternoonMap.set(key, timeObj);
-      else eveningMap.set(key, timeObj);
+      if (hour < 12) {
+        morningMap.set(key, timeObj);
+      } else if (hour < 17) {
+        afternoonMap.set(key, timeObj);
+      } else {
+        eveningMap.set(key, timeObj);
+      }
     });
 
     const sortFn = (a: { start_time: string }, b: { start_time: string }) =>
@@ -139,13 +99,21 @@ export function Landing() {
     };
   };
 
-  const { morningTimes, afternoonTimes, eveningTimes } = getTimeIntervals(activeCourtSlots);
+  const { morningTimes, afternoonTimes, eveningTimes } = getTimeIntervalsByPeriod(slots);
 
   const totalSelected = slots
     .filter((s) => selectedSlotIds.includes(s.id))
     .reduce((sum, s) => sum + s.price, 0);
 
-  const activeCourt = courts.find((c) => c.id === activeCourtId);
+  // Helper to find slot for a specific court and time range
+  const getSlotForCourtAndTime = (courtId: string, startTime: string, endTime: string) => {
+    return slots.find(
+      (s) =>
+        s.court_id === courtId &&
+        s.start_time === startTime &&
+        s.end_time === endTime
+    );
+  };
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
@@ -224,54 +192,53 @@ export function Landing() {
         </div>
       </section>
 
-      {/* Multi-Court Booking Section - Responsive */}
-      <section className="relative z-20 border-y border-forest-500 bg-forest-950 py-16">
-        <div className="container-page max-w-6xl">
-          <div className="overflow-hidden rounded-3xl border border-forest-600/60 bg-forest-900 shadow-2xl">
+      {/* Structured Multi-Court Booking Section - COMPRESSED */}
+      <section className="relative z-20 border-y border-forest-500 bg-forest-950 py-10 md:py-16">
+        <div className="container-page max-w-7xl">
+          <div className="overflow-hidden rounded-2xl border border-forest-600/60 bg-forest-900 shadow-2xl md:rounded-3xl">
             
-            {/* Header Banner */}
-            <div className="border-b border-forest-700 bg-forest-950 px-6 py-7 sm:px-8">
-              <div className="flex items-center justify-between gap-4">
+            {/* Header Banner - COMPRESSED */}
+            <div className="border-b border-forest-700 bg-forest-950 px-4 py-4 sm:px-6 sm:py-5 md:px-8 md:py-7">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="font-display text-2xl font-bold tracking-tight text-cream sm:text-3xl">
+                  <h2 className="font-display text-lg font-bold tracking-tight text-cream sm:text-2xl md:text-3xl">
                     Book a Court
                   </h2>
-                  <p className="mt-1 text-sm text-cream-muted">
-                    Pick a date, then tap any number of time slots — they all go into one reservation.
+                  <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
+                    Pick a date, then tap any number of time slots
                   </p>
                 </div>
-                <div className="hidden rounded-2xl border border-forest-600/50 bg-forest-800/80 p-3 text-gold-400 sm:block">
-                  <CalendarDays className="h-6 w-6" />
+                <div className="hidden rounded-xl border border-forest-600/50 bg-forest-800/80 p-2 text-gold-400 sm:block md:p-3">
+                  <CalendarDays className="h-5 w-5 md:h-6 md:w-6" />
                 </div>
               </div>
             </div>
 
-            <div className="p-4 sm:p-8">
-              {/* STEP 1: Date Selection Carousel */}
-              <div className="mb-8">
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-xs font-bold text-forest-950 shadow-sm">
+            <div className="p-3 sm:p-4 md:p-8">
+              {/* STEP 1: Date Selection Carousel - COMPRESSED */}
+              <div className="mb-6 md:mb-10">
+                <div className="mb-3 flex items-center gap-2 md:mb-5 md:gap-3">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[10px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
                     1
                   </div>
                   <div>
-                    <span className="block text-[11px] font-bold uppercase tracking-widest text-gold-400">
+                    <span className="block text-[9px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
                       STEP 1
                     </span>
-                    <h3 className="font-display text-lg font-bold text-cream">Choose Date</h3>
+                    <h3 className="font-display text-sm font-bold text-cream md:text-lg">Choose Date</h3>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <button
                     onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
                     disabled={weekOffset === 0}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30 sm:h-12 sm:w-12"
-                    aria-label="Previous week"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30 sm:h-10 sm:w-10 md:h-12 md:w-12 md:rounded-xl"
                   >
-                    <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
                   </button>
 
-                  <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-2">
+                  <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-1.5 md:gap-2">
                     {weekDays.map((day) => {
                       const iso = toISODate(day);
                       const isSelected = selectedDate === iso;
@@ -284,7 +251,7 @@ export function Landing() {
                         <button
                           key={iso}
                           onClick={() => setDate(iso)}
-                          className={`relative flex flex-col items-center justify-center rounded-xl border py-2 transition-all sm:py-3 ${
+                          className={`relative flex flex-col items-center justify-center rounded-lg border py-1.5 transition-all sm:rounded-xl sm:py-2 md:py-3 ${
                             isSelected
                               ? 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold'
                               : 'border-forest-600/70 bg-forest-800 text-cream-muted hover:border-gold-400/50 hover:bg-forest-700/80 hover:text-cream'
@@ -292,7 +259,7 @@ export function Landing() {
                         >
                           {isToday && (
                             <span
-                              className={`absolute -top-2.5 right-1/2 translate-x-1/2 rounded-full px-1.5 py-0.5 text-[6px] font-extrabold uppercase tracking-wider sm:px-2 sm:text-[8px] ${
+                              className={`absolute -top-2 right-1/2 translate-x-1/2 rounded-full px-1 py-0.5 text-[5px] font-extrabold uppercase tracking-wider sm:px-1.5 sm:text-[6px] md:px-2 md:text-[8px] ${
                                 isSelected
                                   ? 'bg-forest-950 text-gold-400'
                                   : 'bg-gold-400 text-forest-950'
@@ -302,17 +269,17 @@ export function Landing() {
                             </span>
                           )}
                           <span
-                            className={`text-[8px] font-semibold tracking-wider sm:text-[10px] ${
+                            className={`text-[7px] font-semibold tracking-wider sm:text-[8px] md:text-[10px] ${
                               isSelected ? 'text-forest-900' : 'text-cream-muted/80'
                             }`}
                           >
                             {dayName}
                           </span>
-                          <span className="my-0.5 text-sm font-extrabold sm:text-base sm:text-lg">
+                          <span className="my-0.5 text-xs font-extrabold sm:text-sm md:text-base md:text-lg">
                             {dayNumber}
                           </span>
                           <span
-                            className={`text-[7px] uppercase sm:text-[9px] ${
+                            className={`text-[6px] uppercase sm:text-[7px] md:text-[9px] ${
                               isSelected ? 'text-forest-900 font-semibold' : 'text-cream-muted/70'
                             }`}
                           >
@@ -325,286 +292,137 @@ export function Landing() {
 
                   <button
                     onClick={() => setWeekOffset((w) => w + 1)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 sm:h-12 sm:w-12"
-                    aria-label="Next week"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 sm:h-10 sm:w-10 md:h-12 md:w-12 md:rounded-xl"
                   >
-                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
                   </button>
                 </div>
               </div>
 
-              {/* STEP 2: Court & Time Slot Matrix - RESPONSIVE */}
+              {/* STEP 2: Multi-Court & Time Slot Matrix - COMPRESSED */}
               <div>
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-xs font-bold text-forest-950 shadow-sm">
+                <div className="mb-3 flex items-center gap-2 md:mb-5 md:gap-3">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[10px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
                     2
                   </div>
                   <div>
-                    <span className="block text-[11px] font-bold uppercase tracking-widest text-gold-400">
+                    <span className="block text-[9px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
                       STEP 2
                     </span>
-                    <h3 className="font-display text-lg font-bold text-cream">
+                    <h3 className="font-display text-sm font-bold text-cream md:text-lg">
                       Choose Court and Time
                     </h3>
                   </div>
                 </div>
 
-                {/* Status Legend Bar */}
-                <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-forest-700/80 pb-4 text-xs font-semibold sm:gap-3">
-                  <span className="inline-flex items-center gap-1 rounded-full border border-forest-500 bg-forest-800/80 px-2 py-1 text-cream-muted sm:px-3">
-                    <Check className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5" />
+                {/* Status Legend Bar - COMPRESSED */}
+                <div className="mb-4 flex flex-wrap items-center gap-1.5 border-b border-forest-700/80 pb-3 text-[10px] font-semibold sm:gap-2 sm:text-xs md:gap-3 md:pb-4">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-forest-500 bg-forest-800/80 px-1.5 py-0.5 text-cream-muted sm:px-2 sm:py-1 md:px-3">
+                    <Check className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
                     Available
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-300 sm:px-3">
-                    <Clock3 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-amber-300 sm:px-2 sm:py-1 md:px-3">
+                    <Clock3 className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
                     Pending
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-400 sm:px-3">
-                    <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-red-400 sm:px-2 sm:py-1 md:px-3">
+                    <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
                     Booked
                   </span>
                 </div>
 
-                {/* Date Highlight Badge */}
-                <div className="mb-6 flex justify-center">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-forest-800/90 px-4 py-1.5 text-xs font-bold text-gold-300 shadow-inner sm:px-5">
-                    <CalendarDays className="h-3 w-3 text-gold-400 sm:h-4 sm:w-4" />
+                {/* Date Highlight Badge - COMPRESSED */}
+                <div className="mb-4 flex justify-center md:mb-6">
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/30 bg-forest-800/90 px-3 py-1 text-[10px] font-bold text-gold-300 shadow-inner sm:gap-2 sm:px-4 sm:py-1.5 sm:text-xs md:px-5">
+                    <CalendarDays className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
                     {formatDateLong(selectedDate)}
                   </div>
                 </div>
 
-                {/* MOBILE: Court Selector Dropdown */}
-                <div className="mb-6 md:hidden">
-                  <label className="mb-1.5 block text-xs font-semibold text-cream-muted">Select Court</label>
-                  <div className="relative">
-                    <select
-                      value={activeCourtId || ''}
-                      onChange={(e) => setActiveCourtId(e.target.value)}
-                      className="w-full appearance-none rounded-xl border border-forest-500 bg-forest-800 px-4 py-3 text-sm font-medium text-cream focus:border-gold-400 focus:outline-none"
-                    >
-                      {courts.map((court) => (
-                        <option key={court.id} value={court.id} className="bg-forest-800">
-                          {court.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gold-400" />
-                  </div>
-                </div>
-
-                {/* DESKTOP: Court Tabs */}
-                <div className="mb-6 hidden flex-wrap gap-2 md:flex">
-                  {courts.map((court) => (
-                    <button
-                      key={court.id}
-                      onClick={() => {
-                        setActiveCourtId(court.id);
-                        selectCourt(court);
-                      }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${
-                        activeCourtId === court.id
-                          ? 'border-gold-400 bg-gold-400/10 text-gold-300'
-                          : 'border-forest-500 bg-forest-700 text-cream-muted hover:border-gold-400/50'
-                      }`}
-                    >
-                      {court.name}
-                    </button>
-                  ))}
-                </div>
-
-                {/* MOBILE: Active Court Name */}
-                <div className="mb-4 text-center md:hidden">
-                  <span className="font-display text-lg font-bold text-gold-400">
-                    {activeCourt?.name || 'Select Court'}
-                  </span>
-                </div>
-
+                {/* Multi-Court Column Table - COMPRESSED for mobile */}
                 {loadingSlots || loadingCourts ? (
-                  <LoadingSpinner className="py-16" />
+                  <LoadingSpinner className="py-10 md:py-16" />
                 ) : error ? (
-                  <div className="py-12 text-center font-medium text-red-400">{error}</div>
+                  <div className="py-8 text-center font-medium text-red-400 md:py-12">{error}</div>
                 ) : courts.length === 0 ? (
-                  <div className="py-12 text-center text-sm font-medium text-cream-muted">
+                  <div className="py-8 text-center text-sm font-medium text-cream-muted md:py-12">
                     No courts found.
                   </div>
                 ) : (
-                  <div>
-                    {/* Mobile: Single court view */}
-                    <div className="md:hidden">
-                      <div className="space-y-6">
+                  <div className="overflow-x-auto pb-2 md:pb-4">
+                    <div className="min-w-[480px] md:min-w-[620px]">
+                      {/* Court Column Headers - COMPRESSED */}
+                      <div
+                        className="grid gap-1.5 pb-2 text-center text-[10px] font-extrabold uppercase tracking-wider text-gold-400 sm:gap-2 sm:pb-3 sm:text-xs md:gap-3 md:pb-4 md:text-sm"
+                        style={{
+                          gridTemplateColumns: `repeat(${courts.length}, minmax(50px, 1fr))`,
+                        }}
+                      >
+                        {courts.map((court) => (
+                          <div key={court.id} className="truncate text-[9px] sm:text-[10px] md:text-sm">
+                            {court.name}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Period Sections - COMPRESSED */}
+                      <div className="space-y-3 md:space-y-5">
                         {/* MORNING */}
                         {morningTimes.length > 0 && (
-                          <div>
-                            <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gold-400">
-                              <CloudSun className="h-3 w-3" />
-                              MORNING
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              {morningTimes.map((interval) => {
-                                const slot = activeCourtSlots.find(
-                                  (s) =>
-                                    s.start_time === interval.start_time &&
-                                    s.end_time === interval.end_time
-                                );
-                                if (!slot) return null;
-                                return (
-                                  <SlotPill
-                                    key={slot.id}
-                                    slot={slot}
-                                    isSelected={selectedSlotIds.includes(slot.id)}
-                                    onToggle={() => toggleSlot(slot.id)}
-                                    compact={true}
-                                  />
-                                );
-                              })}
-                            </div>
-                          </div>
+                          <PeriodSection
+                            title="MORNING"
+                            icon={<CloudSun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+                            courts={courts}
+                            timeIntervals={morningTimes}
+                            getSlotForCourtAndTime={getSlotForCourtAndTime}
+                            selectedSlotIds={selectedSlotIds}
+                            onToggleSlot={toggleSlot}
+                            compact={true}
+                          />
                         )}
 
                         {/* AFTERNOON */}
                         {afternoonTimes.length > 0 && (
-                          <div>
-                            <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gold-400">
-                              <Sun className="h-3 w-3" />
-                              AFTERNOON
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              {afternoonTimes.map((interval) => {
-                                const slot = activeCourtSlots.find(
-                                  (s) =>
-                                    s.start_time === interval.start_time &&
-                                    s.end_time === interval.end_time
-                                );
-                                if (!slot) return null;
-                                return (
-                                  <SlotPill
-                                    key={slot.id}
-                                    slot={slot}
-                                    isSelected={selectedSlotIds.includes(slot.id)}
-                                    onToggle={() => toggleSlot(slot.id)}
-                                    compact={true}
-                                  />
-                                );
-                              })}
-                            </div>
-                          </div>
+                          <PeriodSection
+                            title="AFTERNOON"
+                            icon={<Sun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+                            courts={courts}
+                            timeIntervals={afternoonTimes}
+                            getSlotForCourtAndTime={getSlotForCourtAndTime}
+                            selectedSlotIds={selectedSlotIds}
+                            onToggleSlot={toggleSlot}
+                            compact={true}
+                          />
                         )}
 
                         {/* EVENING */}
                         {eveningTimes.length > 0 && (
-                          <div>
-                            <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gold-400">
-                              <Moon className="h-3 w-3" />
-                              EVENING
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              {eveningTimes.map((interval) => {
-                                const slot = activeCourtSlots.find(
-                                  (s) =>
-                                    s.start_time === interval.start_time &&
-                                    s.end_time === interval.end_time
-                                );
-                                if (!slot) return null;
-                                return (
-                                  <SlotPill
-                                    key={slot.id}
-                                    slot={slot}
-                                    isSelected={selectedSlotIds.includes(slot.id)}
-                                    onToggle={() => toggleSlot(slot.id)}
-                                    compact={true}
-                                  />
-                                );
-                              })}
-                            </div>
-                          </div>
+                          <PeriodSection
+                            title="EVENING"
+                            icon={<Moon className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+                            courts={courts}
+                            timeIntervals={eveningTimes}
+                            getSlotForCourtAndTime={getSlotForCourtAndTime}
+                            selectedSlotIds={selectedSlotIds}
+                            onToggleSlot={toggleSlot}
+                            compact={true}
+                          />
                         )}
-
-                        {activeCourtSlots.length === 0 && (
-                          <div className="py-12 text-center text-cream-muted">
-                            No available slots for this court on the selected date.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Desktop: Multi-court grid */}
-                    <div className="hidden md:block">
-                      <div className="overflow-x-auto pb-4">
-                        <div className="min-w-[620px]">
-                          {/* Court Column Headers */}
-                          <div
-                            className="grid gap-3 pb-4 text-center"
-                            style={{
-                              gridTemplateColumns: `repeat(${courts.length}, minmax(0, 1fr))`,
-                            }}
-                          >
-                            {courts.map((court) => (
-                              <div
-                                key={court.id}
-                                className="font-display text-sm font-extrabold tracking-wider uppercase text-gold-400"
-                              >
-                                {court.name}
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Period Sections */}
-                          <div className="space-y-7">
-                            {/* MORNING */}
-                            {morningTimes.length > 0 && (
-                              <PeriodSection
-                                title="MORNING"
-                                icon={<CloudSun className="h-4 w-4 text-gold-400" />}
-                                courts={courts}
-                                timeIntervals={morningTimes}
-                                getSlotForCourtAndTime={getSlotForCourtAndTime}
-                                selectedSlotIds={selectedSlotIds}
-                                onToggleSlot={toggleSlot}
-                              />
-                            )}
-
-                            {/* AFTERNOON */}
-                            {afternoonTimes.length > 0 && (
-                              <PeriodSection
-                                title="AFTERNOON"
-                                icon={<Sun className="h-4 w-4 text-gold-400" />}
-                                courts={courts}
-                                timeIntervals={afternoonTimes}
-                                getSlotForCourtAndTime={getSlotForCourtAndTime}
-                                selectedSlotIds={selectedSlotIds}
-                                onToggleSlot={toggleSlot}
-                              />
-                            )}
-
-                            {/* EVENING */}
-                            {eveningTimes.length > 0 && (
-                              <PeriodSection
-                                title="EVENING"
-                                icon={<Moon className="h-4 w-4 text-gold-400" />}
-                                courts={courts}
-                                timeIntervals={eveningTimes}
-                                getSlotForCourtAndTime={getSlotForCourtAndTime}
-                                selectedSlotIds={selectedSlotIds}
-                                onToggleSlot={toggleSlot}
-                              />
-                            )}
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Bottom Reservation Summary Bar */}
-                <div className="mt-10 flex flex-col items-center justify-between gap-4 rounded-2xl border border-forest-600 bg-forest-800/90 p-5 sm:flex-row">
-                  <div>
-                    <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                {/* Bottom Reservation Summary Bar - COMPRESSED */}
+                <div className="mt-6 flex flex-col items-center justify-between gap-3 rounded-xl border border-forest-600 bg-forest-800/90 p-3 sm:mt-8 sm:flex-row sm:gap-4 sm:p-4 md:mt-10 md:p-5">
+                  <div className="text-center sm:text-left">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted sm:text-xs">
                       Selected Slots
                     </span>
-                    <div className="font-display text-lg font-bold text-cream">
+                    <div className="font-display text-base font-bold text-cream sm:text-lg">
                       {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
                       {selectedSlotIds.length > 0 && (
-                        <span className="ml-2 font-sans text-sm font-semibold text-gold-400">
+                        <span className="ml-1.5 font-sans text-xs font-semibold text-gold-400 sm:ml-2 sm:text-sm">
                           ({formatCurrency(totalSelected)})
                         </span>
                       )}
@@ -615,7 +433,7 @@ export function Landing() {
                     size="lg"
                     onClick={() => navigate('/booking')}
                     disabled={selectedSlotIds.length === 0}
-                    rightIcon={<ArrowRight className="h-5 w-5" />}
+                    rightIcon={<ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />}
                     className="w-full sm:w-auto"
                   >
                     Proceed to Reservation
@@ -721,7 +539,7 @@ export function Landing() {
   );
 }
 
-// Period Section Subcomponent (Desktop)
+// Period Section Subcomponent - COMPRESSED
 function PeriodSection({
   title,
   icon,
@@ -730,6 +548,7 @@ function PeriodSection({
   getSlotForCourtAndTime,
   selectedSlotIds,
   onToggleSlot,
+  compact = false,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -738,22 +557,29 @@ function PeriodSection({
   getSlotForCourtAndTime: (courtId: string, startTime: string, endTime: string) => TimeSlot | undefined;
   selectedSlotIds: string[];
   onToggleSlot: (slotId: string) => void;
+  compact?: boolean;
 }) {
+  const iconSize = compact ? 'h-3 w-3 sm:h-3.5 sm:w-3.5' : 'h-4 w-4';
+  const textSize = compact ? 'text-[9px] sm:text-[10px]' : 'text-xs';
+  const gapSize = compact ? 'gap-1.5' : 'gap-3';
+  const pillHeight = compact ? 'h-7 sm:h-8 md:h-9' : 'h-11';
+  const pillTextSize = compact ? 'text-[8px] sm:text-[9px] md:text-[10px]' : 'text-xs';
+
   return (
     <div>
-      <div className="mb-3.5 flex items-center gap-2">
-        {icon}
-        <span className="text-xs font-bold tracking-widest uppercase text-gold-400">
+      <div className={`mb-1.5 flex items-center gap-1.5 sm:mb-2 sm:gap-2 md:mb-3.5 ${compact ? '' : 'md:gap-2'}`}>
+        <span className={iconSize}>{icon}</span>
+        <span className={`font-bold tracking-widest uppercase text-gold-400 ${textSize}`}>
           {title}
         </span>
         <div className="h-px flex-1 bg-forest-700/80" />
       </div>
 
-      <div className="space-y-2.5">
+      <div className={`space-y-1.5 sm:space-y-2 ${compact ? '' : 'md:space-y-2.5'}`}>
         {timeIntervals.map((interval) => (
           <div
             key={`${interval.start_time}-${interval.end_time}`}
-            className="grid gap-3"
+            className={`grid ${gapSize}`}
             style={{
               gridTemplateColumns: `repeat(${courts.length}, minmax(0, 1fr))`,
             }}
@@ -765,7 +591,7 @@ function PeriodSection({
                 return (
                   <div
                     key={`${court.id}-${interval.start_time}`}
-                    className="flex h-11 items-center justify-center rounded-xl border border-forest-800 bg-forest-950/40 text-xs text-forest-600 select-none"
+                    className={`flex items-center justify-center rounded-lg border border-forest-800 bg-forest-950/40 text-[8px] text-forest-600 select-none ${pillHeight} sm:text-[10px]`}
                   >
                     —
                   </div>
@@ -778,6 +604,7 @@ function PeriodSection({
                   slot={slot}
                   isSelected={selectedSlotIds.includes(slot.id)}
                   onToggle={() => onToggleSlot(slot.id)}
+                  compact={compact}
                 />
               );
             })}
@@ -788,7 +615,7 @@ function PeriodSection({
   );
 }
 
-// Slot Pill Component
+// Slot Pill Component - COMPRESSED
 function SlotPill({
   slot,
   isSelected,
@@ -814,23 +641,15 @@ function SlotPill({
     styleClasses = 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold';
   }
 
-  if (compact) {
-    return (
-      <button
-        onClick={isAvailable && !isPending ? onToggle : undefined}
-        disabled={!isAvailable || isPending}
-        className={`flex h-10 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-wide transition-all ${styleClasses}`}
-      >
-        <span>{formatTimeRange(slot.start_time, slot.end_time)}</span>
-      </button>
-    );
-  }
+  const height = compact ? 'h-7 sm:h-8 md:h-9' : 'h-11';
+  const textSize = compact ? 'text-[8px] sm:text-[9px] md:text-[10px]' : 'text-xs';
+  const padding = compact ? 'px-1' : 'px-2';
 
   return (
     <button
       onClick={isAvailable && !isPending ? onToggle : undefined}
       disabled={!isAvailable || isPending}
-      className={`flex h-11 w-full items-center justify-center rounded-xl border text-xs font-semibold tracking-wide transition-all ${styleClasses}`}
+      className={`flex w-full items-center justify-center rounded-lg border font-semibold tracking-wide transition-all ${height} ${textSize} ${padding} ${styleClasses}`}
     >
       <span>{formatTimeRange(slot.start_time, slot.end_time)}</span>
     </button>
