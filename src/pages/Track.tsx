@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { bookingService } from '@/services/bookingService';
-import { useClientStore } from '@/stores/clientStore'; // ✅ NEW
+import { useClientStore } from '@/stores/clientStore';
 import {
   formatTimeRange,
   formatCurrency,
@@ -31,9 +31,9 @@ import { APP_CONFIG } from '@/utils/constants';
 import type { Booking } from '@/types';
 
 export function Track() {
-  const settings = useClientStore((state) => state.settings); // ✅ NEW
-  const loadSettings = useClientStore((state) => state.loadSettings); // ✅ NEW
-  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber; // ✅ NEW
+  const settings = useClientStore((state) => state.settings);
+  const loadSettings = useClientStore((state) => state.loadSettings);
+  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber;
 
   const [reference, setReference] = useState('');
   const [email, setEmail] = useState('');
@@ -45,7 +45,6 @@ export function Track() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  // ✅ Load client settings
   useState(() => {
     loadSettings();
   });
@@ -111,18 +110,18 @@ export function Track() {
     <div className="min-h-screen bg-charcoal">
       <Navbar />
 
-      <div className="container-page pt-24 pb-12">
+      <div className="container-page pt-20 pb-10 sm:pt-24 sm:pb-12">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-8 text-center">
-            <h1 className="section-title">Track Your Booking</h1>
-            <p className="mt-2 text-cream-muted">
+          <div className="mb-5 text-center sm:mb-8">
+            <h1 className="text-xl font-bold text-cream sm:text-3xl">Track Your Booking</h1>
+            <p className="mt-1.5 text-xs text-cream-muted sm:mt-2 sm:text-base">
               Enter your reference code to check your booking status.
             </p>
           </div>
 
           {/* Search Form */}
-          <form onSubmit={handleSearch} className="card p-6">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <form onSubmit={handleSearch} className="card p-4 sm:p-6">
+            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
               <Input
                 label="Reference Code"
                 placeholder="e.g. PJAB12CD"
@@ -144,7 +143,8 @@ export function Track() {
             <Button
               type="submit"
               size="lg"
-              className="mt-4"
+              fullWidth
+              className="mt-3 sm:mt-4 sm:w-auto"
               isLoading={loading}
               leftIcon={<Search className="h-5 w-5" />}
             >
@@ -153,13 +153,13 @@ export function Track() {
           </form>
 
           {error && (
-            <div className="mt-4 flex items-center gap-2 rounded-xl bg-error/10 p-4 text-sm text-error">
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-error/10 p-3 text-sm text-error sm:mt-4 sm:p-4">
               <AlertCircle className="h-5 w-5 flex-shrink-0" />
               {error}
             </div>
           )}
 
-          {loading && <LoadingSpinner size="lg" className="py-12" />}
+          {loading && <LoadingSpinner size="lg" className="py-10 sm:py-12" />}
 
           <AnimatePresence>
             {booking && !loading && (
@@ -167,48 +167,48 @@ export function Track() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="mt-6 space-y-6"
+                className="mt-5 space-y-4 sm:mt-6 sm:space-y-6"
               >
                 {/* Booking Card */}
-                <div className="card p-6">
-                  <div className="flex flex-col gap-4 border-b border-forest-500 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="card p-4 sm:p-6">
+                  <div className="flex flex-col gap-3 border-b border-forest-500 pb-3 sm:flex-row sm:items-center sm:justify-between sm:pb-4">
                     <div>
-                      <p className="text-xs text-cream-muted">Reference Code</p>
-                      <p className="font-display text-2xl font-bold tracking-wider text-gold-400">
+                      <p className="text-[11px] text-cream-muted sm:text-xs">Reference Code</p>
+                      <p className="text-lg font-bold tracking-wider text-gold-400 sm:text-2xl">
                         {booking.reference_code}
                       </p>
                     </div>
                     <StatusBadge status={booking.status} size="md" />
                   </div>
 
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div className="flex items-center gap-3">
-                      <MapPin className="h-5 w-5 text-gold-400" />
+                  <div className="mt-3 grid gap-3 sm:mt-4 sm:grid-cols-2 sm:gap-4">
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <MapPin className="h-4 w-4 flex-shrink-0 text-gold-400 sm:h-5 sm:w-5" />
                       <div>
-                        <p className="text-xs text-cream-muted">Court</p>
-                        <p className="font-medium text-cream">{booking.court_name}</p>
+                        <p className="text-[11px] text-cream-muted sm:text-xs">Court</p>
+                        <p className="text-sm font-medium text-cream sm:text-base">{booking.court_name}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-5 w-5 text-gold-400" />
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <Calendar className="h-4 w-4 flex-shrink-0 text-gold-400 sm:h-5 sm:w-5" />
                       <div>
-                        <p className="text-xs text-cream-muted">Date</p>
-                        <p className="font-medium text-cream">{formatDateLong(booking.date)}</p>
+                        <p className="text-[11px] text-cream-muted sm:text-xs">Date</p>
+                        <p className="text-sm font-medium text-cream sm:text-base">{formatDateLong(booking.date)}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-4">
-                    <p className="mb-2 text-sm font-semibold text-cream">Time Slots</p>
-                    <div className="space-y-2">
+                  <div className="mt-3 sm:mt-4">
+                    <p className="mb-1.5 text-xs font-semibold text-cream sm:mb-2 sm:text-sm">Time Slots</p>
+                    <div className="space-y-1.5 sm:space-y-2">
                       {booking.slots.map((slot) => (
                         <div
                           key={slot.slot_id || slot.id}
-                          className="flex items-center justify-between rounded-lg bg-forest-800 p-3"
+                          className="flex items-center justify-between rounded-lg bg-forest-800 p-2.5 sm:p-3"
                         >
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-gold-400" />
-                            <span className="text-sm text-cream">
+                            <span className="text-xs text-cream sm:text-sm">
                               {formatSlotTime(slot)}
                             </span>
                           </div>
@@ -220,10 +220,10 @@ export function Track() {
                     </div>
                   </div>
 
-                  <div className="mt-4 border-t border-forest-500 pt-4">
+                  <div className="mt-3 border-t border-forest-500 pt-3 sm:mt-4 sm:pt-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-cream-muted">Total Amount</span>
-                      <span className="font-display text-xl font-bold text-gold-400">
+                      <span className="text-xs text-cream-muted sm:text-sm">Total Amount</span>
+                      <span className="text-lg font-bold text-gold-400 sm:text-xl">
                         {formatCurrency(booking.total_amount)}
                       </span>
                     </div>
@@ -231,34 +231,34 @@ export function Track() {
                 </div>
 
                 {/* Customer Details */}
-                <div className="card p-6">
-                  <h3 className="mb-4 font-display text-lg font-bold text-cream">
+                <div className="card p-4 sm:p-6">
+                  <h3 className="mb-3 text-base font-bold text-cream sm:mb-4 sm:text-lg">
                     Customer Details
                   </h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-gold-400" />
+                  <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm">
+                      <User className="h-4 w-4 flex-shrink-0 text-gold-400" />
                       <span className="text-cream-muted">Name:</span>
-                      <span className="text-cream">{booking.customer.name}</span>
+                      <span className="truncate text-cream">{booking.customer.name}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-gold-400" />
+                    <div className="flex items-center gap-2 text-xs sm:text-sm">
+                      <Mail className="h-4 w-4 flex-shrink-0 text-gold-400" />
                       <span className="text-cream-muted">Email:</span>
-                      <span className="text-cream">{booking.customer.email}</span>
+                      <span className="truncate text-cream">{booking.customer.email}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-gold-400" />
+                    <div className="flex items-center gap-2 text-xs sm:text-sm">
+                      <Phone className="h-4 w-4 flex-shrink-0 text-gold-400" />
                       <span className="text-cream-muted">Phone:</span>
                       <span className="text-cream">{booking.customer.phone}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-gold-400" />
+                    <div className="flex items-center gap-2 text-xs sm:text-sm">
+                      <Calendar className="h-4 w-4 flex-shrink-0 text-gold-400" />
                       <span className="text-cream-muted">Booked:</span>
                       <span className="text-cream">{formatDateTime(booking.created_at)}</span>
                     </div>
                   </div>
                   {booking.customer.notes && (
-                    <div className="mt-3 rounded-lg bg-forest-800 p-3 text-sm text-cream-muted">
+                    <div className="mt-2.5 rounded-lg bg-forest-800 p-2.5 text-xs text-cream-muted sm:mt-3 sm:p-3 sm:text-sm">
                       <span className="font-medium text-cream">Notes: </span>
                       {booking.customer.notes}
                     </div>
@@ -267,19 +267,19 @@ export function Track() {
 
                 {/* Payment Upload (if pending) */}
                 {canUploadPayment && (
-                  <div className="card p-6">
-                    <h3 className="mb-2 flex items-center gap-2 font-display text-lg font-bold text-cream">
+                  <div className="card p-4 sm:p-6">
+                    <h3 className="mb-2 flex items-center gap-2 text-base font-bold text-cream sm:text-lg">
                       <Wallet className="h-5 w-5 text-gold-400" />
                       Payment
                     </h3>
-                    <p className="mb-4 text-sm text-cream-muted">
+                    <p className="mb-3 text-xs text-cream-muted sm:mb-4 sm:text-sm">
                       Send {formatCurrency(booking.total_amount)} to GCash{' '}
                       <span className="font-semibold text-gold-300">{displayNumber}</span>{' '}
                       and upload your screenshot.
                     </p>
 
                     {uploadSuccess ? (
-                      <div className="rounded-xl bg-success/10 p-4 text-center text-sm text-success">
+                      <div className="rounded-xl bg-success/10 p-3 text-center text-xs text-success sm:p-4 sm:text-sm">
                         Payment screenshot uploaded! Your booking is being reviewed.
                       </div>
                     ) : (
@@ -291,14 +291,14 @@ export function Track() {
                             const file = e.dataTransfer.files[0];
                             if (file) handleFile(file);
                           }}
-                          className="rounded-xl border-2 border-dashed border-forest-500 p-6 text-center transition hover:border-gold-400/50"
+                          className="rounded-xl border-2 border-dashed border-forest-500 p-4 text-center transition hover:border-gold-400/50 sm:p-6"
                         >
                           {screenshot ? (
                             <div className="space-y-2">
                               <img
                                 src={screenshot}
                                 alt="Screenshot"
-                                className="mx-auto max-h-40 rounded-lg object-contain"
+                                className="mx-auto max-h-36 rounded-lg object-contain sm:max-h-40"
                               />
                               <button
                                 onClick={() => setScreenshot(null)}
@@ -309,8 +309,8 @@ export function Track() {
                             </div>
                           ) : (
                             <>
-                              <ImageIcon className="mx-auto h-8 w-8 text-cream-muted/40" />
-                              <p className="mt-2 text-sm text-cream-muted">
+                              <ImageIcon className="mx-auto h-7 w-7 text-cream-muted/40 sm:h-8 sm:w-8" />
+                              <p className="mt-2 text-xs text-cream-muted sm:text-sm">
                                 Drag & drop or{' '}
                                 <label className="cursor-pointer text-gold-300 underline">
                                   browse
@@ -337,7 +337,7 @@ export function Track() {
                                 value={paymentRef}
                                 onChange={(e) => setPaymentRef(e.target.value)}
                                 placeholder="GCash reference number"
-                                className="input-field"
+                                className="input-field text-sm"
                               />
                             </div>
                             <Button
@@ -358,22 +358,22 @@ export function Track() {
                 )}
 
                 {booking.status === 'confirmed' && (
-                  <div className="rounded-xl border border-success/30 bg-success/10 p-4 text-center text-sm text-success">
+                  <div className="rounded-xl border border-success/30 bg-success/10 p-3 text-center text-xs text-success sm:p-4 sm:text-sm">
                     Your booking is confirmed! See you on the court.
                   </div>
                 )}
                 {booking.status === 'completed' && (
-                  <div className="rounded-xl border border-gold-400/30 bg-gold-400/10 p-4 text-center text-sm text-gold-300">
+                  <div className="rounded-xl border border-gold-400/30 bg-gold-400/10 p-3 text-center text-xs text-gold-300 sm:p-4 sm:text-sm">
                     Thanks for playing with us! We hope to see you again soon.
                   </div>
                 )}
                 {booking.status === 'cancelled' && (
-                  <div className="rounded-xl border border-error/30 bg-error/10 p-4 text-center text-sm text-error">
+                  <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-center text-xs text-error sm:p-4 sm:text-sm">
                     This booking has been cancelled.
                   </div>
                 )}
                 {booking.status === 'rejected' && (
-                  <div className="rounded-xl border border-error/30 bg-error/10 p-4 text-center text-sm text-error">
+                  <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-center text-xs text-error sm:p-4 sm:text-sm">
                     Your payment could not be verified. Please contact us.
                   </div>
                 )}

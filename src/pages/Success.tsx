@@ -34,23 +34,21 @@ export function Success() {
 
   if (!currentBooking) return null;
 
-  // ✅ Helper to format slot time range
   const formatSlotTime = (slot: { startTime?: string; endTime?: string; start_time?: string; end_time?: string }): string => {
     const start = slot.startTime || slot.start_time || '';
     const end = slot.endTime || slot.end_time || '';
     return formatTimeRange(start, end);
   };
 
-  // ✅ Ensure total_amount is a valid number
-  const totalAmount = typeof currentBooking.total_amount === 'number' 
-    ? currentBooking.total_amount 
+  const totalAmount = typeof currentBooking.total_amount === 'number'
+    ? currentBooking.total_amount
     : 0;
 
   return (
     <div className="min-h-screen bg-charcoal">
       <Navbar />
 
-      <div className="container-page pt-24 pb-12">
+      <div className="container-page pt-20 pb-10 sm:pt-24 sm:pb-12">
         <div className="mx-auto max-w-2xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -61,14 +59,14 @@ export function Success() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', damping: 15, delay: 0.2 }}
-              className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-success/20"
+              className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/20 sm:h-20 sm:w-20"
             >
-              <CheckCircle2 className="h-10 w-10 text-success" />
+              <CheckCircle2 className="h-7 w-7 text-success sm:h-10 sm:w-10" />
             </motion.div>
-            <h1 className="mt-6 font-display text-3xl font-bold text-cream sm:text-4xl">
+            <h1 className="mt-4 text-2xl font-bold text-cream sm:mt-6 sm:text-4xl">
               Payment Submitted!
             </h1>
-            <p className="mt-3 text-cream-muted">
+            <p className="mt-2 text-sm text-cream-muted sm:mt-3 sm:text-base">
               Your booking is now being reviewed. We'll confirm it shortly.
             </p>
           </motion.div>
@@ -77,47 +75,47 @@ export function Success() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="card mt-8 p-6"
+            className="card mt-5 p-4 sm:mt-8 sm:p-6"
           >
-            <div className="flex items-center justify-between border-b border-forest-500 pb-4">
+            <div className="flex items-center justify-between border-b border-forest-500 pb-3 sm:pb-4">
               <div>
-                <p className="text-xs text-cream-muted">Reference Code</p>
-                <p className="font-display text-2xl font-bold tracking-wider text-gold-400">
+                <p className="text-[11px] text-cream-muted sm:text-xs">Reference Code</p>
+                <p className="text-lg font-bold tracking-wider text-gold-400 sm:text-2xl">
                   {currentBooking.reference_code}
                 </p>
               </div>
               <StatusBadge status={currentBooking.status} />
             </div>
 
-            <div className="mt-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <MapPin className="h-5 w-5 text-gold-400" />
+            <div className="mt-3 space-y-2.5 sm:mt-4 sm:space-y-3">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <MapPin className="h-4 w-4 flex-shrink-0 text-gold-400 sm:h-5 sm:w-5" />
                 <div>
-                  <p className="text-xs text-cream-muted">Court</p>
-                  <p className="font-medium text-cream">{currentBooking.court_name}</p>
+                  <p className="text-[11px] text-cream-muted sm:text-xs">Court</p>
+                  <p className="text-sm font-medium text-cream sm:text-base">{currentBooking.court_name}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-gold-400" />
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <Calendar className="h-4 w-4 flex-shrink-0 text-gold-400 sm:h-5 sm:w-5" />
                 <div>
-                  <p className="text-xs text-cream-muted">Date</p>
-                  <p className="font-medium text-cream">{formatDateLong(currentBooking.date)}</p>
+                  <p className="text-[11px] text-cream-muted sm:text-xs">Date</p>
+                  <p className="text-sm font-medium text-cream sm:text-base">{formatDateLong(currentBooking.date)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-gold-400" />
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <Clock className="h-4 w-4 flex-shrink-0 text-gold-400 sm:h-5 sm:w-5" />
                 <div>
-                  <p className="text-xs text-cream-muted">Time Slots</p>
-                  <p className="font-medium text-cream">
+                  <p className="text-[11px] text-cream-muted sm:text-xs">Time Slots</p>
+                  <p className="text-sm font-medium text-cream sm:text-base">
                     {currentBooking.slots.map((s) => formatSlotTime(s)).join(', ')}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-between border-t border-forest-500 pt-4">
-              <span className="text-sm text-cream-muted">Total Paid</span>
-              <span className="font-display text-2xl font-bold text-gold-400">
+            <div className="mt-3 flex items-center justify-between border-t border-forest-500 pt-3 sm:mt-4 sm:pt-4">
+              <span className="text-xs text-cream-muted sm:text-sm">Total Paid</span>
+              <span className="text-xl font-bold text-gold-400 sm:text-2xl">
                 {formatCurrency(totalAmount)}
               </span>
             </div>
@@ -127,10 +125,10 @@ export function Success() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="mt-6 rounded-xl border border-gold-400/30 bg-gold-400/5 p-5"
+            className="mt-4 rounded-xl border border-gold-400/30 bg-gold-400/5 p-4 sm:mt-6 sm:p-5"
           >
-            <h3 className="font-semibold text-gold-300">What happens next?</h3>
-            <ul className="mt-3 space-y-2 text-sm text-cream-muted">
+            <h3 className="text-sm font-semibold text-gold-300 sm:text-base">What happens next?</h3>
+            <ul className="mt-2.5 space-y-1.5 text-xs text-cream-muted sm:mt-3 sm:space-y-2 sm:text-sm">
               <li className="flex items-start gap-2">
                 <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-gold-400" />
                 Our team will verify your GCash payment screenshot
@@ -146,7 +144,7 @@ export function Success() {
             </ul>
           </motion.div>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:gap-3">
             <Button
               size="lg"
               fullWidth
@@ -166,7 +164,7 @@ export function Success() {
             </Button>
           </div>
 
-          <p className="mt-6 text-center text-xs text-cream-muted">
+          <p className="mt-5 text-center text-xs text-cream-muted sm:mt-6">
             Bookmark this page or save your reference code:{' '}
             <span className="font-mono font-bold text-gold-400">
               {currentBooking.reference_code}
