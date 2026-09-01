@@ -38,8 +38,7 @@ import {
 import type { TimeSlot, Court } from '@/types';
 
 // Distinct accent color per court column, cycled by index so any number of
-// courts gets a repeatable, visually distinct identity. Chosen to stay clear
-// of the status colors used elsewhere (amber = pending, red = booked, gold = selected).
+// courts gets a repeatable, visually distinct identity.
 const COURT_ACCENTS = [
   { header: 'text-blue-400', dot: 'bg-blue-400', border: 'border-blue-500/40', bg: 'bg-blue-500/10', text: 'text-blue-200', hoverBorder: 'hover:border-blue-400/70', hoverBg: 'hover:bg-blue-500/20' },
   { header: 'text-purple-400', dot: 'bg-purple-400', border: 'border-purple-500/40', bg: 'bg-purple-500/10', text: 'text-purple-200', hoverBorder: 'hover:border-purple-400/70', hoverBg: 'hover:bg-purple-500/20' },
@@ -206,12 +205,12 @@ export function Landing() {
         </div>
       </section>
 
-      {/* Structured Multi-Court Booking Section - ULTRA COMPRESSED */}
+      {/* Structured Multi-Court Booking Section */}
       <section className="relative z-20 border-y border-forest-500 bg-forest-950 py-6 md:py-16">
         <div className="container-page max-w-7xl">
           <div className="overflow-hidden rounded-2xl border border-forest-600/60 bg-forest-900 shadow-2xl md:rounded-3xl">
             
-            {/* Header Banner - ULTRA COMPRESSED */}
+            {/* Header Banner */}
             <div className="border-b border-forest-700 bg-forest-950 px-3 py-2 sm:px-4 sm:py-3 md:px-8 md:py-7">
               <div className="flex items-center justify-between gap-2">
                 <div>
@@ -229,7 +228,7 @@ export function Landing() {
             </div>
 
             <div className="p-2 sm:p-3 md:p-8">
-              {/* STEP 1: Date Selection Carousel - ULTRA COMPRESSED */}
+              {/* STEP 1: Date Selection Carousel */}
               <div className="mb-4 md:mb-10">
                 <div className="mb-2 flex items-center gap-1.5 md:mb-5 md:gap-3">
                   <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gold-400 text-[8px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
@@ -313,7 +312,7 @@ export function Landing() {
                 </div>
               </div>
 
-              {/* STEP 2 - ULTRA COMPRESSED */}
+              {/* STEP 2 */}
               <div>
                 <div className="mb-2 flex items-center gap-1.5 md:mb-5 md:gap-3">
                   <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gold-400 text-[8px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
@@ -329,7 +328,7 @@ export function Landing() {
                   </div>
                 </div>
 
-                {/* Status Legend Bar - ULTRA COMPRESSED */}
+                {/* Status Legend Bar */}
                 <div className="mb-2 flex flex-wrap items-center gap-1 border-b border-forest-700/80 pb-1.5 text-[8px] font-semibold sm:gap-1.5 sm:text-[9px] md:gap-3 md:pb-4 md:text-xs">
                   <span className="inline-flex items-center gap-0.5 rounded-full border border-forest-500 bg-forest-800/80 px-1 py-0.5 text-cream-muted sm:px-1.5 sm:py-0.5 md:px-3 md:py-1">
                     <Check className="h-2 w-2 text-gold-400 sm:h-2.5 sm:w-2.5 md:h-3.5 md:w-3.5" />
@@ -345,7 +344,7 @@ export function Landing() {
                   </span>
                 </div>
 
-                {/* Date Highlight Badge - ULTRA COMPRESSED */}
+                {/* Date Highlight Badge */}
                 <div className="mb-2 flex justify-center md:mb-6">
                   <div className="inline-flex items-center gap-1 rounded-full border border-gold-400/30 bg-forest-800/90 px-2 py-0.5 text-[8px] font-bold text-gold-300 shadow-inner sm:gap-1.5 sm:px-3 sm:py-1 sm:text-[10px] md:px-5 md:py-1.5 md:text-xs">
                     <CalendarDays className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-4 md:w-4" />
@@ -353,7 +352,7 @@ export function Landing() {
                   </div>
                 </div>
 
-                {/* Multi-Court Column Table - ULTRA COMPRESSED */}
+                {/* Multi-Court Column Table */}
                 {loadingSlots || loadingCourts ? (
                   <LoadingSpinner className="py-6 md:py-16" />
                 ) : error ? (
@@ -365,9 +364,10 @@ export function Landing() {
                 ) : (
                   <div className="overflow-x-auto pb-1 md:pb-4">
                     <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[620px]">
-                      {/* Court Column Headers - ULTRA COMPRESSED, with dividers between courts */}
+                      
+                      {/* Court Column Headers */}
                       <div
-                        className="grid gap-0.5 pb-1 text-center text-[7px] font-extrabold uppercase tracking-wider text-gold-400 sm:gap-1 sm:pb-1.5 sm:text-[8px] md:gap-3 md:pb-4 md:text-sm"
+                        className="grid gap-1.5 pb-2 text-center text-[8px] font-extrabold uppercase tracking-wider text-gold-400 sm:gap-2 sm:pb-3 md:gap-3 md:pb-4 md:text-sm"
                         style={{
                           gridTemplateColumns: `repeat(${courts.length}, minmax(40px, 1fr))`,
                         }}
@@ -377,9 +377,7 @@ export function Landing() {
                           return (
                             <div
                               key={court.id}
-                              className={`flex items-center justify-center gap-1 truncate text-[6px] sm:text-[8px] md:text-sm ${accent.header} ${
-                                idx !== 0 ? 'border-l border-forest-600/50 pl-1 sm:pl-1.5 md:pl-3' : ''
-                              }`}
+                              className={`flex items-center justify-center gap-1 truncate text-[8px] sm:text-[10px] md:text-sm ${accent.header}`}
                             >
                               <span className={`inline-block h-1 w-1 shrink-0 rounded-full sm:h-1.5 sm:w-1.5 md:h-2 md:w-2 ${accent.dot}`} />
                               <span className="truncate">{court.name}</span>
@@ -388,7 +386,7 @@ export function Landing() {
                         })}
                       </div>
 
-                      {/* Period Sections - ULTRA COMPRESSED */}
+                      {/* Period Sections */}
                       <div className="space-y-1.5 md:space-y-5">
                         {morningTimes.length > 0 && (
                           <PeriodSection
@@ -433,7 +431,7 @@ export function Landing() {
                   </div>
                 )}
 
-                {/* Bottom Reservation Summary Bar - ULTRA COMPRESSED */}
+                {/* Bottom Reservation Summary Bar */}
                 <div className="mt-3 flex flex-col items-center justify-between gap-2 rounded-xl border border-forest-600 bg-forest-800/90 p-2 sm:mt-4 sm:flex-row sm:gap-3 sm:p-3 md:mt-10 md:p-5">
                   <div className="text-center sm:text-left">
                     <span className="text-[8px] font-semibold uppercase tracking-wider text-cream-muted sm:text-[10px] md:text-xs">
@@ -559,7 +557,7 @@ export function Landing() {
   );
 }
 
-// Period Section Subcomponent - ULTRA COMPRESSED, with dividers between court columns
+// Period Section Subcomponent
 function PeriodSection({
   title,
   icon,
@@ -583,17 +581,17 @@ function PeriodSection({
     <div>
       <div className={`mb-0.5 flex items-center gap-0.5 sm:mb-1 sm:gap-1 md:mb-3.5 ${compact ? '' : 'md:gap-2'}`}>
         <span className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-4 md:w-4">{icon}</span>
-        <span className={`font-bold tracking-widest uppercase text-gold-400 text-[6px] sm:text-[8px] md:text-xs`}>
+        <span className={`font-bold tracking-widest uppercase text-gold-400 text-[8px] sm:text-[10px] md:text-xs`}>
           {title}
         </span>
         <div className="h-px flex-1 bg-forest-700/80" />
       </div>
 
-      <div className={`space-y-0.5 sm:space-y-1 ${compact ? '' : 'md:space-y-2.5'}`}>
+      <div className={`space-y-1 sm:space-y-1.5 ${compact ? '' : 'md:space-y-2.5'}`}>
         {timeIntervals.map((interval) => (
           <div
             key={`${interval.start_time}-${interval.end_time}`}
-            className="grid gap-0.5 sm:gap-1 md:gap-3"
+            className="grid gap-1.5 sm:gap-2 md:gap-3"
             style={{
               gridTemplateColumns: `repeat(${courts.length}, minmax(0, 1fr))`,
             }}
@@ -601,15 +599,13 @@ function PeriodSection({
             {courts.map((court, idx) => {
               const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
               const accent = getCourtAccent(idx);
-              // ✅ Vertical divider between court columns, aligned with the header row above
-              const dividerClass =
-                idx !== 0 ? 'border-l border-forest-700/50 pl-0.5 sm:pl-1 md:pl-2' : '';
+              const dividerClass = ''; // Vertical divider removed
 
               if (!slot) {
                 return (
                   <div
                     key={`${court.id}-${interval.start_time}`}
-                    className={`flex items-center justify-center rounded-lg border border-forest-800/60 bg-forest-950/60 text-[6px] text-forest-700 select-none h-5 sm:h-6 md:h-11 ${dividerClass}`}
+                    className={`flex items-center justify-center rounded-full border border-forest-800/60 bg-forest-950/60 text-[9px] text-forest-700 select-none h-8 sm:h-9 md:h-11 ${dividerClass}`}
                   >
                     —
                   </div>
@@ -635,7 +631,7 @@ function PeriodSection({
   );
 }
 
-// Slot Pill Component - ULTRA COMPRESSED
+// Slot Pill Component
 type CourtAccent = ReturnType<typeof getCourtAccent>;
 
 function SlotPill({
@@ -654,9 +650,6 @@ function SlotPill({
   const isAvailable = slot.is_available;
   const isPending = (slot as unknown as { is_pending?: boolean }).is_pending;
 
-  // Base state: tinted by the slot's court so each column reads as a distinct
-  // color at a glance. Status states (booked/pending/selected) take priority
-  // over the court color since those are more important to notice.
   let styleClasses = `${accent.border} ${accent.bg} ${accent.text} ${accent.hoverBorder} ${accent.hoverBg} cursor-pointer`;
 
   if (!isAvailable) {
@@ -667,15 +660,15 @@ function SlotPill({
     styleClasses = 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold';
   }
 
-  const height = compact ? 'h-5 sm:h-6 md:h-9' : 'h-11';
-  const textSize = compact ? 'text-[6px] sm:text-[8px] md:text-[10px]' : 'text-xs';
-  const padding = compact ? 'px-0.5' : 'px-2';
+  const height = compact ? 'h-8 sm:h-9 md:h-11' : 'h-12';
+  const textSize = compact ? 'text-[9px] sm:text-[10px] md:text-xs' : 'text-sm';
+  const padding = compact ? 'px-1 sm:px-2' : 'px-3';
 
   return (
     <button
       onClick={isAvailable && !isPending ? onToggle : undefined}
       disabled={!isAvailable || isPending}
-      className={`flex w-full items-center justify-center rounded-lg border font-semibold tracking-wide transition-all ${height} ${textSize} ${padding} ${styleClasses}`}
+      className={`flex w-full items-center justify-center rounded-full border font-medium tracking-tight transition-all ${height} ${textSize} ${padding} ${styleClasses}`}
     >
       <span className="truncate">{formatTimeRange(slot.start_time, slot.end_time)}</span>
     </button>
