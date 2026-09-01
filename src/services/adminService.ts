@@ -159,60 +159,79 @@ export const adminService = {
     return normalizeCourt(updated);
   },
 
+  // ✅ FIXED: Use existing court endpoints for blocked dates
   async getBlockedDates(courtId?: string): Promise<BlockedDate[]> {
-    const query = courtId ? `?court_id=${courtId}` : '';
-    const res = await apiRequest<any>(`/api/admin/blocked-dates${query}`);
-    const rawList = Array.isArray(res) ? res : res?.data || [];
-    return rawList.map((item: any) => ({
-      id: item.id || '',
-      court_id: item.courtId ?? item.court_id ?? '',
-      date: item.date || '',
-      reason: item.reason || 'No reason provided',
-    }));
+    if (!courtId) {
+      console.warn('No court selected, returning empty blocked dates');
+      return [];
+    }
+    
+    try {
+      const res = await apiRequest<any>(`/api/courts/${courtId}/blocked-dates`);
+      const rawList = Array.isArray(res) ? res : res?.data || [];
+      return rawList.map((item: any) => ({
+        id: item.id || '',
+        court_id: courtId,
+        date: item.date || '',
+        reason: item.reason || 'No reason provided',
+      }));
+    } catch (error) {
+      console.error('Failed to fetch blocked dates:', error);
+      return [];
+    }
   },
 
+  // ✅ FIXED: Use existing court endpoint for adding blocked dates
   async addBlockedDate(blocked: Omit<BlockedDate, 'id'>): Promise<BlockedDate> {
-    const res = await apiRequest<any>('/api/admin/blocked-dates', {
+    const res = await apiRequest<any>(`/api/courts/${blocked.court_id}/blocked-dates`, {
       method: 'POST',
-      body: JSON.stringify(blocked),
+      body: JSON.stringify({
+        date: blocked.date,
+        reason: blocked.reason,
+        // StartTime and EndTime are optional
+      }),
     });
+    
     const created = res?.data ?? res;
     return {
       id: created.id || '',
-      court_id: created.courtId ?? created.court_id ?? '',
-      date: created.date || '',
-      reason: created.reason || '',
+      court_id: blocked.court_id,
+      date: created.date || blocked.date,
+      reason: created.reason || blocked.reason,
     };
   },
 
+  // ✅ FIXED: Use existing endpoint for deleting blocked dates
   async removeBlockedDate(id: string): Promise<void> {
-    return apiRequest<void>(`/api/admin/blocked-dates/${id}`, { method: 'DELETE' });
+    await apiRequest<void>(`/api/admin/blocked-dates/${id}`, { 
+      method: 'DELETE' 
+    });
   },
-  // src/services/adminService.ts - Add staff methods
 
-async createStaff(data: {
-  name: string;
-  email: string;
-  phone: string;
-  password: string;
-}): Promise<any> {
-  const res = await apiRequest<any>('/api/admin/staff', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return res?.data ?? res;
-},
+  // Staff Management Methods
+  async createStaff(data: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+  }): Promise<any> {
+    const res = await apiRequest<any>('/api/admin/staff', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res?.data ?? res;
+  },
 
-async updateStaffStatus(userId: string, status: string): Promise<void> {
-  await apiRequest(`/api/admin/staff/${userId}/status`, {
-    method: 'PUT',
-    body: JSON.stringify({ status }),
-  });
-},
+  async updateStaffStatus(userId: string, status: string): Promise<void> {
+    await apiRequest(`/api/admin/staff/${userId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  },
 
-async deleteStaff(userId: string): Promise<void> {
-  await apiRequest(`/api/admin/staff/${userId}`, {
-    method: 'DELETE',
-  });
-},
+  async deleteStaff(userId: string): Promise<void> {
+    await apiRequest(`/api/admin/staff/${userId}`, {
+      method: 'DELETE',
+    });
+  },
 };
