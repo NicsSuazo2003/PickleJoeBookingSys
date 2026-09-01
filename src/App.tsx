@@ -1,5 +1,6 @@
+// src/App.tsx
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Landing } from '@/pages/Landing';
 import { Booking } from '@/pages/Booking';
 import { Checkout } from '@/pages/Checkout';
@@ -11,14 +12,16 @@ import { Bookings } from '@/pages/admin/Bookings';
 import { Courts } from '@/pages/admin/Courts';
 import { Pricing } from '@/pages/admin/Pricing';
 import { Settings } from '@/pages/admin/Settings';
+import { StaffBookings } from '@/pages/staff/StaffBookings';
 import { useAuthStore } from '@/stores/authStore';
-import { IntroSplash } from '@/components/IntroSplash'; // ✅ NEW
+import { IntroSplash } from '@/components/IntroSplash';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [pathname]);  return null;
+  }, [pathname]);
+  return null;
 }
 
 export default function App() {
@@ -30,7 +33,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <IntroSplash /> {/* ✅ NEW - sits above everything, self-manages its own visibility */}
+      <IntroSplash />
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Landing />} />
@@ -39,11 +42,17 @@ export default function App() {
         <Route path="/success" element={<Success />} />
         <Route path="/track" element={<Track />} />
         <Route path="/login" element={<Login />} />
+        
+        {/* Admin Routes */}
         <Route path="/admin" element={<Dashboard />} />
         <Route path="/admin/bookings" element={<Bookings />} />
         <Route path="/admin/courts" element={<Courts />} />
         <Route path="/admin/pricing" element={<Pricing />} />
         <Route path="/admin/settings" element={<Settings />} />
+        
+        {/* Staff Routes */}
+        <Route path="/staff" element={<Navigate to="/staff/bookings" replace />} />
+        <Route path="/staff/bookings" element={<StaffBookings />} />
       </Routes>
     </BrowserRouter>
   );

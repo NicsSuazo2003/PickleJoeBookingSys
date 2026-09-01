@@ -1,3 +1,4 @@
+// src/stores/authStore.ts
 import { create } from 'zustand';
 import type { AdminUser } from '@/types';
 import { apiRequest } from '@/services/api';
@@ -12,9 +13,10 @@ interface AuthStoreState {
   init: () => Promise<void>;
   updateProfile: (data: { name?: string; email?: string; phone?: string }) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  getRedirectPath: () => string; // ✅ New helper
 }
 
-export const useAuthStore = create<AuthStoreState>((set) => ({
+export const useAuthStore = create<AuthStoreState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   loading: false,
@@ -94,5 +96,14 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
       set({ loading: false, error: err.message || 'Failed to change password' });
       throw err;
     }
+  },
+
+  // ✅ Helper to determine redirect path based on role
+  getRedirectPath: () => {
+    const { user } = get();
+    if (!user) return '/login';
+    if (user.role === 'admin') return '/admin';
+    if (user.role === 'staff') return '/staff/bookings';
+    return '/login';
   },
 }));
