@@ -188,4 +188,31 @@ export const adminService = {
   async removeBlockedDate(id: string): Promise<void> {
     return apiRequest<void>(`/api/admin/blocked-dates/${id}`, { method: 'DELETE' });
   },
+  // src/services/adminService.ts - Add staff methods
+
+async createStaff(data: {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+}): Promise<any> {
+  const res = await apiRequest<any>('/api/admin/staff', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return res?.data ?? res;
+},
+
+async updateStaffStatus(userId: string, status: string): Promise<void> {
+  await apiRequest(`/api/admin/staff/${userId}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  });
+},
+
+async deleteStaff(userId: string): Promise<void> {
+  await apiRequest(`/api/admin/staff/${userId}`, {
+    method: 'DELETE',
+  });
+},
 };

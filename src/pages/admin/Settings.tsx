@@ -22,6 +22,7 @@ import { adminService } from '@/services/adminService';
 import { formatDateLong, todayISO, toISODate, addDays } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
 import type { ClientSettings } from '@/types';
+import { StaffManagement } from '@/components/ui/StaffManagement';
 
 export function Settings() {
   const courts = useAdminStore((state) => state.courts);
@@ -457,6 +458,10 @@ export function Settings() {
                 )}
               </div>
             </div>
+
+            <div className="card p-6">
+  <StaffManagement />
+</div>
 
             {/* App Info */}
             <div className="card p-6">

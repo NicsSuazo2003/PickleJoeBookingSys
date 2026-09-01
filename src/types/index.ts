@@ -115,12 +115,17 @@ export interface Analytics {
   court_breakdown: { court_id: string; court_name: string; bookings: number; revenue: number }[];
 }
 
+// src/types/index.ts
 export interface AdminUser {
   id: string;
   email: string;
   name: string;
   phone?: string;
-  role: 'admin';
+  role: 'admin' | 'staff';  // ✅ Already has this
+  avatar?: string;
+  createdAt?: string;
+  bookingsCount?: number;
+  status?: string;
 }
 export interface ClientSettings {
   id: string;

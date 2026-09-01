@@ -1,3 +1,4 @@
+// src/components/ui/Modal.tsx
 import { type ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,9 +10,10 @@ interface ModalProps {
   title?: string;
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg';
+  className?: string; // ✅ Add className prop
 }
 
-export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = 'md', className }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -43,7 +45,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`relative w-full ${sizes[size]} card max-h-[90vh] overflow-y-auto`}
+            className={`relative w-full ${sizes[size]} card max-h-[90vh] overflow-y-auto ${className || ''}`}
           >
             {title && (
               <div className="flex items-center justify-between border-b border-forest-500 px-6 py-4">
