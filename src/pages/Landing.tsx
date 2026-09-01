@@ -37,8 +37,7 @@ import {
 } from '@/utils/format';
 import type { TimeSlot, Court } from '@/types';
 
-// Distinct accent color per court column, cycled by index so any number of
-// courts gets a repeatable, visually distinct identity.
+// Distinct accent color per court column
 const COURT_ACCENTS = [
   { header: 'text-blue-400', dot: 'bg-blue-400', border: 'border-blue-500/40', bg: 'bg-blue-500/10', text: 'text-blue-200', hoverBorder: 'hover:border-blue-400/70', hoverBg: 'hover:bg-blue-500/20' },
   { header: 'text-purple-400', dot: 'bg-purple-400', border: 'border-purple-500/40', bg: 'bg-purple-500/10', text: 'text-purple-200', hoverBorder: 'hover:border-purple-400/70', hoverBg: 'hover:bg-purple-500/20' },
@@ -50,6 +49,20 @@ const COURT_ACCENTS = [
 
 function getCourtAccent(index: number) {
   return COURT_ACCENTS[index % COURT_ACCENTS.length];
+}
+
+// ✅ Helper to format time as "7PM-8PM" (without :00)
+function formatTimeShort(time: string): string {
+  if (!time) return '';
+  const [hour, minute] = time.split(':').map(Number);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  // If minute is 0, just show the hour
+  return minute === 0 ? `${hour12}${ampm}` : `${hour12}:${String(minute).padStart(2, '0')}${ampm}`;
+}
+
+function formatTimeRangeShort(start: string, end: string): string {
+  return `${formatTimeShort(start)}-${formatTimeShort(end)}`;
 }
 
 export function Landing() {
@@ -206,52 +219,52 @@ export function Landing() {
       </section>
 
       {/* Structured Multi-Court Booking Section */}
-      <section className="relative z-20 border-y border-forest-500 bg-forest-950 py-6 md:py-16">
+      <section className="relative z-20 border-y border-forest-500 bg-forest-950 py-8 md:py-16">
         <div className="container-page max-w-7xl">
           <div className="overflow-hidden rounded-2xl border border-forest-600/60 bg-forest-900 shadow-2xl md:rounded-3xl">
             
             {/* Header Banner */}
-            <div className="border-b border-forest-700 bg-forest-950 px-3 py-2 sm:px-4 sm:py-3 md:px-8 md:py-7">
+            <div className="border-b border-forest-700 bg-forest-950 px-4 py-3 sm:px-6 sm:py-4 md:px-8 md:py-7">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h2 className="font-display text-base font-bold tracking-tight text-cream sm:text-xl md:text-3xl">
+                  <h2 className="font-display text-lg font-bold tracking-tight text-cream sm:text-xl md:text-3xl">
                     Book a Court
                   </h2>
                   <p className="hidden text-xs text-cream-muted sm:block md:text-sm">
                     Pick a date, then tap any number of time slots
                   </p>
                 </div>
-                <div className="hidden rounded-xl border border-forest-600/50 bg-forest-800/80 p-1.5 text-gold-400 sm:block md:p-3">
-                  <CalendarDays className="h-4 w-4 md:h-6 md:w-6" />
+                <div className="hidden rounded-xl border border-forest-600/50 bg-forest-800/80 p-2 text-gold-400 sm:block md:p-3">
+                  <CalendarDays className="h-5 w-5 md:h-6 md:w-6" />
                 </div>
               </div>
             </div>
 
-            <div className="p-2 sm:p-3 md:p-8">
+            <div className="p-3 sm:p-4 md:p-8">
               {/* STEP 1: Date Selection Carousel */}
-              <div className="mb-4 md:mb-10">
-                <div className="mb-2 flex items-center gap-1.5 md:mb-5 md:gap-3">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gold-400 text-[8px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
+              <div className="mb-6 md:mb-10">
+                <div className="mb-3 flex items-center gap-2 md:mb-5 md:gap-3">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[10px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
                     1
                   </div>
                   <div>
-                    <span className="block text-[7px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
+                    <span className="block text-[8px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
                       STEP 1
                     </span>
-                    <h3 className="font-display text-[10px] font-bold text-cream md:text-lg">Choose Date</h3>
+                    <h3 className="font-display text-sm font-bold text-cream md:text-lg">Choose Date</h3>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 md:gap-2">
                   <button
                     onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
                     disabled={weekOffset === 0}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30 sm:h-9 sm:w-9 md:h-12 md:w-12 md:rounded-xl"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30 sm:h-11 sm:w-11 md:h-12 md:w-12 md:rounded-xl"
                   >
-                    <ChevronLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-5 md:w-5" />
+                    <ChevronLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
                   </button>
 
-                  <div className="grid flex-1 grid-cols-7 gap-0.5 sm:gap-1 md:gap-2">
+                  <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-1.5 md:gap-2">
                     {weekDays.map((day) => {
                       const iso = toISODate(day);
                       const isSelected = selectedDate === iso;
@@ -264,7 +277,7 @@ export function Landing() {
                         <button
                           key={iso}
                           onClick={() => setDate(iso)}
-                          className={`relative flex flex-col items-center justify-center rounded-lg border py-1 transition-all sm:rounded-xl sm:py-1.5 md:py-3 ${
+                          className={`relative flex flex-col items-center justify-center rounded-lg border py-2 transition-all sm:rounded-xl sm:py-2.5 md:py-3 ${
                             isSelected
                               ? 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold'
                               : 'border-forest-600/70 bg-forest-800 text-cream-muted hover:border-gold-400/50 hover:bg-forest-700/80 hover:text-cream'
@@ -272,7 +285,7 @@ export function Landing() {
                         >
                           {isToday && (
                             <span
-                              className={`absolute -top-1.5 right-0.5 rounded-full px-0.5 py-0.5 text-[4px] font-extrabold uppercase tracking-wider sm:-top-2 sm:right-1 sm:px-1 sm:text-[5px] md:px-2 md:text-[8px] ${
+                              className={`absolute -top-2 right-1 rounded-full px-1.5 py-0.5 text-[6px] font-extrabold uppercase tracking-wider sm:-top-2.5 sm:right-1.5 sm:px-2 sm:text-[7px] md:px-2 md:text-[8px] ${
                                 isSelected
                                   ? 'bg-forest-950 text-gold-400'
                                   : 'bg-gold-400 text-forest-950'
@@ -282,17 +295,17 @@ export function Landing() {
                             </span>
                           )}
                           <span
-                            className={`text-[5px] font-semibold tracking-wider sm:text-[7px] md:text-[10px] ${
+                            className={`text-[7px] font-semibold tracking-wider sm:text-[8px] md:text-[10px] ${
                               isSelected ? 'text-forest-900' : 'text-cream-muted/80'
                             }`}
                           >
                             {dayName}
                           </span>
-                          <span className="my-0.5 text-[8px] font-extrabold sm:text-xs md:text-base md:text-lg">
+                          <span className="my-0.5 text-sm font-extrabold sm:text-base md:text-lg">
                             {dayNumber}
                           </span>
                           <span
-                            className={`text-[5px] uppercase sm:text-[6px] md:text-[9px] ${
+                            className={`text-[6px] uppercase sm:text-[7px] md:text-[9px] ${
                               isSelected ? 'text-forest-900 font-semibold' : 'text-cream-muted/70'
                             }`}
                           >
@@ -305,71 +318,71 @@ export function Landing() {
 
                   <button
                     onClick={() => setWeekOffset((w) => w + 1)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 sm:h-9 sm:w-9 md:h-12 md:w-12 md:rounded-xl"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 sm:h-11 sm:w-11 md:h-12 md:w-12 md:rounded-xl"
                   >
-                    <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-5 md:w-5" />
+                    <ChevronRight className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
                   </button>
                 </div>
               </div>
 
               {/* STEP 2 */}
               <div>
-                <div className="mb-2 flex items-center gap-1.5 md:mb-5 md:gap-3">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gold-400 text-[8px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
+                <div className="mb-3 flex items-center gap-2 md:mb-5 md:gap-3">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[10px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
                     2
                   </div>
                   <div>
-                    <span className="block text-[7px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
+                    <span className="block text-[8px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
                       STEP 2
                     </span>
-                    <h3 className="font-display text-[10px] font-bold text-cream md:text-lg">
+                    <h3 className="font-display text-sm font-bold text-cream md:text-lg">
                       Choose Court and Time
                     </h3>
                   </div>
                 </div>
 
                 {/* Status Legend Bar */}
-                <div className="mb-2 flex flex-wrap items-center gap-1 border-b border-forest-700/80 pb-1.5 text-[8px] font-semibold sm:gap-1.5 sm:text-[9px] md:gap-3 md:pb-4 md:text-xs">
-                  <span className="inline-flex items-center gap-0.5 rounded-full border border-forest-500 bg-forest-800/80 px-1 py-0.5 text-cream-muted sm:px-1.5 sm:py-0.5 md:px-3 md:py-1">
-                    <Check className="h-2 w-2 text-gold-400 sm:h-2.5 sm:w-2.5 md:h-3.5 md:w-3.5" />
-                    Avail
+                <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-forest-700/80 pb-2 text-[10px] font-semibold sm:gap-2.5 md:gap-3 md:pb-4 md:text-xs">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-forest-500 bg-forest-800/80 px-2 py-1 text-cream-muted sm:px-3 sm:py-1.5">
+                    <Check className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+                    Available
                   </span>
-                  <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 text-amber-300 sm:px-1.5 sm:py-0.5 md:px-3 md:py-1">
-                    <Clock3 className="h-2 w-2 sm:h-2.5 sm:w-2.5 md:h-3.5 md:w-3.5" />
-                    Pend
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-300 sm:px-3 sm:py-1.5">
+                    <Clock3 className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+                    Pending
                   </span>
-                  <span className="inline-flex items-center gap-0.5 rounded-full border border-red-500/30 bg-red-500/10 px-1 py-0.5 text-red-400 sm:px-1.5 sm:py-0.5 md:px-3 md:py-1">
-                    <X className="h-2 w-2 sm:h-2.5 sm:w-2.5 md:h-3.5 md:w-3.5" />
+                  <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-400 sm:px-3 sm:py-1.5">
+                    <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
                     Booked
                   </span>
                 </div>
 
                 {/* Date Highlight Badge */}
-                <div className="mb-2 flex justify-center md:mb-6">
-                  <div className="inline-flex items-center gap-1 rounded-full border border-gold-400/30 bg-forest-800/90 px-2 py-0.5 text-[8px] font-bold text-gold-300 shadow-inner sm:gap-1.5 sm:px-3 sm:py-1 sm:text-[10px] md:px-5 md:py-1.5 md:text-xs">
-                    <CalendarDays className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-4 md:w-4" />
+                <div className="mb-4 flex justify-center md:mb-6">
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/30 bg-forest-800/90 px-3 py-1 text-[10px] font-bold text-gold-300 shadow-inner sm:gap-2 sm:px-4 sm:py-1.5 sm:text-xs md:px-5 md:py-1.5">
+                    <CalendarDays className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
                     {formatDateLong(selectedDate)}
                   </div>
                 </div>
 
                 {/* Multi-Court Column Table */}
                 {loadingSlots || loadingCourts ? (
-                  <LoadingSpinner className="py-6 md:py-16" />
+                  <LoadingSpinner className="py-8 md:py-16" />
                 ) : error ? (
-                  <div className="py-4 text-center font-medium text-red-400 md:py-12">{error}</div>
+                  <div className="py-6 text-center font-medium text-red-400 md:py-12">{error}</div>
                 ) : courts.length === 0 ? (
-                  <div className="py-4 text-center text-sm font-medium text-cream-muted md:py-12">
+                  <div className="py-6 text-center text-sm font-medium text-cream-muted md:py-12">
                     No courts found.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto pb-1 md:pb-4">
-                    <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[620px]">
+                  <div className="overflow-x-auto pb-2 md:pb-4">
+                     <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[520px]">
                       
                       {/* Court Column Headers */}
                       <div
-                        className="grid gap-1.5 pb-2 text-center text-[8px] font-extrabold uppercase tracking-wider text-gold-400 sm:gap-2 sm:pb-3 md:gap-3 md:pb-4 md:text-sm"
+                        className="grid gap-2 pb-3 text-center text-[10px] font-extrabold uppercase tracking-wider text-gold-400 sm:gap-2.5 sm:pb-4 md:gap-3 md:pb-4 md:text-sm"
                         style={{
-                          gridTemplateColumns: `repeat(${courts.length}, minmax(40px, 1fr))`,
+                          gridTemplateColumns: `repeat(${courts.length}, minmax(50px, 1fr))`,
                         }}
                       >
                         {courts.map((court, idx) => {
@@ -377,21 +390,21 @@ export function Landing() {
                           return (
                             <div
                               key={court.id}
-                              className={`flex items-center justify-center gap-1 truncate text-[8px] sm:text-[10px] md:text-sm ${accent.header}`}
+                              className={`flex items-center justify-center gap-1.5 truncate text-[9px] sm:text-[10px] md:text-sm ${accent.header}`}
                             >
-                              <span className={`inline-block h-1 w-1 shrink-0 rounded-full sm:h-1.5 sm:w-1.5 md:h-2 md:w-2 ${accent.dot}`} />
-                              <span className="truncate">{court.name}</span>
+                              <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2 md:h-2 md:w-2 ${accent.dot}`} />
+                              <span className="truncate font-bold">{court.name}</span>
                             </div>
                           );
                         })}
                       </div>
 
                       {/* Period Sections */}
-                      <div className="space-y-1.5 md:space-y-5">
+                      <div className="space-y-3 md:space-y-5">
                         {morningTimes.length > 0 && (
                           <PeriodSection
                             title="MORNING"
-                            icon={<CloudSun className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-4 md:w-4" />}
+                            icon={<CloudSun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
                             courts={courts}
                             timeIntervals={morningTimes}
                             getSlotForCourtAndTime={getSlotForCourtAndTime}
@@ -404,7 +417,7 @@ export function Landing() {
                         {afternoonTimes.length > 0 && (
                           <PeriodSection
                             title="AFTERNOON"
-                            icon={<Sun className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-4 md:w-4" />}
+                            icon={<Sun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
                             courts={courts}
                             timeIntervals={afternoonTimes}
                             getSlotForCourtAndTime={getSlotForCourtAndTime}
@@ -417,7 +430,7 @@ export function Landing() {
                         {eveningTimes.length > 0 && (
                           <PeriodSection
                             title="EVENING"
-                            icon={<Moon className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-4 md:w-4" />}
+                            icon={<Moon className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
                             courts={courts}
                             timeIntervals={eveningTimes}
                             getSlotForCourtAndTime={getSlotForCourtAndTime}
@@ -432,15 +445,15 @@ export function Landing() {
                 )}
 
                 {/* Bottom Reservation Summary Bar */}
-                <div className="mt-3 flex flex-col items-center justify-between gap-2 rounded-xl border border-forest-600 bg-forest-800/90 p-2 sm:mt-4 sm:flex-row sm:gap-3 sm:p-3 md:mt-10 md:p-5">
+                <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-xl border border-forest-600 bg-forest-800/90 p-3 sm:mt-6 sm:flex-row sm:gap-4 sm:p-4 md:mt-10 md:p-5">
                   <div className="text-center sm:text-left">
-                    <span className="text-[8px] font-semibold uppercase tracking-wider text-cream-muted sm:text-[10px] md:text-xs">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted sm:text-xs md:text-xs">
                       Selected Slots
                     </span>
-                    <div className="font-display text-xs font-bold text-cream sm:text-sm md:text-lg">
+                    <div className="font-display text-sm font-bold text-cream sm:text-base md:text-lg">
                       {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
                       {selectedSlotIds.length > 0 && (
-                        <span className="ml-1 font-sans text-[9px] font-semibold text-gold-400 sm:ml-1.5 sm:text-xs md:ml-2 md:text-sm">
+                        <span className="ml-1.5 font-sans text-xs font-semibold text-gold-400 sm:ml-2 sm:text-sm">
                           ({formatCurrency(totalSelected)})
                         </span>
                       )}
@@ -448,13 +461,13 @@ export function Landing() {
                   </div>
 
                   <Button
-                    size="sm"
+                    size="md"
                     onClick={() => navigate('/booking')}
                     disabled={selectedSlotIds.length === 0}
-                    rightIcon={<ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />}
-                    className="w-full text-xs sm:w-auto sm:text-sm"
+                    rightIcon={<ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />}
+                    className="w-full text-sm sm:w-auto"
                   >
-                    Proceed
+                    Proceed to Reservation
                   </Button>
                 </div>
               </div>
@@ -579,33 +592,32 @@ function PeriodSection({
 }) {
   return (
     <div>
-      <div className={`mb-0.5 flex items-center gap-0.5 sm:mb-1 sm:gap-1 md:mb-3.5 ${compact ? '' : 'md:gap-2'}`}>
-        <span className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-4 md:w-4">{icon}</span>
-        <span className={`font-bold tracking-widest uppercase text-gold-400 text-[8px] sm:text-[10px] md:text-xs`}>
+      <div className={`mb-1.5 flex items-center gap-1.5 sm:mb-2 sm:gap-2 md:mb-3.5`}>
+        <span className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4">{icon}</span>
+        <span className={`font-bold tracking-widest uppercase text-gold-400 text-[9px] sm:text-[10px] md:text-xs`}>
           {title}
         </span>
         <div className="h-px flex-1 bg-forest-700/80" />
       </div>
 
-      <div className={`space-y-1 sm:space-y-1.5 ${compact ? '' : 'md:space-y-2.5'}`}>
+      <div className={`space-y-1.5 sm:space-y-2 md:space-y-2.5`}>
         {timeIntervals.map((interval) => (
           <div
             key={`${interval.start_time}-${interval.end_time}`}
-            className="grid gap-1.5 sm:gap-2 md:gap-3"
+            className="grid gap-1.5 sm:gap-2 md:gap-2.5"
             style={{
-              gridTemplateColumns: `repeat(${courts.length}, minmax(0, 1fr))`,
+             gridTemplateColumns: `repeat(${courts.length}, minmax(55px, 1fr))`,
             }}
           >
             {courts.map((court, idx) => {
               const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
               const accent = getCourtAccent(idx);
-              const dividerClass = ''; // Vertical divider removed
 
               if (!slot) {
                 return (
                   <div
                     key={`${court.id}-${interval.start_time}`}
-                    className={`flex items-center justify-center rounded-full border border-forest-800/60 bg-forest-950/60 text-[9px] text-forest-700 select-none h-8 sm:h-9 md:h-11 ${dividerClass}`}
+                    className={`flex items-center justify-center rounded-full border border-forest-800/60 bg-forest-950/60 text-[10px] text-forest-700 select-none h-9 sm:h-10 md:h-11`}
                   >
                     —
                   </div>
@@ -613,7 +625,7 @@ function PeriodSection({
               }
 
               return (
-                <div key={slot.id} className={dividerClass}>
+                <div key={slot.id}>
                   <SlotPill
                     slot={slot}
                     isSelected={selectedSlotIds.includes(slot.id)}
@@ -631,9 +643,9 @@ function PeriodSection({
   );
 }
 
-// Slot Pill Component
 type CourtAccent = ReturnType<typeof getCourtAccent>;
 
+// Slot Pill Component - with short time format and larger size
 function SlotPill({
   slot,
   isSelected,
@@ -660,9 +672,10 @@ function SlotPill({
     styleClasses = 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold';
   }
 
-  const height = compact ? 'h-8 sm:h-9 md:h-11' : 'h-12';
-  const textSize = compact ? 'text-[9px] sm:text-[10px] md:text-xs' : 'text-sm';
-  const padding = compact ? 'px-1 sm:px-2' : 'px-3';
+  // ✅ Larger heights for better mobile readability
+  const height = compact ? 'h-9 sm:h-10 md:h-12' : 'h-12';
+  const textSize = compact ? 'text-[10px] sm:text-[11px] md:text-sm' : 'text-sm';
+  const padding = compact ? 'px-1.5 sm:px-2.5' : 'px-3';
 
   return (
     <button
@@ -670,7 +683,9 @@ function SlotPill({
       disabled={!isAvailable || isPending}
       className={`flex w-full items-center justify-center rounded-full border font-medium tracking-tight transition-all ${height} ${textSize} ${padding} ${styleClasses}`}
     >
-      <span className="truncate">{formatTimeRange(slot.start_time, slot.end_time)}</span>
+      <span className="truncate font-semibold">
+        {formatTimeRangeShort(slot.start_time, slot.end_time)}
+      </span>
     </button>
   );
 }
