@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
@@ -46,6 +46,8 @@ type CustomerForm = z.infer<typeof customerSchema>;
 
 export function Booking() {
   const navigate = useNavigate();
+  const formRef = useRef<HTMLDivElement>(null); // ✅ Ref for customer form section
+  
   const {
     courts,
     selectedCourt,
@@ -82,6 +84,17 @@ export function Booking() {
     }
   }, [courts.length, loadCourts]);
 
+  // ✅ Auto-scroll to form when component mounts (if coming from landing page)
+  useEffect(() => {
+    // Check if user came from landing page with selected slots
+    const hasSelectedSlots = useBookingStore.getState().selectedSlotIds.length > 0;
+    if (hasSelectedSlots && formRef.current) {
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    }
+  }, []);
+
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -106,6 +119,11 @@ export function Booking() {
     }
   };
 
+  // ✅ Scroll to form when clicking "Proceed to Reservation"
+  const scrollToForm = () => {
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   if (loadingCourts && courts.length === 0) {
     return (
       <div className="min-h-screen bg-charcoal">
@@ -124,59 +142,44 @@ export function Booking() {
         <div className="mb-8">
           <h1 className="section-title">Book a Court</h1>
           <p className="mt-2 text-cream-muted">
-            Select your court, date, and time slots to get started.
+            Review your selected court and time slots, then enter your details to book.
           </p>
         </div>
 
-        {/* Court Selector */}
+        {/* ✅ Selected Court Display (Read-only) */}
         <div className="mb-8">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gold-400">
             <MapPin className="h-4 w-4" />
-            Choose Your Court
+            Selected Court
           </h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {courts.map((court) => {
-              const isSelected = selectedCourt?.id === court.id;
-              return (
-                <button
-                  key={court.id}
-                  type="button"
-                  onClick={() => selectCourt(court)}
-                  className={`group relative overflow-hidden rounded-2xl border-2 text-left transition-all ${
-                    isSelected
-                      ? 'border-gold-400 shadow-glow-gold'
-                      : 'border-forest-500 hover:border-gold-400/50'
-                  }`}
-                >
-                  <div className="relative h-32 overflow-hidden bg-forest-900">
-                    <img
-                      src={court.image}
-                      alt={court.name}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-forest-950 to-transparent" />
-                    {isSelected && (
-                      <div className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-forest-950">
-                        <Check className="h-4 w-4" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="bg-forest-700 p-4">
-                    <h3 className="font-display text-base font-bold text-cream">{court.name}</h3>
-                    <p className="mt-1 text-xs text-cream-muted line-clamp-1">{court.surface || court.description}</p>
-                    <p className="mt-2 text-sm font-semibold text-gold-400">
-                      {formatCurrency(court.price_per_hour)}
-                      <span className="text-xs font-normal text-cream-muted">/hr</span>
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          {selectedCourt ? (
+            <div className="rounded-2xl border-2 border-gold-400/30 bg-forest-700/50 p-4">
+              <div className="flex items-center gap-4">
+                <div className="relative h-16 w-16 overflow-hidden rounded-xl sm:h-20 sm:w-20">
+                  <img
+                    src={selectedCourt.image}
+                    alt={selectedCourt.name}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold text-cream">{selectedCourt.name}</h3>
+                  <p className="text-sm text-cream-muted">{selectedCourt.surface || selectedCourt.description}</p>
+                  <p className="text-xs text-gold-400">
+                    {formatCurrency(selectedCourt.price_per_hour)}/hr
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border-2 border-forest-500 bg-forest-700/50 p-4 text-center text-cream-muted">
+              No court selected. Please go back to the homepage to select a court.
+            </div>
+          )}
         </div>
 
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Left: Date + Slots + Customer Form */}
+          {/* Left: Date + Slots */}
           <div className="lg:col-span-2 space-y-8">
             {/* Date Picker */}
             <div className="card p-5">
@@ -356,8 +359,8 @@ export function Booking() {
               )}
             </div>
 
-            {/* Customer Details Form */}
-            <div className="card p-5">
+            {/* ✅ Customer Details Form - with ref for auto-scroll */}
+            <div ref={formRef} className="card p-5 scroll-mt-24">
               <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gold-400">
                 Your Details
               </h2>
@@ -469,13 +472,12 @@ export function Booking() {
                         </span>
                       </div>
                     </div>
+                    {/* ✅ Scroll to form instead of submitting directly */}
                     <Button
-                      type="submit"
-                      form="bookingForm"
                       size="lg"
                       fullWidth
                       className="mt-4"
-                      isLoading={submitting}
+                      onClick={scrollToForm}
                       rightIcon={<ArrowRight className="h-5 w-5" />}
                     >
                       Proceed to Checkout
