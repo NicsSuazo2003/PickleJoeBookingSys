@@ -195,7 +195,7 @@ export function Landing() {
         <div className="container-page max-w-7xl">
           <div className="overflow-hidden rounded-2xl border border-forest-600/60 bg-forest-900 shadow-2xl md:rounded-3xl">
             
-            {/* Header Banner */}
+            {/* Header Banner - ULTRA COMPRESSED */}
             <div className="border-b border-forest-700 bg-forest-950 px-3 py-2 sm:px-4 sm:py-3 md:px-8 md:py-7">
               <div className="flex items-center justify-between gap-2">
                 <div>
@@ -213,7 +213,7 @@ export function Landing() {
             </div>
 
             <div className="p-2 sm:p-3 md:p-8">
-              {/* STEP 1: Date Selection Carousel */}
+              {/* STEP 1: Date Selection Carousel - ULTRA COMPRESSED */}
               <div className="mb-4 md:mb-10">
                 <div className="mb-2 flex items-center gap-1.5 md:mb-5 md:gap-3">
                   <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gold-400 text-[8px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
@@ -297,7 +297,7 @@ export function Landing() {
                 </div>
               </div>
 
-              {/* STEP 2 */}
+              {/* STEP 2 - ULTRA COMPRESSED */}
               <div>
                 <div className="mb-2 flex items-center gap-1.5 md:mb-5 md:gap-3">
                   <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gold-400 text-[8px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
@@ -313,7 +313,7 @@ export function Landing() {
                   </div>
                 </div>
 
-                {/* Status Legend Bar */}
+                {/* Status Legend Bar - ULTRA COMPRESSED */}
                 <div className="mb-2 flex flex-wrap items-center gap-1 border-b border-forest-700/80 pb-1.5 text-[8px] font-semibold sm:gap-1.5 sm:text-[9px] md:gap-3 md:pb-4 md:text-xs">
                   <span className="inline-flex items-center gap-0.5 rounded-full border border-forest-500 bg-forest-800/80 px-1 py-0.5 text-cream-muted sm:px-1.5 sm:py-0.5 md:px-3 md:py-1">
                     <Check className="h-2 w-2 text-gold-400 sm:h-2.5 sm:w-2.5 md:h-3.5 md:w-3.5" />
@@ -329,7 +329,7 @@ export function Landing() {
                   </span>
                 </div>
 
-                {/* Date Highlight Badge */}
+                {/* Date Highlight Badge - ULTRA COMPRESSED */}
                 <div className="mb-2 flex justify-center md:mb-6">
                   <div className="inline-flex items-center gap-1 rounded-full border border-gold-400/30 bg-forest-800/90 px-2 py-0.5 text-[8px] font-bold text-gold-300 shadow-inner sm:gap-1.5 sm:px-3 sm:py-1 sm:text-[10px] md:px-5 md:py-1.5 md:text-xs">
                     <CalendarDays className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-4 md:w-4" />
@@ -337,7 +337,7 @@ export function Landing() {
                   </div>
                 </div>
 
-                {/* Multi-Court Column Table - WITH VISIBLE COLUMN LINES */}
+                {/* Multi-Court Column Table - ULTRA COMPRESSED */}
                 {loadingSlots || loadingCourts ? (
                   <LoadingSpinner className="py-6 md:py-16" />
                 ) : error ? (
@@ -349,26 +349,26 @@ export function Landing() {
                 ) : (
                   <div className="overflow-x-auto pb-1 md:pb-4">
                     <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[620px]">
-                      {/* Court Column Headers - WITH BORDERS */}
+                      {/* Court Column Headers - ULTRA COMPRESSED, with dividers between courts */}
                       <div
-                        className="grid gap-0 pb-1 text-center text-[7px] font-extrabold uppercase tracking-wider text-gold-400 sm:gap-0 sm:pb-1.5 sm:text-[8px] md:gap-0 md:pb-4 md:text-sm"
+                        className="grid gap-0.5 pb-1 text-center text-[7px] font-extrabold uppercase tracking-wider text-gold-400 sm:gap-1 sm:pb-1.5 sm:text-[8px] md:gap-3 md:pb-4 md:text-sm"
                         style={{
                           gridTemplateColumns: `repeat(${courts.length}, minmax(40px, 1fr))`,
                         }}
                       >
-                        {courts.map((court, index) => (
-                          <div 
-                            key={court.id} 
-                            className={`truncate border-x border-forest-700 px-0.5 py-0.5 sm:px-1 sm:py-1 md:px-2 md:py-2 ${
-                              index === 0 ? 'border-l-0' : ''
-                            } ${index === courts.length - 1 ? 'border-r-0' : ''}`}
+                        {courts.map((court, idx) => (
+                          <div
+                            key={court.id}
+                            className={`truncate text-[6px] sm:text-[8px] md:text-sm ${
+                              idx !== 0 ? 'border-l border-forest-600/50 pl-1 sm:pl-1.5 md:pl-3' : ''
+                            }`}
                           >
                             {court.name}
                           </div>
                         ))}
                       </div>
 
-                      {/* Period Sections - WITH VISIBLE COLUMN LINES */}
+                      {/* Period Sections - ULTRA COMPRESSED */}
                       <div className="space-y-1.5 md:space-y-5">
                         {morningTimes.length > 0 && (
                           <PeriodSection
@@ -413,7 +413,7 @@ export function Landing() {
                   </div>
                 )}
 
-                {/* Bottom Reservation Summary Bar */}
+                {/* Bottom Reservation Summary Bar - ULTRA COMPRESSED */}
                 <div className="mt-3 flex flex-col items-center justify-between gap-2 rounded-xl border border-forest-600 bg-forest-800/90 p-2 sm:mt-4 sm:flex-row sm:gap-3 sm:p-3 md:mt-10 md:p-5">
                   <div className="text-center sm:text-left">
                     <span className="text-[8px] font-semibold uppercase tracking-wider text-cream-muted sm:text-[10px] md:text-xs">
@@ -539,7 +539,7 @@ export function Landing() {
   );
 }
 
-// Period Section Subcomponent - WITH VISIBLE COLUMN LINES
+// Period Section Subcomponent - ULTRA COMPRESSED, with dividers between court columns
 function PeriodSection({
   title,
   icon,
@@ -561,7 +561,7 @@ function PeriodSection({
 }) {
   return (
     <div>
-      <div className={`mb-0.5 flex items-center gap-0.5 sm:mb-1 sm:gap-1 md:mb-3.5`}>
+      <div className={`mb-0.5 flex items-center gap-0.5 sm:mb-1 sm:gap-1 md:mb-3.5 ${compact ? '' : 'md:gap-2'}`}>
         <span className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-4 md:w-4">{icon}</span>
         <span className={`font-bold tracking-widest uppercase text-gold-400 text-[6px] sm:text-[8px] md:text-xs`}>
           {title}
@@ -569,25 +569,26 @@ function PeriodSection({
         <div className="h-px flex-1 bg-forest-700/80" />
       </div>
 
-      <div className={`space-y-0.5 sm:space-y-1`}>
+      <div className={`space-y-0.5 sm:space-y-1 ${compact ? '' : 'md:space-y-2.5'}`}>
         {timeIntervals.map((interval) => (
           <div
             key={`${interval.start_time}-${interval.end_time}`}
-            className="grid gap-0"
+            className="grid gap-0.5 sm:gap-1 md:gap-3"
             style={{
               gridTemplateColumns: `repeat(${courts.length}, minmax(0, 1fr))`,
             }}
           >
-            {courts.map((court, index) => {
+            {courts.map((court, idx) => {
               const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
+              // ✅ Vertical divider between court columns, aligned with the header row above
+              const dividerClass =
+                idx !== 0 ? 'border-l border-forest-700/50 pl-0.5 sm:pl-1 md:pl-2' : '';
 
               if (!slot) {
                 return (
                   <div
                     key={`${court.id}-${interval.start_time}`}
-                    className={`flex items-center justify-center border-x border-forest-700 text-[6px] text-forest-600 select-none h-5 sm:h-6 md:h-11 ${
-                      index === 0 ? 'border-l-0' : ''
-                    } ${index === courts.length - 1 ? 'border-r-0' : ''}`}
+                    className={`flex items-center justify-center rounded-lg border border-forest-800/60 bg-forest-950/60 text-[6px] text-forest-700 select-none h-5 sm:h-6 md:h-11 ${dividerClass}`}
                   >
                     —
                   </div>
@@ -595,12 +596,7 @@ function PeriodSection({
               }
 
               return (
-                <div
-                  key={slot.id}
-                  className={`border-x border-forest-700 ${
-                    index === 0 ? 'border-l-0' : ''
-                  } ${index === courts.length - 1 ? 'border-r-0' : ''}`}
-                >
+                <div key={slot.id} className={dividerClass}>
                   <SlotPill
                     slot={slot}
                     isSelected={selectedSlotIds.includes(slot.id)}
@@ -617,7 +613,7 @@ function PeriodSection({
   );
 }
 
-// Slot Pill Component
+// Slot Pill Component - ULTRA COMPRESSED
 function SlotPill({
   slot,
   isSelected,
@@ -633,14 +629,14 @@ function SlotPill({
   const isPending = (slot as unknown as { is_pending?: boolean }).is_pending;
 
   let styleClasses =
-    'border-0 bg-transparent text-cream-muted hover:bg-forest-700/30 hover:text-cream cursor-pointer w-full';
+    'border-forest-600/70 bg-forest-800 text-cream-muted hover:border-gold-400/60 hover:bg-forest-700/80 hover:text-cream cursor-pointer';
 
   if (!isAvailable) {
-    styleClasses = 'bg-red-500/10 text-red-400/75 line-through cursor-not-allowed w-full';
+    styleClasses = 'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
   } else if (isPending) {
-    styleClasses = 'bg-amber-500/10 text-amber-300/80 cursor-not-allowed w-full';
+    styleClasses = 'border-amber-500/30 bg-amber-500/10 text-amber-300/80 cursor-not-allowed';
   } else if (isSelected) {
-    styleClasses = 'bg-gold-400 text-forest-950 font-bold shadow-glow-gold w-full';
+    styleClasses = 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold';
   }
 
   const height = compact ? 'h-5 sm:h-6 md:h-9' : 'h-11';
@@ -651,7 +647,7 @@ function SlotPill({
     <button
       onClick={isAvailable && !isPending ? onToggle : undefined}
       disabled={!isAvailable || isPending}
-      className={`flex w-full items-center justify-center rounded-none font-semibold tracking-wide transition-all ${height} ${textSize} ${padding} ${styleClasses}`}
+      className={`flex w-full items-center justify-center rounded-lg border font-semibold tracking-wide transition-all ${height} ${textSize} ${padding} ${styleClasses}`}
     >
       <span className="truncate">{formatTimeRange(slot.start_time, slot.end_time)}</span>
     </button>
