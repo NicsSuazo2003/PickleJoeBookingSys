@@ -10,13 +10,15 @@ import {
   CheckCircle2,
   Copy,
   ImageIcon,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
-import { useClientStore } from '@/stores/clientStore'; // ✅ NEW
+import { useClientStore } from '@/stores/clientStore';
 import { bookingService } from '@/services/bookingService';
 import {
   formatTimeRange,
@@ -29,11 +31,11 @@ import { APP_CONFIG } from '@/utils/constants';
 export function Checkout() {
   const navigate = useNavigate();
   const { currentBooking, reset } = useBookingStore();
-  const settings = useClientStore((state) => state.settings); // ✅ NEW
-  const loadSettings = useClientStore((state) => state.loadSettings); // ✅ NEW
+  const settings = useClientStore((state) => state.settings);
+  const loadSettings = useClientStore((state) => state.loadSettings);
 
-  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber; // ✅ NEW
-  const displayAccountName = settings?.gcash_account_name || APP_CONFIG.gcashAccountName; // ✅ NEW
+  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber;
+  const displayAccountName = settings?.gcash_account_name || APP_CONFIG.gcashAccountName;
 
   const [timeLeft, setTimeLeft] = useState(APP_CONFIG.paymentTimerSeconds);
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -42,9 +44,10 @@ export function Checkout() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [showDetails, setShowDetails] = useState(false); // ✅ Toggle for order summary on mobile
 
   useEffect(() => {
-    loadSettings(); // ✅ NEW - Load client settings
+    loadSettings();
   }, [loadSettings]);
 
   useEffect(() => {
@@ -97,7 +100,7 @@ export function Checkout() {
   };
 
   const copyGcash = () => {
-    navigator.clipboard.writeText(displayNumber.replace(/\s/g, '')); // ✅ Changed
+    navigator.clipboard.writeText(displayNumber.replace(/\s/g, ''));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -108,117 +111,87 @@ export function Checkout() {
     <div className="min-h-screen bg-charcoal">
       <Navbar />
 
-      <div className="container-page pt-24 pb-12">
+      <div className="container-page pt-20 pb-8">
         <Link
           to="/booking"
-          className="mb-6 inline-flex items-center gap-2 text-sm text-cream-muted hover:text-gold-300 transition"
+          className="mb-4 inline-flex items-center gap-1.5 text-xs text-cream-muted hover:text-gold-300 transition"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Booking
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back
         </Link>
 
-        <div className="mb-8">
-          <h1 className="section-title">Checkout</h1>
-          <p className="mt-2 text-cream-muted">
-            Complete your GCash payment to confirm your booking.
-          </p>
+        <div className="mb-4">
+          <h1 className="text-xl font-bold text-cream sm:text-2xl">Checkout</h1>
+          <p className="text-xs text-cream-muted">Complete your GCash payment to confirm</p>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-2">
-          {/* Left: Payment Instructions */}
-          <div className="space-y-6">
-            {/* Payment Timer */}
-            <div
-              className={`card p-5 ${isExpired ? 'border-error' : ''}`}
-            >
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-5">
+          {/* Left: Payment Instructions - COMPACT */}
+          <div className="space-y-3 lg:col-span-3">
+            {/* Payment Timer - COMPACT */}
+            <div className={`card p-3 sm:p-4 ${isExpired ? 'border-error' : ''}`}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-                      isExpired ? 'bg-error/20' : 'bg-warning/20'
-                    }`}
-                  >
-                    <Clock className={`h-5 w-5 ${isExpired ? 'text-error' : 'text-warning'}`} />
+                <div className="flex items-center gap-2">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${isExpired ? 'bg-error/20' : 'bg-warning/20'}`}>
+                    <Clock className={`h-4 w-4 ${isExpired ? 'text-error' : 'text-warning'}`} />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-cream">
-                      {isExpired ? 'Payment Expired' : 'Complete Payment Within'}
+                    <p className="text-xs font-semibold text-cream">
+                      {isExpired ? 'Payment Expired' : 'Complete in'}
                     </p>
-                    <p className="text-xs text-cream-muted">
-                      Your slots are held for 15 minutes
-                    </p>
+                    <p className="text-[10px] text-cream-muted">Hold time: 15 min</p>
                   </div>
                 </div>
-                <div
-                  className={`font-display text-3xl font-bold tabular-nums ${
-                    isExpired ? 'text-error' : timeLeft < 60 ? 'text-warning' : 'text-gold-400'
-                  }`}
-                >
+                <div className={`font-display text-2xl font-bold tabular-nums ${isExpired ? 'text-error' : timeLeft < 60 ? 'text-warning' : 'text-gold-400'}`}>
                   {formatCountdown(Math.max(timeLeft, 0))}
                 </div>
               </div>
             </div>
 
-            {/* GCash Instructions */}
-            <div className="card p-6">
-              <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
-                <Wallet className="h-5 w-5 text-gold-400" />
+            {/* GCash Instructions - COMPACT */}
+            <div className="card p-4">
+              <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
+                <Wallet className="h-3.5 w-3.5" />
                 GCash Payment
               </h2>
 
-              <div className="rounded-xl border border-forest-500 bg-forest-800 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-cream-muted">Send to GCash Number</p>
-                    <p className="font-display text-xl font-bold text-cream">
-                      {displayNumber} {/* ✅ Changed */}
-                    </p>
-                    <p className="text-xs text-cream-muted">{displayAccountName}</p> {/* ✅ Changed */}
-                  </div>
+              <div className="flex items-center justify-between rounded-lg border border-forest-500 bg-forest-800 p-2.5">
+                <div>
+                  <p className="text-[10px] text-cream-muted">Send to</p>
+                  <p className="font-display text-sm font-bold text-cream">{displayNumber}</p>
+                  <p className="text-[10px] text-cream-muted">{displayAccountName}</p>
+                </div>
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={copyGcash}
-                    className="rounded-lg border border-forest-500 p-2 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
+                    className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
                   >
-                    {copied ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                    {copied ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
                   </button>
                 </div>
               </div>
 
-              <div className="mt-4 rounded-xl border-2 border-gold-400/30 bg-gold-400/10 p-4">
-                <p className="text-xs text-cream-muted">Amount to Send</p>
-                <p className="font-display text-3xl font-bold text-gold-400">
+              <div className="mt-2 flex items-center justify-between rounded-lg border border-gold-400/30 bg-gold-400/10 px-3 py-2">
+                <span className="text-[10px] text-cream-muted">Amount</span>
+                <span className="font-display text-lg font-bold text-gold-400">
                   {formatCurrency(currentBooking.total_amount)}
-                </p>
+                </span>
               </div>
 
-              <div className="mt-4 rounded-xl bg-forest-800 p-4">
-                <p className="text-xs text-cream-muted">Reference Code</p>
-                <p className="font-display text-lg font-bold tracking-wider text-cream">
+              <div className="mt-2 flex items-center gap-2 rounded-lg bg-forest-800 p-2">
+                <span className="text-[10px] text-cream-muted">Ref:</span>
+                <span className="font-mono text-xs font-bold text-gold-400">
                   {currentBooking.reference_code}
-                </p>
-                <p className="mt-1 text-xs text-cream-muted">
-                  Use this as your GCash note or memo
-                </p>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <p className="text-sm font-semibold text-cream">Steps:</p>
-                <ol className="space-y-1.5 text-sm text-cream-muted">
-                  <li>1. Open your GCash app and select "Send Money"</li>
-                  <li>2. Enter the GCash number above</li>
-                  <li>3. Send the exact amount shown</li>
-                  <li>4. Use your reference code as the message</li>
-                  <li>5. Take a screenshot of the confirmation</li>
-                  <li>6. Upload the screenshot below</li>
-                </ol>
+                </span>
+                <span className="text-[9px] text-cream-muted">(memo)</span>
               </div>
             </div>
 
-            {/* Screenshot Upload */}
-            <div className="card p-6">
-              <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
-                <Upload className="h-5 w-5 text-gold-400" />
-                Upload Payment Screenshot
+            {/* Screenshot Upload - COMPACT */}
+            <div className="card p-4">
+              <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
+                <Upload className="h-3.5 w-3.5" />
+                Upload Screenshot
               </h2>
 
               <div
@@ -233,7 +206,7 @@ export function Checkout() {
                   const file = e.dataTransfer.files[0];
                   if (file) handleFile(file);
                 }}
-                className={`rounded-xl border-2 border-dashed p-8 text-center transition-all ${
+                className={`rounded-lg border-2 border-dashed p-4 text-center transition-all ${
                   dragOver
                     ? 'border-gold-400 bg-gold-400/10'
                     : screenshot
@@ -242,30 +215,29 @@ export function Checkout() {
                 }`}
               >
                 {screenshot ? (
-                  <div className="space-y-3">
+                  <div className="flex items-center gap-3">
                     <img
                       src={screenshot}
                       alt="Payment screenshot"
-                      className="mx-auto max-h-48 rounded-lg object-contain"
+                      className="h-14 w-14 rounded-lg object-contain"
                     />
-                    <p className="text-sm text-success">Screenshot uploaded</p>
-                    <button
-                      onClick={() => setScreenshot(null)}
-                      className="text-xs text-cream-muted underline hover:text-gold-300"
-                    >
-                      Change image
-                    </button>
+                    <div className="flex-1 text-left">
+                      <p className="text-xs text-success">Uploaded ✓</p>
+                      <button
+                        onClick={() => setScreenshot(null)}
+                        className="text-[10px] text-cream-muted underline hover:text-gold-300"
+                      >
+                        Change
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <>
-                    <ImageIcon className="mx-auto h-10 w-10 text-cream-muted/40" />
-                    <p className="mt-3 text-sm text-cream-muted">
-                      Drag and drop your screenshot here
-                    </p>
-                    <p className="text-xs text-cream-muted">or</p>
-                    <label className="mt-2 inline-block cursor-pointer">
-                      <span className="rounded-lg border border-gold-400 px-4 py-2 text-sm font-medium text-gold-300 transition hover:bg-gold-400/10">
-                        Browse Files
+                  <div className="flex flex-col items-center">
+                    <ImageIcon className="h-8 w-8 text-cream-muted/40" />
+                    <p className="mt-1 text-xs text-cream-muted">Tap to upload</p>
+                    <label className="mt-1 inline-block cursor-pointer">
+                      <span className="rounded-lg border border-gold-400 px-3 py-1 text-xs font-medium text-gold-300 transition hover:bg-gold-400/10">
+                        Browse
                       </span>
                       <input
                         type="file"
@@ -277,127 +249,115 @@ export function Checkout() {
                         }}
                       />
                     </label>
-                  </>
+                  </div>
                 )}
               </div>
 
-              <div className="mt-4">
-                <label className="mb-1.5 block text-sm font-medium text-cream">
-                  GCash Reference Number
-                </label>
+              <div className="mt-2">
                 <input
                   type="text"
                   value={paymentRef}
                   onChange={(e) => setPaymentRef(e.target.value)}
-                  placeholder="e.g. GCASH123456789"
-                  className="input-field"
+                  placeholder="GCash reference #"
+                  className="input-field text-sm py-2"
                 />
               </div>
 
               {uploadError && (
-                <div className="mt-4 flex items-center gap-2 rounded-lg bg-error/10 p-3 text-sm text-error">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-error/10 p-2 text-xs text-error">
+                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
                   {uploadError}
                 </div>
               )}
 
               <Button
-                size="lg"
+                size="md"
                 fullWidth
-                className="mt-4"
+                className="mt-3"
                 isLoading={uploading}
                 disabled={!screenshot || !paymentRef.trim() || isExpired}
                 onClick={handleUpload}
-                leftIcon={<CheckCircle2 className="h-5 w-5" />}
+                leftIcon={<CheckCircle2 className="h-4 w-4" />}
               >
                 Submit Payment
               </Button>
 
               {isExpired && (
-                <p className="mt-3 text-center text-xs text-error">
-                  Your booking has expired. Please start a new booking.
+                <p className="mt-2 text-center text-xs text-error">
+                  Expired. Please start a new booking.
                 </p>
               )}
             </div>
           </div>
 
-          {/* Right: Order Summary */}
-          <div>
-            <div className="card sticky top-24 p-6">
-              <h2 className="mb-4 font-display text-lg font-bold text-cream">Order Summary</h2>
-
-              <div className="mb-4 rounded-xl bg-forest-800 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-cream-muted">Reference</span>
-                  <span className="font-mono font-bold text-gold-400">
-                    {currentBooking.reference_code}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-cream-muted">Court</span>
-                  <span className="text-sm font-medium text-cream">
-                    {currentBooking.court_name}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-cream-muted">Date</span>
-                  <span className="text-sm font-medium text-cream">
-                    {formatDateLong(currentBooking.date)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-cream">Selected Slots</p>
-                {currentBooking.slots.map((slot) => (
-                  <div
-                    key={slot.id}
-                    className="flex items-center justify-between rounded-lg bg-forest-800 p-3"
-                  >
-                    <p className="text-sm font-medium text-cream">
-                      {formatTimeRange(slot.start_time, slot.end_time)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 space-y-2 border-t border-forest-500 pt-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-cream-muted">Subtotal</span>
-                  <span className="text-cream">{formatCurrency(currentBooking.total_amount)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-cream-muted">Service Fee</span>
-                  <span className="text-success">Free</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between border-t border-forest-500 pt-2">
-                  <span className="font-display text-lg font-bold text-cream">Total</span>
-                  <span className="font-display text-2xl font-bold text-gold-400">
+          {/* Right: Order Summary - COMPACT & Collapsible on mobile */}
+          <div className="lg:col-span-2">
+            <div className="card p-4">
+              {/* Mobile toggle */}
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="flex w-full items-center justify-between lg:hidden"
+              >
+                <h2 className="font-display text-sm font-bold text-cream">Order Summary</h2>
+                <div className="flex items-center gap-1.5 text-cream-muted">
+                  <span className="text-xs font-bold text-gold-400">
                     {formatCurrency(currentBooking.total_amount)}
                   </span>
+                  {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </div>
-              </div>
-
-              <div className="mt-4 rounded-xl bg-forest-800 p-4">
-                <p className="mb-2 text-xs font-semibold text-cream">Customer Details</p>
-                <div className="space-y-1 text-xs text-cream-muted">
-                  <p>{currentBooking.customer.name}</p>
-                  <p>{currentBooking.customer.email}</p>
-                  <p>{currentBooking.customer.phone}</p>
-                  {currentBooking.customer.notes && (
-                    <p className="italic">"{currentBooking.customer.notes}"</p>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  reset();
-                  navigate('/booking');
-                }}
-                className="mt-4 w-full text-center text-xs text-cream-muted underline hover:text-gold-300"
-              >
-                Cancel this booking
               </button>
+
+              <h2 className="hidden font-display text-base font-bold text-cream lg:block">Order Summary</h2>
+
+              <div className={`mt-3 space-y-2 ${showDetails ? 'block' : 'hidden lg:block'}`}>
+                <div className="rounded-lg bg-forest-800 p-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-cream-muted">Court</span>
+                    <span className="text-xs font-medium text-cream">{currentBooking.court_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-cream-muted">Date</span>
+                    <span className="text-xs font-medium text-cream">{formatDateLong(currentBooking.date)}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-[10px] font-semibold text-cream-muted">Slots</p>
+                  {currentBooking.slots.map((slot) => (
+                    <div
+                      key={slot.id}
+                      className="flex items-center justify-between rounded-lg bg-forest-800 px-2.5 py-1.5"
+                    >
+                      <span className="text-xs text-cream">{formatTimeRange(slot.start_time, slot.end_time)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t border-forest-500 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-cream-muted">Total</span>
+                    <span className="font-display text-lg font-bold text-gold-400">
+                      {formatCurrency(currentBooking.total_amount)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-forest-800 p-2">
+                  <p className="text-[10px] font-semibold text-cream">Customer</p>
+                  <p className="text-xs text-cream">{currentBooking.customer.name}</p>
+                  <p className="text-[10px] text-cream-muted">{currentBooking.customer.email}</p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    reset();
+                    navigate('/booking');
+                  }}
+                  className="mt-2 w-full text-center text-[10px] text-cream-muted underline hover:text-gold-300"
+                >
+                  Cancel booking
+                </button>
+              </div>
             </div>
           </div>
         </div>
