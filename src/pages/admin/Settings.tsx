@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
+import { StaffLayout } from '@/components/layout/StaffLayout';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -25,6 +26,7 @@ import type { ClientSettings } from '@/types';
 import { StaffManagement } from '@/components/ui/StaffManagement';
 
 export function Settings() {
+  const { user } = useAuthStore(); // ✅ Get user for role check
   const courts = useAdminStore((state) => state.courts);
   const loadingCourts = useAdminStore((state) => state.loadingCourts);
   const blockedDates = useAdminStore((state) => state.blockedDates);
@@ -33,7 +35,7 @@ export function Settings() {
   const addBlockedDate = useAdminStore((state) => state.addBlockedDate);
   const removeBlockedDate = useAdminStore((state) => state.removeBlockedDate);
 
-  const { user, updateProfile, changePassword } = useAuthStore();
+  const { updateProfile, changePassword } = useAuthStore();
 
   const [selectedCourtId, setSelectedCourtId] = useState<string>('');
   const [blockDate, setBlockDate] = useState(toISODate(addDays(new Date(), 7)));
@@ -60,6 +62,9 @@ export function Settings() {
   const [gcashAccountName, setGcashAccountName] = useState('');
   const [savingGcash, setSavingGcash] = useState(false);
   const [gcashMsg, setGcashMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // ✅ Check if user is admin
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     loadCourts();
@@ -150,6 +155,12 @@ export function Settings() {
   };
 
   const handleSaveGcash = async () => {
+    // ✅ Only admin can save GCash settings
+    if (!isAdmin) {
+      setGcashMsg({ type: 'error', text: 'You do not have permission to update payment settings.' });
+      return;
+    }
+    
     setSavingGcash(true);
     setGcashMsg(null);
     try {
@@ -175,8 +186,11 @@ export function Settings() {
 
   const selectedCourt = courts.find((c) => c.id === selectedCourtId);
 
+  // ✅ Choose layout based on role
+  const Layout = user?.role === 'staff' ? StaffLayout : AdminLayout;
+
   return (
-    <AdminLayout>
+    <Layout>
       <div className="container-page py-8">
         <div className="mb-8">
           <h1 className="font-display text-3xl font-bold text-cream">Settings</h1>
@@ -293,175 +307,182 @@ export function Settings() {
               </Button>
             </div>
 
-            {/* GCash Settings — now editable */}
-            <div className="card p-6">
-              <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
-                <CreditCard className="h-5 w-5 text-gold-400" />
-                Payment Configuration
-              </h2>
+            {/* GCash Settings — only for admins */}
+            {isAdmin && (
+              <div className="card p-6">
+                <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
+                  <CreditCard className="h-5 w-5 text-gold-400" />
+                  Payment Configuration
+                </h2>
 
-              {loadingSettings ? (
-                <LoadingSpinner className="py-6" />
-              ) : (
-                <>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Input
-                      label="GCash Number"
-                      value={gcashNumber}
-                      onChange={(e) => setGcashNumber(e.target.value)}
-                      placeholder="09XX XXX XXXX"
-                    />
-                    <Input
-                      label="GCash Account Name"
-                      value={gcashAccountName}
-                      onChange={(e) => setGcashAccountName(e.target.value)}
-                      placeholder="Account holder name"
-                    />
-                    <Input
-                      label="Payment Timer (minutes)"
-                      type="number"
-                      value={APP_CONFIG.paymentTimerSeconds / 60}
-                      readOnly
-                      hint="Contact support to change"
-                    />
-                    <Input
-                      label="Demo Mode"
-                      value={APP_CONFIG.demoMode ? 'Enabled' : 'Disabled'}
-                      readOnly
-                      hint="Toggle via VITE_DEMO_MODE env var"
-                    />
-                  </div>
-
-                  {gcashMsg && (
-                    <div
-                      className={`mt-3 flex items-center gap-2 rounded-lg p-3 text-sm ${
-                        gcashMsg.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
-                      }`}
-                    >
-                      {gcashMsg.type === 'success' ? (
-                        <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                      )}
-                      {gcashMsg.text}
+                {loadingSettings ? (
+                  <LoadingSpinner className="py-6" />
+                ) : (
+                  <>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Input
+                        label="GCash Number"
+                        value={gcashNumber}
+                        onChange={(e) => setGcashNumber(e.target.value)}
+                        placeholder="09XX XXX XXXX"
+                      />
+                      <Input
+                        label="GCash Account Name"
+                        value={gcashAccountName}
+                        onChange={(e) => setGcashAccountName(e.target.value)}
+                        placeholder="Account holder name"
+                      />
+                      <Input
+                        label="Payment Timer (minutes)"
+                        type="number"
+                        value={APP_CONFIG.paymentTimerSeconds / 60}
+                        readOnly
+                        hint="Contact support to change"
+                      />
+                      <Input
+                        label="Demo Mode"
+                        value={APP_CONFIG.demoMode ? 'Enabled' : 'Disabled'}
+                        readOnly
+                        hint="Toggle via VITE_DEMO_MODE env var"
+                      />
                     </div>
-                  )}
 
-                  <Button
-                    className="mt-4"
-                    leftIcon={<Save className="h-4 w-4" />}
-                    isLoading={savingGcash}
-                    onClick={handleSaveGcash}
-                  >
-                    Save Payment Settings
-                  </Button>
-                </>
-              )}
-            </div>
-
-            {/* Blocked Dates */}
-            <div className="card p-6">
-              <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
-                <CalendarOff className="h-5 w-5 text-gold-400" />
-                Blocked Dates
-              </h2>
-              <p className="mb-4 text-sm text-cream-muted">
-                Block courts for maintenance, holidays, or events.
-              </p>
-
-              {/* Court selector */}
-              <div className="mb-4">
-                <label className="mb-1.5 block text-sm font-medium text-cream">Select Court</label>
-                <div className="flex flex-wrap gap-2">
-                  {courts.map((c) => {
-                    if (!c) return null;
-                    return (
-                      <button
-                        key={c.id || `court-${Math.random()}`}
-                        onClick={() => setSelectedCourtId(c.id)}
-                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
-                          selectedCourtId === c.id
-                            ? 'border-gold-400 bg-gold-400/10 text-gold-300'
-                            : 'border-forest-500 text-cream-muted hover:border-gold-400/40'
+                    {gcashMsg && (
+                      <div
+                        className={`mt-3 flex items-center gap-2 rounded-lg p-3 text-sm ${
+                          gcashMsg.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
                         }`}
                       >
-                        <Building2 className="h-3.5 w-3.5" />
-                        {c?.name || 'Unnamed Court'}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                        {gcashMsg.type === 'success' ? (
+                          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                        )}
+                        {gcashMsg.text}
+                      </div>
+                    )}
 
-              {/* Add blocked date form */}
-              <div className="mb-6 grid gap-3 sm:grid-cols-3">
-                <Input
-                  label="Date to Block"
-                  type="date"
-                  min={todayISO()}
-                  value={blockDate}
-                  onChange={(e) => setBlockDate(e.target.value)}
-                />
-                <Input
-                  label="Reason"
-                  placeholder="Maintenance, holiday, event..."
-                  value={blockReason}
-                  onChange={(e) => setBlockReason(e.target.value)}
-                />
-                <div className="flex items-end">
-                  <Button
-                    fullWidth
-                    leftIcon={<Plus className="h-4 w-4" />}
-                    onClick={handleAddBlock}
-                    disabled={!blockDate || !selectedCourtId}
-                  >
-                    Block Date
-                  </Button>
-                </div>
-              </div>
-
-              {/* Existing blocked dates */}
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-cream">
-                  {selectedCourt ? `${selectedCourt.name} — ` : ''}Blocked Dates
-                </p>
-                {filteredBlocked.length === 0 ? (
-                  <div className="rounded-xl bg-forest-800 py-8 text-center">
-                    <CalendarOff className="mx-auto h-8 w-8 text-cream-muted/40" />
-                    <p className="mt-2 text-sm text-cream-muted">No blocked dates for this court.</p>
-                  </div>
-                ) : (
-                  <AnimatePresence>
-                    {filteredBlocked.map((block) => (
-                      <motion.div
-                        key={block.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 10 }}
-                        className="flex items-center justify-between rounded-xl bg-forest-800 p-3"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-cream">
-                            {formatDateLong(block.date)}
-                          </p>
-                          <p className="text-xs text-cream-muted">{block.reason}</p>
-                        </div>
-                        <button
-                          onClick={() => removeBlockedDate(block.id)}
-                          className="rounded-lg border border-forest-500 p-2 text-cream-muted transition hover:border-error hover:text-error"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
+                    <Button
+                      className="mt-4"
+                      leftIcon={<Save className="h-4 w-4" />}
+                      isLoading={savingGcash}
+                      onClick={handleSaveGcash}
+                    >
+                      Save Payment Settings
+                    </Button>
+                  </>
                 )}
               </div>
-            </div>
+            )}
 
-            <div className="card p-6">
-  <StaffManagement />
-</div>
+            {/* Blocked Dates - only for admins */}
+            {isAdmin && (
+              <div className="card p-6">
+                <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
+                  <CalendarOff className="h-5 w-5 text-gold-400" />
+                  Blocked Dates
+                </h2>
+                <p className="mb-4 text-sm text-cream-muted">
+                  Block courts for maintenance, holidays, or events.
+                </p>
+
+                {/* Court selector */}
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-sm font-medium text-cream">Select Court</label>
+                  <div className="flex flex-wrap gap-2">
+                    {courts.map((c) => {
+                      if (!c) return null;
+                      return (
+                        <button
+                          key={c.id || `court-${Math.random()}`}
+                          onClick={() => setSelectedCourtId(c.id)}
+                          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                            selectedCourtId === c.id
+                              ? 'border-gold-400 bg-gold-400/10 text-gold-300'
+                              : 'border-forest-500 text-cream-muted hover:border-gold-400/40'
+                          }`}
+                        >
+                          <Building2 className="h-3.5 w-3.5" />
+                          {c?.name || 'Unnamed Court'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Add blocked date form */}
+                <div className="mb-6 grid gap-3 sm:grid-cols-3">
+                  <Input
+                    label="Date to Block"
+                    type="date"
+                    min={todayISO()}
+                    value={blockDate}
+                    onChange={(e) => setBlockDate(e.target.value)}
+                  />
+                  <Input
+                    label="Reason"
+                    placeholder="Maintenance, holiday, event..."
+                    value={blockReason}
+                    onChange={(e) => setBlockReason(e.target.value)}
+                  />
+                  <div className="flex items-end">
+                    <Button
+                      fullWidth
+                      leftIcon={<Plus className="h-4 w-4" />}
+                      onClick={handleAddBlock}
+                      disabled={!blockDate || !selectedCourtId}
+                    >
+                      Block Date
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Existing blocked dates */}
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-cream">
+                    {selectedCourt ? `${selectedCourt.name} — ` : ''}Blocked Dates
+                  </p>
+                  {filteredBlocked.length === 0 ? (
+                    <div className="rounded-xl bg-forest-800 py-8 text-center">
+                      <CalendarOff className="mx-auto h-8 w-8 text-cream-muted/40" />
+                      <p className="mt-2 text-sm text-cream-muted">No blocked dates for this court.</p>
+                    </div>
+                  ) : (
+                    <AnimatePresence>
+                      {filteredBlocked.map((block) => (
+                        <motion.div
+                          key={block.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 10 }}
+                          className="flex items-center justify-between rounded-xl bg-forest-800 p-3"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-cream">
+                              {formatDateLong(block.date)}
+                            </p>
+                            <p className="text-xs text-cream-muted">{block.reason}</p>
+                          </div>
+                          <button
+                            onClick={() => removeBlockedDate(block.id)}
+                            className="rounded-lg border border-forest-500 p-2 text-cream-muted transition hover:border-error hover:text-error"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Staff Management - only for admins */}
+            {isAdmin && (
+              <div className="card p-6">
+                <StaffManagement />
+              </div>
+            )}
 
             {/* App Info */}
             <div className="card p-6">
@@ -484,6 +505,6 @@ export function Settings() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </Layout>
   );
 }

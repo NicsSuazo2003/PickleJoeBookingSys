@@ -19,6 +19,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { adminService } from '@/services/adminService';
 import { apiRequest } from '@/services/api';
+import { useAuthStore } from '@/stores/authStore';
 
 interface StaffMember {
   id: string;
@@ -31,6 +32,7 @@ interface StaffMember {
 }
 
 export function StaffManagement() {
+  const { user } = useAuthStore(); // ✅ Get current user
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -46,7 +48,16 @@ export function StaffManagement() {
     confirmPassword: '',
   });
 
+  // ✅ Only load staff if user is admin
+  const isAdmin = user?.role === 'admin';
+
   const loadStaff = async () => {
+    // ✅ Don't load if not admin
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     try {
@@ -54,7 +65,10 @@ export function StaffManagement() {
       const data = Array.isArray(res) ? res : res?.data || [];
       setStaff(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load staff');
+      // ✅ Silently fail for non-admin users
+      if (isAdmin) {
+        setError(err instanceof Error ? err.message : 'Failed to load staff');
+      }
     } finally {
       setLoading(false);
     }
@@ -62,7 +76,12 @@ export function StaffManagement() {
 
   useEffect(() => {
     loadStaff();
-  }, []);
+  }, [isAdmin]);
+
+  // ✅ If not admin, show nothing
+  if (!isAdmin) {
+    return null;
+  }
 
   const handleAddStaff = async () => {
     setError(null);
