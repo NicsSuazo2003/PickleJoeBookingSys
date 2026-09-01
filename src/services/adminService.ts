@@ -1,4 +1,4 @@
-import type { Analytics, Booking, BookingStatus, Court, BlockedDate, ClientSettings } from '@/types';
+import type { Analytics, Booking, BookingStatus, Court, BlockedDate, ClientSettings, PaymentMethod } from '@/types';
 import { apiRequest } from './api';
 import { normalizeCourt, buildCourtPayload } from './courtService';
 
@@ -102,22 +102,28 @@ export const adminService = {
     return normalizeClientSettings(res?.data ?? res);
   },
 
-  async updateSettings(payload: {
-    name?: string;
-    gcash_number?: string;
-    gcash_account_name?: string;
-  }): Promise<ClientSettings> {
-    const res = await apiRequest<any>('/api/admin/settings', {
-      method: 'PUT',
-      body: JSON.stringify({
-        name: payload.name,
-        gcashNumber: payload.gcash_number,
-        gcashAccountName: payload.gcash_account_name,
-      }),
-    });
-    return normalizeClientSettings(res?.data ?? res);
-  },
-
+ // src/services/adminService.ts
+async updateSettings(payload: {
+  name?: string;
+  gcash_number?: string;
+  gcash_account_name?: string;
+  payment_methods?: PaymentMethod[]; // ✅ Add this
+  rcbc_account_name?: string;        // ✅ Add this
+  rcbc_qr_image?: string;            // ✅ Add this
+}): Promise<ClientSettings> {
+  const res = await apiRequest<any>('/api/admin/settings', {
+    method: 'PUT',
+    body: JSON.stringify({
+      name: payload.name,
+      gcashNumber: payload.gcash_number,
+      gcashAccountName: payload.gcash_account_name,
+      paymentMethods: payload.payment_methods, // ✅ Send to backend
+      rcbcAccountName: payload.rcbc_account_name,
+      rcbcQrImage: payload.rcbc_qr_image,
+    }),
+  });
+  return normalizeClientSettings(res?.data ?? res);
+},
   async getBookings(filters?: {
     status?: BookingStatus;
     courtId?: string;

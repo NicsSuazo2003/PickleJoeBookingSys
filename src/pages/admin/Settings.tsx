@@ -12,6 +12,14 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  Wallet,
+  QrCode,
+  Smartphone,
+  Banknote,
+  Edit3,
+  X,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { StaffLayout } from '@/components/layout/StaffLayout';
@@ -23,8 +31,28 @@ import { useAuthStore } from '@/stores/authStore';
 import { adminService } from '@/services/adminService';
 import { formatDateLong, todayISO, toISODate, addDays } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
-import type { ClientSettings } from '@/types';
+import type { ClientSettings, PaymentMethod } from '@/types'; // ✅ Updated import
 import { StaffManagement } from '@/components/ui/StaffManagement';
+import { Modal } from '@/components/ui/Modal';
+
+// ✅ Payment method type options
+const PAYMENT_TYPE_OPTIONS = [
+  { value: 'gcash', label: 'GCash', icon: '📱' },
+  { value: 'qr_ph', label: 'QR Ph (Bank QR)', icon: '📷' },
+  { value: 'bank_transfer', label: 'Bank Transfer', icon: '🏦' },
+  { value: 'e_wallet', label: 'E-Wallet', icon: '💳' },
+  { value: 'other', label: 'Other', icon: '🔗' },
+];
+
+// ✅ Icon options for payment methods
+const ICON_OPTIONS = [
+  { value: 'Smartphone', icon: Smartphone },
+  { value: 'QrCode', icon: QrCode },
+  { value: 'Banknote', icon: Banknote },
+  { value: 'CreditCard', icon: CreditCard },
+  { value: 'Wallet', icon: Wallet },
+  { value: 'Building2', icon: Building2 },
+];
 
 export function Settings() {
   const { user } = useAuthStore();
@@ -38,13 +66,13 @@ export function Settings() {
 
   const { updateProfile, changePassword } = useAuthStore();
 
+  // ── Profile state ──────────────────────────────────
   const [selectedCourtId, setSelectedCourtId] = useState<string>('');
   const [blockDate, setBlockDate] = useState(toISODate(addDays(new Date(), 7)));
   const [blockReason, setBlockReason] = useState('');
-  // ✅ New state for start and end time
   const [blockStartTime, setBlockStartTime] = useState('');
   const [blockEndTime, setBlockEndTime] = useState('');
-  const [isFullDay, setIsFullDay] = useState(true); // ✅ Toggle between full-day and time-specific
+  const [isFullDay, setIsFullDay] = useState(true);
 
   const [profileName, setProfileName] = useState(user?.name ?? '');
   const [profileEmail, setProfileEmail] = useState(user?.email ?? '');
@@ -58,24 +86,43 @@ export function Settings() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // ── Payment Methods State ─────────────────────────
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
+  const [savingMethod, setSavingMethod] = useState(false);
+  const [methodMsg, setMethodMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // ── New/Edit Payment Method Form ──────────────────
+  const [formData, setFormData] = useState<Partial<PaymentMethod>>({
+    name: '',
+    type: 'other',
+    icon: 'Smartphone',
+    enabled: true,
+    config: {
+      account_name: '',
+      account_number: '',
+      qr_image_url: '',
+      instructions: '',
+    },
+  });
+
+  // ── Client Settings State ─────────────────────────
   const [clientSettings, setClientSettings] = useState<ClientSettings | null>(null);
   const [loadingSettings, setLoadingSettings] = useState(true);
-  const [gcashNumber, setGcashNumber] = useState('');
-  const [gcashAccountName, setGcashAccountName] = useState('');
-  const [savingGcash, setSavingGcash] = useState(false);
-  const [gcashMsg, setGcashMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const isAdmin = user?.role === 'admin';
 
+  // ── Load Data ──────────────────────────────────────
   useEffect(() => {
     loadCourts();
     loadBlockedDates();
+    loadPaymentMethods();
     (async () => {
       try {
         const settings = await adminService.getSettings();
         setClientSettings(settings);
-        setGcashNumber(settings.gcash_number ?? '');
-        setGcashAccountName(settings.gcash_account_name ?? '');
       } catch (err) {
         console.error('Failed to load client settings:', err);
       } finally {
@@ -96,17 +143,213 @@ export function Settings() {
     setProfilePhone(user?.phone ?? '');
   }, [user]);
 
+  // ── Load Payment Methods ───────────────────────────
+  const loadPaymentMethods = async () => {
+    setLoadingPaymentMethods(true);
+    try {
+      // Try to fetch from backend
+      const settings = await adminService.getSettings();
+      if (settings.payment_methods && settings.payment_methods.length > 0) {
+        setPaymentMethods(settings.payment_methods);
+      } else {
+        // Default payment methods
+        setPaymentMethods([
+          {
+            id: '1',
+            name: 'GCash',
+            type: 'gcash',
+            icon: 'Smartphone',
+            enabled: true,
+            config: {
+              account_name: APP_CONFIG.gcashAccountName || 'PickleJoe Courts',
+              account_number: APP_CONFIG.gcashNumber || '09XX XXX XXXX',
+            },
+            sort_order: 0,
+          },
+          {
+            id: '2',
+            name: 'RCBC QR Pay',
+            type: 'qr_ph',
+            icon: 'QrCode',
+            enabled: false,
+            config: {
+              account_name: 'CenterCourt',
+              qr_image_url: '',
+            },
+            sort_order: 1,
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to load payment methods:', error);
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
+  };
+
+  // ── Save Payment Methods ───────────────────────────
+  const savePaymentMethods = async (methods: PaymentMethod[]) => {
+    try {
+      await adminService.updateSettings({
+        payment_methods: methods,
+      });
+      setPaymentMethods(methods);
+      return true;
+    } catch (error) {
+      console.error('Failed to save payment methods:', error);
+      return false;
+    }
+  };
+
+  // ── Add Payment Method ─────────────────────────────
+  const handleAddMethod = async () => {
+    if (!formData.name?.trim()) {
+      setMethodMsg({ type: 'error', text: 'Payment method name is required.' });
+      return;
+    }
+
+    setSavingMethod(true);
+    setMethodMsg(null);
+
+    const newMethod: PaymentMethod = {
+      id: Date.now().toString(),
+      name: formData.name.trim(),
+      type: (formData.type as PaymentMethod['type']) || 'other',
+      icon: formData.icon || 'Smartphone',
+      enabled: formData.enabled !== undefined ? formData.enabled : true,
+      config: {
+        account_name: formData.config?.account_name || '',
+        account_number: formData.config?.account_number || '',
+        qr_image_url: formData.config?.qr_image_url || '',
+        instructions: formData.config?.instructions || '',
+      },
+      sort_order: paymentMethods.length,
+    };
+
+    const updated = [...paymentMethods, newMethod];
+    const success = await savePaymentMethods(updated);
+    
+    if (success) {
+      setMethodMsg({ type: 'success', text: `"${newMethod.name}" added successfully.` });
+      setShowAddModal(false);
+      resetForm();
+      await loadPaymentMethods();
+    } else {
+      setMethodMsg({ type: 'error', text: 'Failed to add payment method.' });
+    }
+    setSavingMethod(false);
+  };
+
+  // ── Edit Payment Method ────────────────────────────
+  const handleEditMethod = async () => {
+    if (!editingMethod) return;
+    if (!formData.name?.trim()) {
+      setMethodMsg({ type: 'error', text: 'Payment method name is required.' });
+      return;
+    }
+
+    setSavingMethod(true);
+    setMethodMsg(null);
+
+    const updatedMethod: PaymentMethod = {
+      ...editingMethod,
+      name: formData.name.trim(),
+      type: (formData.type as PaymentMethod['type']) || editingMethod.type,
+      icon: formData.icon || editingMethod.icon,
+      enabled: formData.enabled !== undefined ? formData.enabled : editingMethod.enabled,
+      config: {
+        account_name: formData.config?.account_name || editingMethod.config?.account_name || '',
+        account_number: formData.config?.account_number || editingMethod.config?.account_number || '',
+        qr_image_url: formData.config?.qr_image_url || editingMethod.config?.qr_image_url || '',
+        instructions: formData.config?.instructions || editingMethod.config?.instructions || '',
+      },
+    };
+
+    const updated = paymentMethods.map((m) =>
+      m.id === editingMethod.id ? updatedMethod : m
+    );
+    
+    const success = await savePaymentMethods(updated);
+    
+    if (success) {
+      setMethodMsg({ type: 'success', text: `"${updatedMethod.name}" updated successfully.` });
+      setEditingMethod(null);
+      resetForm();
+      await loadPaymentMethods();
+    } else {
+      setMethodMsg({ type: 'error', text: 'Failed to update payment method.' });
+    }
+    setSavingMethod(false);
+  };
+
+  // ── Toggle Payment Method ──────────────────────────
+  const handleToggleMethod = async (id: string) => {
+    const method = paymentMethods.find((m) => m.id === id);
+    if (!method) return;
+
+    const updated = paymentMethods.map((m) =>
+      m.id === id ? { ...m, enabled: !m.enabled } : m
+    );
+    
+    await savePaymentMethods(updated);
+    setPaymentMethods(updated);
+  };
+
+  // ── Delete Payment Method ──────────────────────────
+  const handleDeleteMethod = async (id: string) => {
+    const method = paymentMethods.find((m) => m.id === id);
+    if (!method) return;
+    
+    if (!confirm(`Remove "${method.name}" from payment options?`)) return;
+
+    const updated = paymentMethods.filter((m) => m.id !== id);
+    const success = await savePaymentMethods(updated);
+    
+    if (success) {
+      setPaymentMethods(updated);
+    }
+  };
+
+  // ── Reset Form ─────────────────────────────────────
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      type: 'other',
+      icon: 'Smartphone',
+      enabled: true,
+      config: {
+        account_name: '',
+        account_number: '',
+        qr_image_url: '',
+        instructions: '',
+      },
+    });
+    setMethodMsg(null);
+  };
+
+  // ── Edit Click Handler ─────────────────────────────
+  const handleEditClick = (method: PaymentMethod) => {
+    setEditingMethod(method);
+    setFormData({
+      name: method.name,
+      type: method.type,
+      icon: method.icon,
+      enabled: method.enabled,
+      config: { ...method.config },
+    });
+    setMethodMsg(null);
+  };
+
+  // ── Blocked Date Handlers ──────────────────────────
   const handleAddBlock = async () => {
     if (!selectedCourtId || !blockDate) return;
     
-    // ✅ Build the payload with optional time fields
     const payload: any = {
       court_id: selectedCourtId,
       date: blockDate,
       reason: blockReason || 'Maintenance',
     };
 
-    // ✅ Only add time fields if not full day and times are provided
     if (!isFullDay && blockStartTime && blockEndTime) {
       payload.startTime = blockStartTime;
       payload.endTime = blockEndTime;
@@ -119,6 +362,7 @@ export function Settings() {
     setIsFullDay(true);
   };
 
+  // ── Profile Handlers ───────────────────────────────
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     setProfileMsg(null);
@@ -168,31 +412,6 @@ export function Settings() {
     }
   };
 
-  const handleSaveGcash = async () => {
-    if (!isAdmin) {
-      setGcashMsg({ type: 'error', text: 'You do not have permission to update payment settings.' });
-      return;
-    }
-    
-    setSavingGcash(true);
-    setGcashMsg(null);
-    try {
-      const updated = await adminService.updateSettings({
-        gcash_number: gcashNumber,
-        gcash_account_name: gcashAccountName,
-      });
-      setClientSettings(updated);
-      setGcashMsg({ type: 'success', text: 'Payment settings updated successfully.' });
-    } catch (err) {
-      setGcashMsg({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'Failed to update payment settings.',
-      });
-    } finally {
-      setSavingGcash(false);
-    }
-  };
-
   const filteredBlocked = selectedCourtId
     ? blockedDates.filter((b) => b.court_id === selectedCourtId)
     : blockedDates;
@@ -201,13 +420,14 @@ export function Settings() {
 
   const Layout = user?.role === 'staff' ? StaffLayout : AdminLayout;
 
+  // ── Render ──────────────────────────────────────────
   return (
     <Layout>
       <div className="container-page py-8">
         <div className="mb-8">
           <h1 className="font-display text-3xl font-bold text-cream">Settings</h1>
           <p className="mt-1 text-sm text-cream-muted">
-            Manage your account, payment configuration, and blocked dates
+            Manage your account, payment methods, and blocked dates
           </p>
         </div>
 
@@ -215,7 +435,7 @@ export function Settings() {
           <LoadingSpinner className="py-12" />
         ) : (
           <div className="space-y-6">
-            {/* Account Info */}
+            {/* ── Account Info ── */}
             <div className="card p-6">
               <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
                 <SettingsIcon className="h-5 w-5 text-gold-400" />
@@ -265,7 +485,7 @@ export function Settings() {
               </Button>
             </div>
 
-            {/* Change Password */}
+            {/* ── Change Password ── */}
             <div className="card p-6">
               <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
                 <Lock className="h-5 w-5 text-gold-400" />
@@ -319,75 +539,106 @@ export function Settings() {
               </Button>
             </div>
 
-            {/* GCash Settings */}
+            {/* ── Payment Methods ── */}
             {isAdmin && (
               <div className="card p-6">
-                <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
-                  <CreditCard className="h-5 w-5 text-gold-400" />
-                  Payment Configuration
-                </h2>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="flex items-center gap-2 font-display text-lg font-bold text-cream">
+                      <Wallet className="h-5 w-5 text-gold-400" />
+                      Payment Methods
+                    </h2>
+                    <p className="text-sm text-cream-muted">
+                      Add, edit, or remove payment methods available at checkout.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    leftIcon={<Plus className="h-4 w-4" />}
+                    onClick={() => {
+                      resetForm();
+                      setShowAddModal(true);
+                    }}
+                  >
+                    Add Method
+                  </Button>
+                </div>
 
-                {loadingSettings ? (
+                {loadingPaymentMethods ? (
                   <LoadingSpinner className="py-6" />
+                ) : paymentMethods.length === 0 ? (
+                  <div className="rounded-xl bg-forest-800 py-8 text-center">
+                    <Wallet className="mx-auto h-10 w-10 text-cream-muted/40" />
+                    <p className="mt-3 text-sm text-cream-muted">No payment methods added yet.</p>
+                    <p className="text-xs text-cream-muted/60">Add your first payment method to get started.</p>
+                  </div>
                 ) : (
-                  <>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Input
-                        label="GCash Number"
-                        value={gcashNumber}
-                        onChange={(e) => setGcashNumber(e.target.value)}
-                        placeholder="09XX XXX XXXX"
-                      />
-                      <Input
-                        label="GCash Account Name"
-                        value={gcashAccountName}
-                        onChange={(e) => setGcashAccountName(e.target.value)}
-                        placeholder="Account holder name"
-                      />
-                      <Input
-                        label="Payment Timer (minutes)"
-                        type="number"
-                        value={APP_CONFIG.paymentTimerSeconds / 60}
-                        readOnly
-                        hint="Contact support to change"
-                      />
-                      <Input
-                        label="Demo Mode"
-                        value={APP_CONFIG.demoMode ? 'Enabled' : 'Disabled'}
-                        readOnly
-                        hint="Toggle via VITE_DEMO_MODE env var"
-                      />
-                    </div>
-
-                    {gcashMsg && (
-                      <div
-                        className={`mt-3 flex items-center gap-2 rounded-lg p-3 text-sm ${
-                          gcashMsg.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
-                        }`}
-                      >
-                        {gcashMsg.type === 'success' ? (
-                          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                        )}
-                        {gcashMsg.text}
-                      </div>
-                    )}
-
-                    <Button
-                      className="mt-4"
-                      leftIcon={<Save className="h-4 w-4" />}
-                      isLoading={savingGcash}
-                      onClick={handleSaveGcash}
-                    >
-                      Save Payment Settings
-                    </Button>
-                  </>
+                  <div className="space-y-3">
+                    {paymentMethods
+                      .sort((a, b) => a.sort_order - b.sort_order)
+                      .map((method) => {
+                        const IconComponent =
+                          ICON_OPTIONS.find((i) => i.value === method.icon)?.icon || Smartphone;
+                        return (
+                          <div
+                            key={method.id}
+                            className="flex items-center justify-between rounded-xl border border-forest-500 bg-forest-800/50 p-4"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10">
+                                <IconComponent className="h-5 w-5 text-gold-400" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-cream">{method.name}</p>
+                                  <span
+                                    className={`text-[10px] font-semibold uppercase tracking-wider ${
+                                      method.enabled ? 'text-success' : 'text-error'
+                                    }`}
+                                  >
+                                    {method.enabled ? 'Active' : 'Disabled'}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-cream-muted">
+                                  {method.type.replace('_', ' ').toUpperCase()}
+                                  {method.config?.account_name && (
+                                    <span className="ml-2">· {method.config.account_name}</span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <label className="relative inline-flex cursor-pointer items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={method.enabled}
+                                  onChange={() => handleToggleMethod(method.id)}
+                                  className="peer sr-only"
+                                />
+                                <div className="peer h-6 w-11 rounded-full bg-forest-600 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-forest-400 after:bg-white after:transition-all after:content-[''] peer-checked:bg-gold-400 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none"></div>
+                              </label>
+                              <button
+                                onClick={() => handleEditClick(method)}
+                                className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMethod(method.id)}
+                                className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-error hover:text-error"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
                 )}
               </div>
             )}
 
-            {/* Blocked Dates - UPDATED with time fields */}
+            {/* ── Blocked Dates ── */}
             {isAdmin && (
               <div className="card p-6">
                 <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
@@ -398,7 +649,6 @@ export function Settings() {
                   Block courts for maintenance, holidays, or events. You can block full days or specific time ranges.
                 </p>
 
-                {/* Court selector */}
                 <div className="mb-4">
                   <label className="mb-1.5 block text-sm font-medium text-cream">Select Court</label>
                   <div className="flex flex-wrap gap-2">
@@ -422,7 +672,6 @@ export function Settings() {
                   </div>
                 </div>
 
-                {/* Add blocked date form - UPDATED */}
                 <div className="mb-6 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
                   <Input
                     label="Date to Block"
@@ -432,7 +681,6 @@ export function Settings() {
                     onChange={(e) => setBlockDate(e.target.value)}
                   />
                   
-                  {/* ✅ Full Day Toggle */}
                   <div className="flex items-end">
                     <label className="flex items-center gap-2 text-sm text-cream pb-1">
                       <input
@@ -451,26 +699,23 @@ export function Settings() {
                     </label>
                   </div>
 
-                  {/* ✅ Start Time */}
                   {!isFullDay && (
-                    <Input
-                      label="Start Time"
-                      type="time"
-                      value={blockStartTime}
-                      onChange={(e) => setBlockStartTime(e.target.value)}
-                      leftIcon={<Clock className="h-4 w-4" />}
-                    />
-                  )}
-
-                  {/* ✅ End Time */}
-                  {!isFullDay && (
-                    <Input
-                      label="End Time"
-                      type="time"
-                      value={blockEndTime}
-                      onChange={(e) => setBlockEndTime(e.target.value)}
-                      leftIcon={<Clock className="h-4 w-4" />}
-                    />
+                    <>
+                      <Input
+                        label="Start Time"
+                        type="time"
+                        value={blockStartTime}
+                        onChange={(e) => setBlockStartTime(e.target.value)}
+                        leftIcon={<Clock className="h-4 w-4" />}
+                      />
+                      <Input
+                        label="End Time"
+                        type="time"
+                        value={blockEndTime}
+                        onChange={(e) => setBlockEndTime(e.target.value)}
+                        leftIcon={<Clock className="h-4 w-4" />}
+                      />
+                    </>
                   )}
 
                   <Input
@@ -481,7 +726,6 @@ export function Settings() {
                   />
                 </div>
 
-                {/* Add button row */}
                 <div className="mb-6">
                   <Button
                     leftIcon={<Plus className="h-4 w-4" />}
@@ -492,7 +736,6 @@ export function Settings() {
                   </Button>
                 </div>
 
-                {/* Existing blocked dates - UPDATED to show time if available */}
                 <div className="space-y-2">
                   <p className="text-sm font-semibold text-cream">
                     {selectedCourt ? `${selectedCourt.name} — ` : ''}Blocked Dates
@@ -515,15 +758,9 @@ export function Settings() {
                           <div>
                             <p className="text-sm font-medium text-cream">
                               {formatDateLong(block.date)}
-                              {/* ✅ Show time if available */}
                               {(block as any).startTime && (block as any).endTime && (
                                 <span className="ml-2 text-xs text-gold-400">
                                   {(block as any).startTime} - {(block as any).endTime}
-                                </span>
-                              )}
-                              {(block as any).startTime && !(block as any).endTime && (
-                                <span className="ml-2 text-xs text-gold-400">
-                                  starts at {(block as any).startTime}
                                 </span>
                               )}
                             </p>
@@ -543,14 +780,14 @@ export function Settings() {
               </div>
             )}
 
-            {/* Staff Management */}
+            {/* ── Staff Management ── */}
             {isAdmin && (
               <div className="card p-6">
                 <StaffManagement />
               </div>
             )}
 
-            {/* App Info */}
+            {/* ── App Info ── */}
             <div className="card p-6">
               <h2 className="mb-4 font-display text-lg font-bold text-cream">App Information</h2>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -571,6 +808,167 @@ export function Settings() {
           </div>
         )}
       </div>
+
+      {/* ── Add/Edit Payment Method Modal ── */}
+      <Modal
+        isOpen={showAddModal || !!editingMethod}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingMethod(null);
+          resetForm();
+        }}
+        title={editingMethod ? `Edit ${editingMethod.name}` : 'Add Payment Method'}
+        size="md"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Payment Method Name"
+            placeholder="e.g. GCash, BPI, Maya, RCBC QR Pay"
+            value={formData.name || ''}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-cream">Payment Type</label>
+            <select
+              value={formData.type || 'other'}
+              onChange={(e) =>
+                setFormData({ ...formData, type: e.target.value as PaymentMethod['type'] })
+              }
+              className="input-field"
+            >
+              {PAYMENT_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.icon} {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-cream">Icon</label>
+            <select
+              value={formData.icon || 'Smartphone'}
+              onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+              className="input-field"
+            >
+              {ICON_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                return (
+                  <option key={opt.value} value={opt.value}>
+                    <Icon className="inline h-4 w-4" /> {opt.value}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div className="border-t border-forest-500 pt-4">
+            <p className="mb-3 text-sm font-semibold text-cream">Configuration</p>
+            
+            <Input
+              label="Account Name"
+              placeholder="Account holder name"
+              value={formData.config?.account_name || ''}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  config: { ...formData.config, account_name: e.target.value },
+                })
+              }
+            />
+
+            {(formData.type === 'gcash' || formData.type === 'e_wallet') && (
+              <Input
+                label="Account Number"
+                placeholder="e.g. 09XX XXX XXXX"
+                value={formData.config?.account_number || ''}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    config: { ...formData.config, account_number: e.target.value },
+                  })
+                }
+              />
+            )}
+
+            {(formData.type === 'qr_ph' || formData.type === 'gcash') && (
+              <Input
+                label="QR Code Image URL"
+                placeholder="https://example.com/qr-code.png"
+                value={formData.config?.qr_image_url || ''}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    config: { ...formData.config, qr_image_url: e.target.value },
+                  })
+                }
+              />
+            )}
+
+            <Textarea
+              label="Instructions (optional)"
+              rows={3}
+              placeholder="e.g. Send payment to this account, include reference code as description..."
+              value={formData.config?.instructions || ''}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  config: { ...formData.config, instructions: e.target.value },
+                })
+              }
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-cream">
+              <input
+                type="checkbox"
+                checked={formData.enabled !== undefined ? formData.enabled : true}
+                onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
+                className="h-4 w-4 accent-gold-400"
+              />
+              Enabled (visible at checkout)
+            </label>
+          </div>
+
+          {methodMsg && (
+            <div
+              className={`flex items-center gap-2 rounded-lg p-3 text-sm ${
+                methodMsg.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+              }`}
+            >
+              {methodMsg.type === 'success' ? (
+                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              )}
+              {methodMsg.text}
+            </div>
+          )}
+
+          <div className="flex gap-3 border-t border-forest-500 pt-4">
+            <Button
+              fullWidth
+              isLoading={savingMethod}
+              leftIcon={<Save className="h-4 w-4" />}
+              onClick={editingMethod ? handleEditMethod : handleAddMethod}
+            >
+              {editingMethod ? 'Update Payment Method' : 'Add Payment Method'}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowAddModal(false);
+                setEditingMethod(null);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Layout>
   );
 }

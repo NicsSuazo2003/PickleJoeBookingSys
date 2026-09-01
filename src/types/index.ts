@@ -117,6 +117,21 @@ export interface Analytics {
   court_breakdown: { court_id: string; court_name: string; bookings: number; revenue: number }[];
 }
 
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  type: 'gcash' | 'qr_ph' | 'bank_transfer' | 'e_wallet' | 'other';
+  icon: string;
+  enabled: boolean;
+  config: {
+    account_name?: string;
+    account_number?: string;
+    qr_image_url?: string;
+    instructions?: string;
+  };
+  sort_order: number;
+}
+
 // src/types/index.ts
 export interface AdminUser {
   id: string;
@@ -138,6 +153,7 @@ export interface ClientSettings {
   accent_color: string;
   gcash_number?: string | null;
   gcash_account_name?: string | null;
+   payment_methods?: PaymentMethod[];
 }
 
 export type AdminView = 'calendar' | 'list';
