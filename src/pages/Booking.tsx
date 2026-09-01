@@ -46,7 +46,7 @@ type CustomerForm = z.infer<typeof customerSchema>;
 
 export function Booking() {
   const navigate = useNavigate();
-  const formRef = useRef<HTMLDivElement>(null); // ✅ Ref for customer form section
+  const formRef = useRef<HTMLDivElement>(null);
   
   const {
     courts,
@@ -58,7 +58,6 @@ export function Booking() {
     loadingSlots,
     error,
     loadCourts,
-    selectCourt,
     setDate,
     toggleSlot,
     setCustomer,
@@ -84,9 +83,8 @@ export function Booking() {
     }
   }, [courts.length, loadCourts]);
 
-  // ✅ Auto-scroll to form when component mounts (if coming from landing page)
+  // Auto-scroll to form when component mounts (if coming from landing page)
   useEffect(() => {
-    // Check if user came from landing page with selected slots
     const hasSelectedSlots = useBookingStore.getState().selectedSlotIds.length > 0;
     if (hasSelectedSlots && formRef.current) {
       setTimeout(() => {
@@ -105,6 +103,7 @@ export function Booking() {
   const fixedSlots = slots.filter((s) => s.type === 'fixed_2hr');
   const standardSlots = slots.filter((s) => s.type !== 'fixed_2hr');
 
+  // ✅ Submit form and navigate to checkout
   const onSubmit = async (data: CustomerForm) => {
     setSubmitting(true);
     setSubmitError(null);
@@ -119,9 +118,27 @@ export function Booking() {
     }
   };
 
-  // ✅ Scroll to form when clicking "Proceed to Reservation"
+  // ✅ Scroll to form
   const scrollToForm = () => {
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // ✅ Handle checkout from summary - scroll to form if empty, or submit if filled
+  const handleCheckoutClick = () => {
+    // Check if form is filled
+    const name = (document.getElementById('name') as HTMLInputElement)?.value;
+    const email = (document.getElementById('email') as HTMLInputElement)?.value;
+    const phone = (document.getElementById('phone') as HTMLInputElement)?.value;
+    
+    if (name && email && phone) {
+      // Form is filled, submit it
+      document.getElementById('bookingForm')?.dispatchEvent(
+        new Event('submit', { cancelable: true, bubbles: true })
+      );
+    } else {
+      // Form is empty, scroll to it
+      scrollToForm();
+    }
   };
 
   if (loadingCourts && courts.length === 0) {
@@ -146,7 +163,7 @@ export function Booking() {
           </p>
         </div>
 
-        {/* ✅ Selected Court Display (Read-only) */}
+        {/* Selected Court Display (Read-only) */}
         <div className="mb-8">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gold-400">
             <MapPin className="h-4 w-4" />
@@ -359,7 +376,7 @@ export function Booking() {
               )}
             </div>
 
-            {/* ✅ Customer Details Form - with ref for auto-scroll */}
+            {/* Customer Details Form */}
             <div ref={formRef} className="card p-5 scroll-mt-24">
               <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gold-400">
                 Your Details
@@ -367,6 +384,7 @@ export function Booking() {
               <form id="bookingForm" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input
+                    id="name"
                     label="Full Name"
                     placeholder="Juan Dela Cruz"
                     leftIcon={<User className="h-4 w-4" />}
@@ -374,6 +392,7 @@ export function Booking() {
                     {...register('name')}
                   />
                   <Input
+                    id="phone"
                     label="Phone Number"
                     placeholder="0917 123 4567"
                     leftIcon={<Phone className="h-4 w-4" />}
@@ -382,6 +401,7 @@ export function Booking() {
                   />
                 </div>
                 <Input
+                  id="email"
                   label="Email Address"
                   type="email"
                   placeholder="juan@email.com"
@@ -395,6 +415,23 @@ export function Booking() {
                   placeholder="Any special requests or instructions..."
                   {...register('notes')}
                 />
+
+                {/* ✅ Submit button inside form */}
+                <Button
+                  type="submit"
+                  size="lg"
+                  fullWidth
+                  isLoading={submitting}
+                  rightIcon={<ArrowRight className="h-5 w-5" />}
+                >
+                  Proceed to Checkout
+                </Button>
+
+                {submitError && (
+                  <p className="rounded-lg bg-error/10 p-2 text-xs text-error">
+                    {submitError}
+                  </p>
+                )}
               </form>
             </div>
           </div>
@@ -472,23 +509,17 @@ export function Booking() {
                         </span>
                       </div>
                     </div>
-                    {/* ✅ Scroll to form instead of submitting directly */}
+                    {/* ✅ This button now scrolls to form and submits if filled */}
                     <Button
                       size="lg"
                       fullWidth
                       className="mt-4"
-                      onClick={scrollToForm}
+                      onClick={handleCheckoutClick}
                       rightIcon={<ArrowRight className="h-5 w-5" />}
                     >
                       Proceed to Checkout
                     </Button>
                   </>
-                )}
-
-                {submitError && (
-                  <p className="mt-3 rounded-lg bg-error/10 p-2 text-xs text-error">
-                    {submitError}
-                  </p>
                 )}
               </div>
 
