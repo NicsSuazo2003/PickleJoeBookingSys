@@ -11,6 +11,7 @@ import {
   Lock,
   CheckCircle2,
   AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { StaffLayout } from '@/components/layout/StaffLayout';
@@ -26,7 +27,7 @@ import type { ClientSettings } from '@/types';
 import { StaffManagement } from '@/components/ui/StaffManagement';
 
 export function Settings() {
-  const { user } = useAuthStore(); // ✅ Get user for role check
+  const { user } = useAuthStore();
   const courts = useAdminStore((state) => state.courts);
   const loadingCourts = useAdminStore((state) => state.loadingCourts);
   const blockedDates = useAdminStore((state) => state.blockedDates);
@@ -40,22 +41,23 @@ export function Settings() {
   const [selectedCourtId, setSelectedCourtId] = useState<string>('');
   const [blockDate, setBlockDate] = useState(toISODate(addDays(new Date(), 7)));
   const [blockReason, setBlockReason] = useState('');
+  // ✅ New state for start and end time
+  const [blockStartTime, setBlockStartTime] = useState('');
+  const [blockEndTime, setBlockEndTime] = useState('');
+  const [isFullDay, setIsFullDay] = useState(true); // ✅ Toggle between full-day and time-specific
 
-  // ── Profile form state ──────────────────────────────
   const [profileName, setProfileName] = useState(user?.name ?? '');
   const [profileEmail, setProfileEmail] = useState(user?.email ?? '');
   const [profilePhone, setProfilePhone] = useState(user?.phone ?? '');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // ── Password form state ─────────────────────────────
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // ── GCash / client settings state ───────────────────
   const [clientSettings, setClientSettings] = useState<ClientSettings | null>(null);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [gcashNumber, setGcashNumber] = useState('');
@@ -63,7 +65,6 @@ export function Settings() {
   const [savingGcash, setSavingGcash] = useState(false);
   const [gcashMsg, setGcashMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // ✅ Check if user is admin
   const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
@@ -97,12 +98,25 @@ export function Settings() {
 
   const handleAddBlock = async () => {
     if (!selectedCourtId || !blockDate) return;
-    await addBlockedDate({
+    
+    // ✅ Build the payload with optional time fields
+    const payload: any = {
       court_id: selectedCourtId,
       date: blockDate,
       reason: blockReason || 'Maintenance',
-    });
+    };
+
+    // ✅ Only add time fields if not full day and times are provided
+    if (!isFullDay && blockStartTime && blockEndTime) {
+      payload.startTime = blockStartTime;
+      payload.endTime = blockEndTime;
+    }
+
+    await addBlockedDate(payload);
     setBlockReason('');
+    setBlockStartTime('');
+    setBlockEndTime('');
+    setIsFullDay(true);
   };
 
   const handleSaveProfile = async () => {
@@ -155,7 +169,6 @@ export function Settings() {
   };
 
   const handleSaveGcash = async () => {
-    // ✅ Only admin can save GCash settings
     if (!isAdmin) {
       setGcashMsg({ type: 'error', text: 'You do not have permission to update payment settings.' });
       return;
@@ -186,7 +199,6 @@ export function Settings() {
 
   const selectedCourt = courts.find((c) => c.id === selectedCourtId);
 
-  // ✅ Choose layout based on role
   const Layout = user?.role === 'staff' ? StaffLayout : AdminLayout;
 
   return (
@@ -203,7 +215,7 @@ export function Settings() {
           <LoadingSpinner className="py-12" />
         ) : (
           <div className="space-y-6">
-            {/* Account Info — now editable */}
+            {/* Account Info */}
             <div className="card p-6">
               <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
                 <SettingsIcon className="h-5 w-5 text-gold-400" />
@@ -307,7 +319,7 @@ export function Settings() {
               </Button>
             </div>
 
-            {/* GCash Settings — only for admins */}
+            {/* GCash Settings */}
             {isAdmin && (
               <div className="card p-6">
                 <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
@@ -375,7 +387,7 @@ export function Settings() {
               </div>
             )}
 
-            {/* Blocked Dates - only for admins */}
+            {/* Blocked Dates - UPDATED with time fields */}
             {isAdmin && (
               <div className="card p-6">
                 <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
@@ -383,7 +395,7 @@ export function Settings() {
                   Blocked Dates
                 </h2>
                 <p className="mb-4 text-sm text-cream-muted">
-                  Block courts for maintenance, holidays, or events.
+                  Block courts for maintenance, holidays, or events. You can block full days or specific time ranges.
                 </p>
 
                 {/* Court selector */}
@@ -410,8 +422,8 @@ export function Settings() {
                   </div>
                 </div>
 
-                {/* Add blocked date form */}
-                <div className="mb-6 grid gap-3 sm:grid-cols-3">
+                {/* Add blocked date form - UPDATED */}
+                <div className="mb-6 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
                   <Input
                     label="Date to Block"
                     type="date"
@@ -419,25 +431,68 @@ export function Settings() {
                     value={blockDate}
                     onChange={(e) => setBlockDate(e.target.value)}
                   />
+                  
+                  {/* ✅ Full Day Toggle */}
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 text-sm text-cream pb-1">
+                      <input
+                        type="checkbox"
+                        checked={isFullDay}
+                        onChange={(e) => {
+                          setIsFullDay(e.target.checked);
+                          if (e.target.checked) {
+                            setBlockStartTime('');
+                            setBlockEndTime('');
+                          }
+                        }}
+                        className="h-4 w-4 accent-gold-400"
+                      />
+                      <span className="text-cream-muted">Full Day</span>
+                    </label>
+                  </div>
+
+                  {/* ✅ Start Time */}
+                  {!isFullDay && (
+                    <Input
+                      label="Start Time"
+                      type="time"
+                      value={blockStartTime}
+                      onChange={(e) => setBlockStartTime(e.target.value)}
+                      leftIcon={<Clock className="h-4 w-4" />}
+                    />
+                  )}
+
+                  {/* ✅ End Time */}
+                  {!isFullDay && (
+                    <Input
+                      label="End Time"
+                      type="time"
+                      value={blockEndTime}
+                      onChange={(e) => setBlockEndTime(e.target.value)}
+                      leftIcon={<Clock className="h-4 w-4" />}
+                    />
+                  )}
+
                   <Input
                     label="Reason"
                     placeholder="Maintenance, holiday, event..."
                     value={blockReason}
                     onChange={(e) => setBlockReason(e.target.value)}
                   />
-                  <div className="flex items-end">
-                    <Button
-                      fullWidth
-                      leftIcon={<Plus className="h-4 w-4" />}
-                      onClick={handleAddBlock}
-                      disabled={!blockDate || !selectedCourtId}
-                    >
-                      Block Date
-                    </Button>
-                  </div>
                 </div>
 
-                {/* Existing blocked dates */}
+                {/* Add button row */}
+                <div className="mb-6">
+                  <Button
+                    leftIcon={<Plus className="h-4 w-4" />}
+                    onClick={handleAddBlock}
+                    disabled={!blockDate || !selectedCourtId}
+                  >
+                    Block Date
+                  </Button>
+                </div>
+
+                {/* Existing blocked dates - UPDATED to show time if available */}
                 <div className="space-y-2">
                   <p className="text-sm font-semibold text-cream">
                     {selectedCourt ? `${selectedCourt.name} — ` : ''}Blocked Dates
@@ -460,6 +515,17 @@ export function Settings() {
                           <div>
                             <p className="text-sm font-medium text-cream">
                               {formatDateLong(block.date)}
+                              {/* ✅ Show time if available */}
+                              {(block as any).startTime && (block as any).endTime && (
+                                <span className="ml-2 text-xs text-gold-400">
+                                  {(block as any).startTime} - {(block as any).endTime}
+                                </span>
+                              )}
+                              {(block as any).startTime && !(block as any).endTime && (
+                                <span className="ml-2 text-xs text-gold-400">
+                                  starts at {(block as any).startTime}
+                                </span>
+                              )}
                             </p>
                             <p className="text-xs text-cream-muted">{block.reason}</p>
                           </div>
@@ -477,7 +543,7 @@ export function Settings() {
               </div>
             )}
 
-            {/* Staff Management - only for admins */}
+            {/* Staff Management */}
             {isAdmin && (
               <div className="card p-6">
                 <StaffManagement />
