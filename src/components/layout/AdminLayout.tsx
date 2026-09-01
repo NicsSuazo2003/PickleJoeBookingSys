@@ -1,3 +1,4 @@
+// src/components/layout/AdminLayout.tsx
 import { type ReactNode, useState } from 'react';
 import { Link, useLocation, Navigate } from 'react-router-dom';
 import {
@@ -78,12 +79,22 @@ export function AdminSidebar() {
 }
 
 export function AdminLayout({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // ✅ If user is staff, redirect to staff bookings
+  if (user?.role === 'staff') {
+    return <Navigate to="/staff/bookings" replace />;
+  }
+
+  // ✅ If user is not admin or staff, redirect to login
+  if (user?.role !== 'admin') {
+    return <Navigate to="/login" replace />;
   }
 
   return (

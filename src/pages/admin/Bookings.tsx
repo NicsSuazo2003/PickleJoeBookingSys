@@ -8,12 +8,14 @@ import {
   Eye,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
+import { StaffLayout } from '@/components/layout/StaffLayout';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Modal } from '@/components/ui/Modal';
 import { useAdminStore } from '@/stores/adminStore';
+import { useAuthStore } from '@/stores/authStore';
 import {
   formatTimeRange,
   formatCurrency,
@@ -33,6 +35,7 @@ const statusOptions: { value: BookingStatus | 'all'; label: string }[] = [
 ];
 
 export function Bookings() {
+  const { user } = useAuthStore();
   const bookings = useAdminStore((state) => state.bookings);
   const courts = useAdminStore((state) => state.courts);
   const loadingBookings = useAdminStore((state) => state.loadingBookings);
@@ -76,8 +79,11 @@ export function Bookings() {
     }
   };
 
+  // ✅ Choose layout based on role
+  const Layout = user?.role === 'staff' ? StaffLayout : AdminLayout;
+
   return (
-    <AdminLayout>
+    <Layout>
       <div className="container-page py-8">
         <div className="mb-8">
           <h1 className="font-display text-3xl font-bold text-cream">Bookings</h1>
@@ -313,6 +319,6 @@ export function Bookings() {
           </Modal>
         )}
       </AnimatePresence>
-    </AdminLayout>
+    </Layout>
   );
 }
