@@ -47,12 +47,17 @@ export function Bookings() {
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
   const [courtFilter, setCourtFilter] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [updating, setUpdating] = useState(false);
+  // ✅ Track which status action is in flight, not just a shared boolean
+  const [updatingStatus, setUpdatingStatus] = useState<BookingStatus | null>(null);
 
   useEffect(() => {
     loadBookings();
-    loadCourts();
-  }, [loadBookings, loadCourts]);
+    // ✅ /api/admin/courts is admin-only — staff would get a 403 and an
+    // empty court filter every time, so only fetch it for admins.
+    if (user?.role === 'admin') {
+      loadCourts();
+    }
+  }, [loadBookings, loadCourts, user?.role]);
 
   const filtered = bookings.filter((b) => {
     if (statusFilter !== 'all' && b.status !== statusFilter) return false;
@@ -70,12 +75,12 @@ export function Bookings() {
   });
 
   const handleStatusUpdate = async (bookingId: string, status: BookingStatus) => {
-    setUpdating(true);
+    setUpdatingStatus(status);
     try {
       await updateBookingStatus(bookingId, status);
       setSelectedBooking((prev) => (prev && prev.id === bookingId ? { ...prev, status } : prev));
     } finally {
-      setUpdating(false);
+      setUpdatingStatus(null);
     }
   };
 
@@ -275,7 +280,8 @@ export function Bookings() {
                     <Button
                       size="sm"
                       variant="success"
-                      isLoading={updating}
+                      isLoading={updatingStatus === 'confirmed'}
+                      disabled={updatingStatus !== null}
                       leftIcon={<CheckCircle2 className="h-4 w-4" />}
                       onClick={() => handleStatusUpdate(selectedBooking.id, 'confirmed')}
                     >
@@ -286,7 +292,8 @@ export function Bookings() {
                     <Button
                       size="sm"
                       variant="primary"
-                      isLoading={updating}
+                      isLoading={updatingStatus === 'completed'}
+                      disabled={updatingStatus !== null}
                       onClick={() => handleStatusUpdate(selectedBooking.id, 'completed')}
                     >
                       Mark Completed
@@ -296,7 +303,8 @@ export function Bookings() {
                     <Button
                       size="sm"
                       variant="danger"
-                      isLoading={updating}
+                      isLoading={updatingStatus === 'cancelled'}
+                      disabled={updatingStatus !== null}
                       leftIcon={<XCircle className="h-4 w-4" />}
                       onClick={() => handleStatusUpdate(selectedBooking.id, 'cancelled')}
                     >
@@ -307,7 +315,8 @@ export function Bookings() {
                     <Button
                       size="sm"
                       variant="danger"
-                      isLoading={updating}
+                      isLoading={updatingStatus === 'rejected'}
+                      disabled={updatingStatus !== null}
                       onClick={() => handleStatusUpdate(selectedBooking.id, 'rejected')}
                     >
                       Reject
