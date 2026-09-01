@@ -20,6 +20,7 @@ import {
   X,
   Upload,
   Image as ImageIcon,
+  Loader2,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { StaffLayout } from '@/components/layout/StaffLayout';
@@ -31,7 +32,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { adminService } from '@/services/adminService';
 import { formatDateLong, todayISO, toISODate, addDays } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
-import type { ClientSettings, PaymentMethod } from '@/types'; // ✅ Updated import
+import type { ClientSettings, PaymentMethod } from '@/types';
 import { StaffManagement } from '@/components/ui/StaffManagement';
 import { Modal } from '@/components/ui/Modal';
 
@@ -93,6 +94,9 @@ export function Settings() {
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
   const [savingMethod, setSavingMethod] = useState(false);
   const [methodMsg, setMethodMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // ── QR Upload state ───────────────────────────────
+  const [uploadingQR, setUploadingQR] = useState(false);
 
   // ── New/Edit Payment Method Form ──────────────────
   const [formData, setFormData] = useState<Partial<PaymentMethod>>({
@@ -147,12 +151,10 @@ export function Settings() {
   const loadPaymentMethods = async () => {
     setLoadingPaymentMethods(true);
     try {
-      // Try to fetch from backend
       const settings = await adminService.getSettings();
       if (settings.payment_methods && settings.payment_methods.length > 0) {
         setPaymentMethods(settings.payment_methods);
       } else {
-        // Default payment methods
         setPaymentMethods([
           {
             id: '1',
@@ -165,18 +167,6 @@ export function Settings() {
               account_number: APP_CONFIG.gcashNumber || '09XX XXX XXXX',
             },
             sort_order: 0,
-          },
-          {
-            id: '2',
-            name: 'RCBC QR Pay',
-            type: 'qr_ph',
-            icon: 'QrCode',
-            enabled: false,
-            config: {
-              account_name: 'CenterCourt',
-              qr_image_url: '',
-            },
-            sort_order: 1,
           },
         ]);
       }
@@ -200,6 +190,54 @@ export function Settings() {
       return false;
     }
   };
+
+  // ── Handle QR Code Upload ──────────────────────────
+const handleQrUpload = async (file: File): Promise<string | null> => {
+  setUploadingQR(true);
+  setMethodMsg(null);
+  
+  try {
+    const uploadData = new FormData();
+    uploadData.append('file', file);
+
+    const token = localStorage.getItem('admin_token');
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/files/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: uploadData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Upload failed');
+    }
+
+    const data = await response.json();
+    const imageUrl = data.url;
+    
+    if (imageUrl) {
+      setFormData({
+        ...formData,
+        config: { ...formData.config, qr_image_url: imageUrl },
+      });
+      setMethodMsg({ type: 'success', text: 'QR code uploaded successfully!' });
+      return imageUrl;
+    } else {
+      throw new Error('No URL returned from upload');
+    }
+  } catch (error) {
+    setMethodMsg({ 
+      type: 'error', 
+      text: error instanceof Error ? error.message : 'Failed to upload QR code' 
+    });
+    console.error('QR upload error:', error);
+    return null;
+  } finally {
+    setUploadingQR(false);
+  }
+};
 
   // ── Add Payment Method ─────────────────────────────
   const handleAddMethod = async () => {
@@ -420,7 +458,6 @@ export function Settings() {
 
   const Layout = user?.role === 'staff' ? StaffLayout : AdminLayout;
 
-  // ── Render ──────────────────────────────────────────
   return (
     <Layout>
       <div className="container-page py-8">
@@ -818,7 +855,7 @@ export function Settings() {
           resetForm();
         }}
         title={editingMethod ? `Edit ${editingMethod.name}` : 'Add Payment Method'}
-        size="md"
+        size="lg"
       >
         <div className="space-y-4">
           <Input
@@ -892,18 +929,79 @@ export function Settings() {
               />
             )}
 
+            {/* ── QR Code Upload ── */}
             {(formData.type === 'qr_ph' || formData.type === 'gcash') && (
-              <Input
-                label="QR Code Image URL"
-                placeholder="https://example.com/qr-code.png"
-                value={formData.config?.qr_image_url || ''}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    config: { ...formData.config, qr_image_url: e.target.value },
-                  })
-                }
-              />
+              <div className="space-y-3">
+                <label className="mb-1.5 block text-sm font-medium text-cream">
+                  QR Code Image
+                  {uploadingQR && <Loader2 className="ml-2 inline h-4 w-4 animate-spin" />}
+                </label>
+                
+                {formData.config?.qr_image_url ? (
+                  <div className="relative rounded-xl border border-forest-500 bg-forest-800/50 p-4">
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={formData.config.qr_image_url}
+                        alt="QR Code"
+                        className="h-24 w-24 rounded-lg object-contain border border-forest-500"
+                      />
+                      <div>
+                        <p className="text-sm text-cream">QR code uploaded</p>
+                        <p className="text-xs text-cream-muted">
+                          {formData.config.qr_image_url.split('/').pop()?.slice(0, 30)}...
+                        </p>
+                        <button
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              config: { ...formData.config, qr_image_url: '' },
+                            });
+                          }}
+                          className="mt-2 text-xs text-error hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border-2 border-dashed border-forest-500 p-6 text-center hover:border-gold-400/50 transition">
+                    <ImageIcon className="mx-auto h-10 w-10 text-cream-muted/40" />
+                    <p className="mt-2 text-sm text-cream-muted">
+                      Drag and drop or click to upload QR code
+                    </p>
+                    <p className="text-xs text-cream-muted/60">
+                      PNG, JPG, SVG (max 5MB)
+                    </p>
+                    <label className="mt-3 inline-block cursor-pointer">
+                      <span className="rounded-lg border border-gold-400 px-4 py-2 text-sm font-medium text-gold-300 transition hover:bg-gold-400/10">
+                        {uploadingQR ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Choose Image'
+                        )}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingQR}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            await handleQrUpload(file);
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+                
+                <p className="text-xs text-cream-muted/60">
+                  Upload the QR code image that customers will scan to pay.
+                </p>
+              </div>
             )}
 
             <Textarea
