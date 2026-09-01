@@ -51,13 +51,12 @@ function getCourtAccent(index: number) {
   return COURT_ACCENTS[index % COURT_ACCENTS.length];
 }
 
-// ✅ Helper to format time as "7PM-8PM" (without :00)
+// Helper to format time as "7PM-8PM"
 function formatTimeShort(time: string): string {
   if (!time) return '';
   const [hour, minute] = time.split(':').map(Number);
   const ampm = hour >= 12 ? 'PM' : 'AM';
   const hour12 = hour % 12 || 12;
-  // If minute is 0, just show the hour
   return minute === 0 ? `${hour12}${ampm}` : `${hour12}:${String(minute).padStart(2, '0')}${ampm}`;
 }
 
@@ -365,7 +364,7 @@ export function Landing() {
                   </div>
                 </div>
 
-                {/* Multi-Court Column Table */}
+                {/* Multi-Court Column Table with Sticky Headers */}
                 {loadingSlots || loadingCourts ? (
                   <LoadingSpinner className="py-8 md:py-16" />
                 ) : error ? (
@@ -376,11 +375,11 @@ export function Landing() {
                   </div>
                 ) : (
                   <div className="overflow-x-auto pb-2 md:pb-4">
-                     <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[520px]">
+                    <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[520px]">
                       
-                      {/* Court Column Headers */}
+                      {/* ✅ Sticky Court Column Headers */}
                       <div
-                        className="grid gap-2 pb-3 text-center text-[10px] font-extrabold uppercase tracking-wider text-gold-400 sm:gap-2.5 sm:pb-4 md:gap-3 md:pb-4 md:text-sm"
+                        className="sticky top-0 z-10 grid gap-2 bg-forest-900 pb-3 text-center text-[10px] font-extrabold uppercase tracking-wider text-gold-400 sm:gap-2.5 sm:pb-4 md:gap-3 md:pb-4 md:text-sm"
                         style={{
                           gridTemplateColumns: `repeat(${courts.length}, minmax(50px, 1fr))`,
                         }}
@@ -390,7 +389,7 @@ export function Landing() {
                           return (
                             <div
                               key={court.id}
-                              className={`flex items-center justify-center gap-1.5 truncate text-[9px] sm:text-[10px] md:text-sm ${accent.header}`}
+                              className={`flex items-center justify-center gap-1.5 truncate bg-forest-900 px-1 py-2 text-[9px] sm:text-[10px] md:text-sm ${accent.header}`}
                             >
                               <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2 md:h-2 md:w-2 ${accent.dot}`} />
                               <span className="truncate font-bold">{court.name}</span>
@@ -606,7 +605,7 @@ function PeriodSection({
             key={`${interval.start_time}-${interval.end_time}`}
             className="grid gap-1.5 sm:gap-2 md:gap-2.5"
             style={{
-             gridTemplateColumns: `repeat(${courts.length}, minmax(55px, 1fr))`,
+              gridTemplateColumns: `repeat(${courts.length}, minmax(55px, 1fr))`,
             }}
           >
             {courts.map((court, idx) => {
@@ -645,7 +644,7 @@ function PeriodSection({
 
 type CourtAccent = ReturnType<typeof getCourtAccent>;
 
-// Slot Pill Component - with short time format and larger size
+// Slot Pill Component
 function SlotPill({
   slot,
   isSelected,
@@ -672,7 +671,6 @@ function SlotPill({
     styleClasses = 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold';
   }
 
-  // ✅ Larger heights for better mobile readability
   const height = compact ? 'h-9 sm:h-10 md:h-12' : 'h-12';
   const textSize = compact ? 'text-[10px] sm:text-[11px] md:text-sm' : 'text-sm';
   const padding = compact ? 'px-1.5 sm:px-2.5' : 'px-3';
