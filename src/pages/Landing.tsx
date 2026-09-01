@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -64,6 +64,8 @@ function formatTimeRangeShort(start: string, end: string): string {
 
 export function Landing() {
   const navigate = useNavigate();
+  const bookingSectionRef = useRef<HTMLDivElement>(null); // ✅ Ref for booking section
+  
   const {
     courts,
     selectedDate,
@@ -93,6 +95,11 @@ export function Landing() {
       loadAllCourtsSlots();
     }
   }, [selectedDate, courts.length, loadAllCourtsSlots]);
+
+  // ✅ Smooth scroll to booking section
+  const scrollToBooking = () => {
+    bookingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const getTimeIntervalsByPeriod = (slotsList: TimeSlot[]) => {
     const morningMap = new Map<string, { start_time: string; end_time: string }>();
@@ -180,7 +187,12 @@ export function Landing() {
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button size="lg" to="/booking" leftIcon={<CalendarPlus className="h-5 w-5" />}>
+              {/* ✅ Book a Court button now scrolls to booking section */}
+              <Button 
+                size="lg" 
+                onClick={scrollToBooking} 
+                leftIcon={<CalendarPlus className="h-5 w-5" />}
+              >
                 Book a Court
               </Button>
               <Button
@@ -215,265 +227,267 @@ export function Landing() {
         </div>
       </section>
 
-      {/* Structured Multi-Court Booking Section */}
-      <section className="relative z-20 border-y border-forest-500 bg-forest-950 py-8 md:py-16">
-        <div className="container-page max-w-7xl">
-          <div className="overflow-hidden rounded-2xl border border-forest-600/60 bg-forest-900 shadow-2xl md:rounded-3xl">
-            
-            {/* Header Banner */}
-            <div className="border-b border-forest-700 bg-forest-950 px-4 py-3 sm:px-6 sm:py-4 md:px-8 md:py-7">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <h2 className="font-display text-lg font-bold tracking-tight text-cream sm:text-xl md:text-3xl">
-                    Book a Court
-                  </h2>
-                  <p className="hidden text-xs text-cream-muted sm:block md:text-sm">
-                    Pick a date, then tap any number of time slots
-                  </p>
-                </div>
-                <div className="hidden rounded-xl border border-forest-600/50 bg-forest-800/80 p-2 text-gold-400 sm:block md:p-3">
-                  <CalendarDays className="h-5 w-5 md:h-6 md:w-6" />
+      {/* ✅ Booking Section with ref */}
+      <div ref={bookingSectionRef}>
+        <section className="relative z-20 border-y border-forest-500 bg-forest-950 py-8 md:py-16">
+          <div className="container-page max-w-7xl">
+            <div className="overflow-hidden rounded-2xl border border-forest-600/60 bg-forest-900 shadow-2xl md:rounded-3xl">
+              
+              {/* Header Banner */}
+              <div className="border-b border-forest-700 bg-forest-950 px-4 py-3 sm:px-6 sm:py-4 md:px-8 md:py-7">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h2 className="font-display text-lg font-bold tracking-tight text-cream sm:text-xl md:text-3xl">
+                      Book a Court
+                    </h2>
+                    <p className="hidden text-xs text-cream-muted sm:block md:text-sm">
+                      Pick a date, then tap any number of time slots
+                    </p>
+                  </div>
+                  <div className="hidden rounded-xl border border-forest-600/50 bg-forest-800/80 p-2 text-gold-400 sm:block md:p-3">
+                    <CalendarDays className="h-5 w-5 md:h-6 md:w-6" />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="p-3 sm:p-4 md:p-8">
-              {/* STEP 1: Date Selection Carousel */}
-              <div className="mb-6 md:mb-10">
-                <div className="mb-3 flex items-center gap-2 md:mb-5 md:gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[10px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
-                    1
+              <div className="p-3 sm:p-4 md:p-8">
+                {/* STEP 1: Date Selection Carousel */}
+                <div className="mb-6 md:mb-10">
+                  <div className="mb-3 flex items-center gap-2 md:mb-5 md:gap-3">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[10px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
+                      1
+                    </div>
+                    <div>
+                      <span className="block text-[8px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
+                        STEP 1
+                      </span>
+                      <h3 className="font-display text-sm font-bold text-cream md:text-lg">Choose Date</h3>
+                    </div>
                   </div>
-                  <div>
-                    <span className="block text-[8px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
-                      STEP 1
-                    </span>
-                    <h3 className="font-display text-sm font-bold text-cream md:text-lg">Choose Date</h3>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-1 sm:gap-2 md:gap-2">
-                  <button
-                    onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
-                    disabled={weekOffset === 0}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30 sm:h-11 sm:w-11 md:h-12 md:w-12 md:rounded-xl"
-                  >
-                    <ChevronLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
-                  </button>
+                  <div className="flex items-center gap-1 sm:gap-2 md:gap-2">
+                    <button
+                      onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
+                      disabled={weekOffset === 0}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30 sm:h-11 sm:w-11 md:h-12 md:w-12 md:rounded-xl"
+                    >
+                      <ChevronLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
+                    </button>
 
-                  <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-1.5 md:gap-2">
-                    {weekDays.map((day) => {
-                      const iso = toISODate(day);
-                      const isSelected = selectedDate === iso;
-                      const isToday = iso === todayISO();
-                      const dayName = day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-                      const dayNumber = day.getDate();
-                      const monthName = day.toLocaleDateString('en-US', { month: 'short' });
+                    <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-1.5 md:gap-2">
+                      {weekDays.map((day) => {
+                        const iso = toISODate(day);
+                        const isSelected = selectedDate === iso;
+                        const isToday = iso === todayISO();
+                        const dayName = day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+                        const dayNumber = day.getDate();
+                        const monthName = day.toLocaleDateString('en-US', { month: 'short' });
 
-                      return (
-                        <button
-                          key={iso}
-                          onClick={() => setDate(iso)}
-                          className={`relative flex flex-col items-center justify-center rounded-lg border py-2 transition-all sm:rounded-xl sm:py-2.5 md:py-3 ${
-                            isSelected
-                              ? 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold'
-                              : 'border-forest-600/70 bg-forest-800 text-cream-muted hover:border-gold-400/50 hover:bg-forest-700/80 hover:text-cream'
-                          }`}
-                        >
-                          {isToday && (
+                        return (
+                          <button
+                            key={iso}
+                            onClick={() => setDate(iso)}
+                            className={`relative flex flex-col items-center justify-center rounded-lg border py-2 transition-all sm:rounded-xl sm:py-2.5 md:py-3 ${
+                              isSelected
+                                ? 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold'
+                                : 'border-forest-600/70 bg-forest-800 text-cream-muted hover:border-gold-400/50 hover:bg-forest-700/80 hover:text-cream'
+                            }`}
+                          >
+                            {isToday && (
+                              <span
+                                className={`absolute -top-2 right-1 rounded-full px-1.5 py-0.5 text-[6px] font-extrabold uppercase tracking-wider sm:-top-2.5 sm:right-1.5 sm:px-2 sm:text-[7px] md:px-2 md:text-[8px] ${
+                                  isSelected
+                                    ? 'bg-forest-950 text-gold-400'
+                                    : 'bg-gold-400 text-forest-950'
+                                }`}
+                              >
+                                TODAY
+                              </span>
+                            )}
                             <span
-                              className={`absolute -top-2 right-1 rounded-full px-1.5 py-0.5 text-[6px] font-extrabold uppercase tracking-wider sm:-top-2.5 sm:right-1.5 sm:px-2 sm:text-[7px] md:px-2 md:text-[8px] ${
-                                isSelected
-                                  ? 'bg-forest-950 text-gold-400'
-                                  : 'bg-gold-400 text-forest-950'
+                              className={`text-[7px] font-semibold tracking-wider sm:text-[8px] md:text-[10px] ${
+                                isSelected ? 'text-forest-900' : 'text-cream-muted/80'
                               }`}
                             >
-                              TODAY
+                              {dayName}
                             </span>
-                          )}
-                          <span
-                            className={`text-[7px] font-semibold tracking-wider sm:text-[8px] md:text-[10px] ${
-                              isSelected ? 'text-forest-900' : 'text-cream-muted/80'
-                            }`}
-                          >
-                            {dayName}
-                          </span>
-                          <span className="my-0.5 text-sm font-extrabold sm:text-base md:text-lg">
-                            {dayNumber}
-                          </span>
-                          <span
-                            className={`text-[6px] uppercase sm:text-[7px] md:text-[9px] ${
-                              isSelected ? 'text-forest-900 font-semibold' : 'text-cream-muted/70'
-                            }`}
-                          >
-                            {monthName}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    onClick={() => setWeekOffset((w) => w + 1)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 sm:h-11 sm:w-11 md:h-12 md:w-12 md:rounded-xl"
-                  >
-                    <ChevronRight className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* STEP 2 */}
-              <div>
-                <div className="mb-3 flex items-center gap-2 md:mb-5 md:gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[10px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
-                    2
-                  </div>
-                  <div>
-                    <span className="block text-[8px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
-                      STEP 2
-                    </span>
-                    <h3 className="font-display text-sm font-bold text-cream md:text-lg">
-                      Choose Court and Time
-                    </h3>
-                  </div>
-                </div>
-
-                {/* Status Legend Bar */}
-                <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-forest-700/80 pb-2 text-[10px] font-semibold sm:gap-2.5 md:gap-3 md:pb-4 md:text-xs">
-                  <span className="inline-flex items-center gap-1 rounded-full border border-forest-500 bg-forest-800/80 px-2 py-1 text-cream-muted sm:px-3 sm:py-1.5">
-                    <Check className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
-                    Available
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-300 sm:px-3 sm:py-1.5">
-                    <Clock3 className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
-                    Pending
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-400 sm:px-3 sm:py-1.5">
-                    <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
-                    Booked
-                  </span>
-                </div>
-
-                {/* Date Highlight Badge */}
-                <div className="mb-4 flex justify-center md:mb-6">
-                  <div className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/30 bg-forest-800/90 px-3 py-1 text-[10px] font-bold text-gold-300 shadow-inner sm:gap-2 sm:px-4 sm:py-1.5 sm:text-xs md:px-5 md:py-1.5">
-                    <CalendarDays className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
-                    {formatDateLong(selectedDate)}
-                  </div>
-                </div>
-
-                {/* Multi-Court Column Table with Mobile-Optimized Sticky Headers */}
-                {loadingSlots || loadingCourts ? (
-                  <LoadingSpinner className="py-8 md:py-16" />
-                ) : error ? (
-                  <div className="py-6 text-center font-medium text-red-400 md:py-12">{error}</div>
-                ) : courts.length === 0 ? (
-                  <div className="py-6 text-center text-sm font-medium text-cream-muted md:py-12">
-                    No courts found.
-                  </div>
-                ) : (
-                  <div className="relative max-h-[62vh] overflow-y-auto overflow-x-auto rounded-xl border border-forest-700/60 bg-forest-950/40 p-2 sm:max-h-[70vh] sm:p-4 md:max-h-[75vh]">
-                    <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[520px]">
-                      
-                      {/* Sticky Court Column Headers for Mobile/Desktop */}
-                      <div
-                        className="sticky top-0 z-30 -mx-2 -mt-2 mb-3 border-b border-forest-700 bg-forest-900 px-2 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-wider text-gold-400 shadow-md backdrop-blur-md sm:-mx-4 sm:-mt-4 sm:mb-4 sm:px-4 sm:py-3 md:text-sm"
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: `repeat(${courts.length}, minmax(50px, 1fr))`,
-                          gap: '0.5rem',
-                        }}
-                      >
-                        {courts.map((court, idx) => {
-                          const accent = getCourtAccent(idx);
-                          return (
-                            <div
-                              key={court.id}
-                              className={`flex items-center justify-center gap-1.5 truncate text-[9px] sm:text-[10px] md:text-sm ${accent.header}`}
+                            <span className="my-0.5 text-sm font-extrabold sm:text-base md:text-lg">
+                              {dayNumber}
+                            </span>
+                            <span
+                              className={`text-[6px] uppercase sm:text-[7px] md:text-[9px] ${
+                                isSelected ? 'text-forest-900 font-semibold' : 'text-cream-muted/70'
+                              }`}
                             >
-                              <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2 md:h-2 md:w-2 ${accent.dot}`} />
-                              <span className="truncate font-bold">{court.name}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                              {monthName}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                      {/* Period Sections */}
-                      <div className="space-y-3 md:space-y-5">
-                        {morningTimes.length > 0 && (
-                          <PeriodSection
-                            title="MORNING"
-                            icon={<CloudSun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
-                            courts={courts}
-                            timeIntervals={morningTimes}
-                            getSlotForCourtAndTime={getSlotForCourtAndTime}
-                            selectedSlotIds={selectedSlotIds}
-                            onToggleSlot={toggleSlot}
-                            compact={true}
-                          />
-                        )}
+                    <button
+                      onClick={() => setWeekOffset((w) => w + 1)}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 sm:h-11 sm:w-11 md:h-12 md:w-12 md:rounded-xl"
+                    >
+                      <ChevronRight className="h-4 w-4 sm:h-4.5 sm:w-4.5 md:h-5 md:w-5" />
+                    </button>
+                  </div>
+                </div>
 
-                        {afternoonTimes.length > 0 && (
-                          <PeriodSection
-                            title="AFTERNOON"
-                            icon={<Sun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
-                            courts={courts}
-                            timeIntervals={afternoonTimes}
-                            getSlotForCourtAndTime={getSlotForCourtAndTime}
-                            selectedSlotIds={selectedSlotIds}
-                            onToggleSlot={toggleSlot}
-                            compact={true}
-                          />
-                        )}
-
-                        {eveningTimes.length > 0 && (
-                          <PeriodSection
-                            title="EVENING"
-                            icon={<Moon className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
-                            courts={courts}
-                            timeIntervals={eveningTimes}
-                            getSlotForCourtAndTime={getSlotForCourtAndTime}
-                            selectedSlotIds={selectedSlotIds}
-                            onToggleSlot={toggleSlot}
-                            compact={true}
-                          />
-                        )}
-                      </div>
+                {/* STEP 2 */}
+                <div>
+                  <div className="mb-3 flex items-center gap-2 md:mb-5 md:gap-3">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[10px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
+                      2
+                    </div>
+                    <div>
+                      <span className="block text-[8px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
+                        STEP 2
+                      </span>
+                      <h3 className="font-display text-sm font-bold text-cream md:text-lg">
+                        Choose Court and Time
+                      </h3>
                     </div>
                   </div>
-                )}
 
-                {/* Bottom Reservation Summary Bar */}
-                <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-xl border border-forest-600 bg-forest-800/90 p-3 sm:mt-6 sm:flex-row sm:gap-4 sm:p-4 md:mt-10 md:p-5">
-                  <div className="text-center sm:text-left">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted sm:text-xs md:text-xs">
-                      Selected Slots
+                  {/* Status Legend Bar */}
+                  <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-forest-700/80 pb-2 text-[10px] font-semibold sm:gap-2.5 md:gap-3 md:pb-4 md:text-xs">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-forest-500 bg-forest-800/80 px-2 py-1 text-cream-muted sm:px-3 sm:py-1.5">
+                      <Check className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+                      Available
                     </span>
-                    <div className="font-display text-sm font-bold text-cream sm:text-base md:text-lg">
-                      {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
-                      {selectedSlotIds.length > 0 && (
-                        <span className="ml-1.5 font-sans text-xs font-semibold text-gold-400 sm:ml-2 sm:text-sm">
-                          ({formatCurrency(totalSelected)})
-                        </span>
-                      )}
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-300 sm:px-3 sm:py-1.5">
+                      <Clock3 className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+                      Pending
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-400 sm:px-3 sm:py-1.5">
+                      <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+                      Booked
+                    </span>
+                  </div>
+
+                  {/* Date Highlight Badge */}
+                  <div className="mb-4 flex justify-center md:mb-6">
+                    <div className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/30 bg-forest-800/90 px-3 py-1 text-[10px] font-bold text-gold-300 shadow-inner sm:gap-2 sm:px-4 sm:py-1.5 sm:text-xs md:px-5 md:py-1.5">
+                      <CalendarDays className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
+                      {formatDateLong(selectedDate)}
                     </div>
                   </div>
 
-                  <Button
-                    size="md"
-                    onClick={() => navigate('/booking')}
-                    disabled={selectedSlotIds.length === 0}
-                    rightIcon={<ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />}
-                    className="w-full text-sm sm:w-auto"
-                  >
-                    Proceed to Reservation
-                  </Button>
+                  {/* Multi-Court Column Table with Mobile-Optimized Sticky Headers */}
+                  {loadingSlots || loadingCourts ? (
+                    <LoadingSpinner className="py-8 md:py-16" />
+                  ) : error ? (
+                    <div className="py-6 text-center font-medium text-red-400 md:py-12">{error}</div>
+                  ) : courts.length === 0 ? (
+                    <div className="py-6 text-center text-sm font-medium text-cream-muted md:py-12">
+                      No courts found.
+                    </div>
+                  ) : (
+                    <div className="relative max-h-[62vh] overflow-y-auto overflow-x-auto rounded-xl border border-forest-700/60 bg-forest-950/40 p-2 sm:max-h-[70vh] sm:p-4 md:max-h-[75vh]">
+                      <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[520px]">
+                        
+                        {/* Sticky Court Column Headers */}
+                        <div
+                          className="sticky top-0 z-30 -mx-2 -mt-2 mb-3 border-b border-forest-700 bg-forest-900 px-2 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-wider text-gold-400 shadow-md backdrop-blur-md sm:-mx-4 sm:-mt-4 sm:mb-4 sm:px-4 sm:py-3 md:text-sm"
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: `repeat(${courts.length}, minmax(50px, 1fr))`,
+                            gap: '0.5rem',
+                          }}
+                        >
+                          {courts.map((court, idx) => {
+                            const accent = getCourtAccent(idx);
+                            return (
+                              <div
+                                key={court.id}
+                                className={`flex items-center justify-center gap-1.5 truncate text-[9px] sm:text-[10px] md:text-sm ${accent.header}`}
+                              >
+                                <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2 md:h-2 md:w-2 ${accent.dot}`} />
+                                <span className="truncate font-bold">{court.name}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Period Sections */}
+                        <div className="space-y-3 md:space-y-5">
+                          {morningTimes.length > 0 && (
+                            <PeriodSection
+                              title="MORNING"
+                              icon={<CloudSun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+                              courts={courts}
+                              timeIntervals={morningTimes}
+                              getSlotForCourtAndTime={getSlotForCourtAndTime}
+                              selectedSlotIds={selectedSlotIds}
+                              onToggleSlot={toggleSlot}
+                              compact={true}
+                            />
+                          )}
+
+                          {afternoonTimes.length > 0 && (
+                            <PeriodSection
+                              title="AFTERNOON"
+                              icon={<Sun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+                              courts={courts}
+                              timeIntervals={afternoonTimes}
+                              getSlotForCourtAndTime={getSlotForCourtAndTime}
+                              selectedSlotIds={selectedSlotIds}
+                              onToggleSlot={toggleSlot}
+                              compact={true}
+                            />
+                          )}
+
+                          {eveningTimes.length > 0 && (
+                            <PeriodSection
+                              title="EVENING"
+                              icon={<Moon className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+                              courts={courts}
+                              timeIntervals={eveningTimes}
+                              getSlotForCourtAndTime={getSlotForCourtAndTime}
+                              selectedSlotIds={selectedSlotIds}
+                              onToggleSlot={toggleSlot}
+                              compact={true}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bottom Reservation Summary Bar */}
+                  <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-xl border border-forest-600 bg-forest-800/90 p-3 sm:mt-6 sm:flex-row sm:gap-4 sm:p-4 md:mt-10 md:p-5">
+                    <div className="text-center sm:text-left">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted sm:text-xs md:text-xs">
+                        Selected Slots
+                      </span>
+                      <div className="font-display text-sm font-bold text-cream sm:text-base md:text-lg">
+                        {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
+                        {selectedSlotIds.length > 0 && (
+                          <span className="ml-1.5 font-sans text-xs font-semibold text-gold-400 sm:ml-2 sm:text-sm">
+                            ({formatCurrency(totalSelected)})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <Button
+                      size="md"
+                      onClick={() => navigate('/booking')}
+                      disabled={selectedSlotIds.length === 0}
+                      rightIcon={<ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />}
+                      className="w-full text-sm sm:w-auto"
+                    >
+                      Proceed to Reservation
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       {/* Features Section */}
       <section className="border-b border-forest-500 bg-forest-900 py-20">
