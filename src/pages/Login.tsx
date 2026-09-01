@@ -11,7 +11,7 @@ import { ADMIN_CREDENTIALS, COURT_IMAGES } from '@/utils/constants';
 export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loading, error, isAuthenticated } = useAuthStore();
+  const { login, loading, error, isAuthenticated, initializing } = useAuthStore(); // ✅ added initializing
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -19,10 +19,11 @@ export function Login() {
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/admin';
 
   useEffect(() => {
-    if (isAuthenticated) {
+    // ✅ wait for init() to resolve before deciding whether to redirect
+    if (!initializing && isAuthenticated) {
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate, from]);
+  }, [isAuthenticated, initializing, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
