@@ -87,13 +87,15 @@ export interface SlotSelection {
   is_peak: boolean;
 }
 
+// src/types/index.ts
 export interface BlockedDate {
   id: string;
   court_id: string;
   date: string;
   reason: string;
+  startTime?: string | null;  // ✅ Add this
+  endTime?: string | null;    // ✅ Add this
 }
-
 export interface PricingRule {
   court_id: string;
   peak_start: string;

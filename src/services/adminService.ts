@@ -181,25 +181,36 @@ export const adminService = {
     }
   },
 
-  // ✅ FIXED: Use existing court endpoint for adding blocked dates
-  async addBlockedDate(blocked: Omit<BlockedDate, 'id'>): Promise<BlockedDate> {
-    const res = await apiRequest<any>(`/api/courts/${blocked.court_id}/blocked-dates`, {
-      method: 'POST',
-      body: JSON.stringify({
-        date: blocked.date,
-        reason: blocked.reason,
-        // StartTime and EndTime are optional
-      }),
-    });
-    
-    const created = res?.data ?? res;
-    return {
-      id: created.id || '',
-      court_id: blocked.court_id,
-      date: created.date || blocked.date,
-      reason: created.reason || blocked.reason,
-    };
-  },
+  // src/services/adminService.ts
+async addBlockedDate(blocked: Omit<BlockedDate, 'id'>): Promise<BlockedDate> {
+  const payload: any = {
+    date: blocked.date,
+    reason: blocked.reason,
+  };
+  
+  // ✅ Only include startTime and endTime if they exist
+  if ((blocked as any).startTime) {
+    payload.startTime = (blocked as any).startTime;
+  }
+  if ((blocked as any).endTime) {
+    payload.endTime = (blocked as any).endTime;
+  }
+  
+  const res = await apiRequest<any>(`/api/courts/${blocked.court_id}/blocked-dates`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  
+  const created = res?.data ?? res;
+  return {
+    id: created.id || '',
+    court_id: blocked.court_id,
+    date: created.date || blocked.date,
+    reason: created.reason || blocked.reason,
+    startTime: created.startTime || null,
+    endTime: created.endTime || null,
+  };
+},
 
   // ✅ FIXED: Use existing endpoint for deleting blocked dates
   async removeBlockedDate(id: string): Promise<void> {

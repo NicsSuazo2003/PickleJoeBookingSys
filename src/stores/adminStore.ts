@@ -107,10 +107,11 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
     }
   },
 
+  // ✅ FIXED: Pass court_id to loadBlockedDates
   addBlockedDate: async (blocked) => {
     try {
       await adminService.addBlockedDate(blocked);
-      await get().loadBlockedDates();
+      await get().loadBlockedDates(blocked.court_id);
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to add blocked date' });
     }
