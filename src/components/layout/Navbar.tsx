@@ -111,6 +111,17 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
+
+              {/* Phone number — only place to call from on mobile, since the
+                  desktop tel: link is hidden below md: */}
+              <a
+                href={`tel:${displayNumber.replace(/\s/g, '')}`}
+                className="flex items-center gap-2 rounded-lg px-4 py-3 text-sm text-cream-muted hover:bg-forest-600/50 hover:text-gold-300 transition"
+              >
+                <Phone className="h-4 w-4" />
+                Call {displayNumber}
+              </a>
+
               <div className="mt-2 flex flex-col gap-2">
                 <Button
                   size="md"
