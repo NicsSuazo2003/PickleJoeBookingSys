@@ -64,8 +64,9 @@ function formatTimeRangeShort(start: string, end: string): string {
 
 export function Landing() {
   const navigate = useNavigate();
-  const bookingSectionRef = useRef<HTMLDivElement>(null); // ✅ Ref for booking section
-  
+  const bookingSectionRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null); // for horizontal-scroll affordance
+
   const {
     courts,
     selectedDate,
@@ -81,6 +82,7 @@ export function Landing() {
   } = useBookingStore();
 
   const [weekOffset, setWeekOffset] = useState(0);
+  const [canScrollRight, setCanScrollRight] = useState(false);
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -96,7 +98,23 @@ export function Landing() {
     }
   }, [selectedDate, courts.length, loadAllCourtsSlots]);
 
-  // ✅ Smooth scroll to booking section
+  // Detect whether the court table has more content to the right, so we can
+  // show a "swipe for more courts" fade/hint instead of leaving it invisible.
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    const checkScroll = () => {
+      setCanScrollRight(el.scrollWidth > el.clientWidth + 4);
+    };
+    checkScroll();
+    el.addEventListener('scroll', checkScroll);
+    window.addEventListener('resize', checkScroll);
+    return () => {
+      el.removeEventListener('scroll', checkScroll);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [courts.length, slots.length]);
+
   const scrollToBooking = () => {
     bookingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -161,36 +179,35 @@ export function Landing() {
           <div className="absolute inset-0 bg-grid opacity-25" />
         </div>
 
-        <div className="container-page relative z-10 py-20">
+        <div className="container-page relative z-10 py-16 sm:py-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
             className="max-w-2xl"
           >
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/10 px-4 py-1.5 backdrop-blur-md">
-              <Sparkles className="h-4 w-4 text-gold-400" />
-              <span className="text-sm font-medium text-gold-300">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/10 px-3 py-1 backdrop-blur-md sm:mb-6 sm:px-4 sm:py-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-gold-400 sm:h-4 sm:w-4" />
+              <span className="text-xs font-medium text-gold-300 sm:text-sm">
                 Premium Pickleball Courts in the City
               </span>
             </div>
 
-            <h1 className="font-display text-5xl font-bold leading-[1.1] tracking-tight text-cream sm:text-6xl lg:text-7xl">
+            <h1 className="text-4xl font-bold leading-[1.1] tracking-tight text-cream sm:text-6xl lg:text-7xl">
               Center<span className="text-gold-400">Court</span>
             </h1>
-            <p className="mt-4 font-display text-2xl font-medium text-cream-dark sm:text-3xl">
+            <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
               {APP_CONFIG.tagline}
             </p>
-            <p className="mt-6 max-w-lg text-lg leading-relaxed text-cream-muted">
+            <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
               Book premium indoor and outdoor pickleball courts in seconds. Pay easily with GCash,
               track your bookings, and get playing.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              {/* ✅ Book a Court button now scrolls to booking section */}
-              <Button 
-                size="lg" 
-                onClick={scrollToBooking} 
+            <div className="mt-6 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:gap-3">
+              <Button
+                size="lg"
+                onClick={scrollToBooking}
                 leftIcon={<CalendarPlus className="h-5 w-5" />}
               >
                 Book a Court
@@ -205,21 +222,23 @@ export function Landing() {
               </Button>
             </div>
 
-            <div className="mt-10 flex flex-wrap items-center gap-6 text-sm text-cream-muted">
-              <div className="flex items-center gap-2">
+            {/* Trust signals — condensed to the two most decision-relevant items
+                on mobile (rating + hours); full set from sm: up */}
+            <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-cream-muted sm:mt-10 sm:gap-6 sm:text-sm">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <div className="flex">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-gold-400 text-gold-400" />
+                    <Star key={i} className="h-3.5 w-3.5 fill-gold-400 text-gold-400 sm:h-4 sm:w-4" />
                   ))}
                 </div>
                 <span>Loved by 500+ players</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="hidden items-center gap-2 sm:flex">
                 <MapPin className="h-4 w-4 text-gold-400" />
                 <span>San Agustin Sur Dawis, Tandag City</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gold-400" />
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Clock className="h-3.5 w-3.5 text-gold-400 sm:h-4 sm:w-4" />
                 <span>Open 5AM - 12AM</span>
               </div>
             </div>
@@ -227,17 +246,17 @@ export function Landing() {
         </div>
       </section>
 
-      {/* ✅ Booking Section with ref */}
+      {/* Booking Section */}
       <div ref={bookingSectionRef}>
         <section className="relative z-20 border-y border-forest-500 bg-forest-950 py-8 md:py-16">
           <div className="container-page max-w-7xl">
             <div className="overflow-hidden rounded-2xl border border-forest-600/60 bg-forest-900 shadow-2xl md:rounded-3xl">
-              
+
               {/* Header Banner */}
               <div className="border-b border-forest-700 bg-forest-950 px-4 py-3 sm:px-6 sm:py-4 md:px-8 md:py-7">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <h2 className="font-display text-lg font-bold tracking-tight text-cream sm:text-xl md:text-3xl">
+                    <h2 className="text-lg font-bold tracking-tight text-cream sm:text-xl md:text-3xl">
                       Book a Court
                     </h2>
                     <p className="hidden text-xs text-cream-muted sm:block md:text-sm">
@@ -250,7 +269,7 @@ export function Landing() {
                 </div>
               </div>
 
-              <div className="p-3 sm:p-4 md:p-8">
+              <div className="p-3 pb-24 sm:p-4 sm:pb-24 md:p-8 md:pb-8">
                 {/* STEP 1: Date Selection Carousel */}
                 <div className="mb-6 md:mb-10">
                   <div className="mb-3 flex items-center gap-2 md:mb-5 md:gap-3">
@@ -261,7 +280,7 @@ export function Landing() {
                       <span className="block text-[8px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
                         STEP 1
                       </span>
-                      <h3 className="font-display text-sm font-bold text-cream md:text-lg">Choose Date</h3>
+                      <h3 className="text-sm font-bold text-cream md:text-lg">Choose Date</h3>
                     </div>
                   </div>
 
@@ -337,18 +356,24 @@ export function Landing() {
 
                 {/* STEP 2 */}
                 <div>
-                  <div className="mb-3 flex items-center gap-2 md:mb-5 md:gap-3">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[10px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
-                      2
+                  <div className="mb-3 flex items-center justify-between gap-2 md:mb-5">
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-400 text-[10px] font-bold text-forest-950 shadow-sm md:h-7 md:w-7 md:text-xs">
+                        2
+                      </div>
+                      <div>
+                        <span className="block text-[8px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
+                          STEP 2
+                        </span>
+                        <h3 className="text-sm font-bold text-cream md:text-lg">
+                          Choose Court and Time
+                        </h3>
+                      </div>
                     </div>
-                    <div>
-                      <span className="block text-[8px] font-bold uppercase tracking-widest text-gold-400 md:text-[11px]">
-                        STEP 2
-                      </span>
-                      <h3 className="font-display text-sm font-bold text-cream md:text-lg">
-                        Choose Court and Time
-                      </h3>
-                    </div>
+                    {/* Date shown inline here instead of a separate redundant badge below */}
+                    <span className="hidden text-xs font-semibold text-gold-300 sm:inline">
+                      {formatDateLong(selectedDate)}
+                    </span>
                   </div>
 
                   {/* Status Legend Bar */}
@@ -365,17 +390,14 @@ export function Landing() {
                       <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
                       Booked
                     </span>
-                  </div>
-
-                  {/* Date Highlight Badge */}
-                  <div className="mb-4 flex justify-center md:mb-6">
-                    <div className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/30 bg-forest-800/90 px-3 py-1 text-[10px] font-bold text-gold-300 shadow-inner sm:gap-2 sm:px-4 sm:py-1.5 sm:text-xs md:px-5 md:py-1.5">
-                      <CalendarDays className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
+                    {/* Date badge, mobile-only now (desktop shows it inline in the step header) */}
+                    <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-gold-400/30 bg-forest-800/90 px-2.5 py-1 text-[10px] font-bold text-gold-300 sm:hidden">
+                      <CalendarDays className="h-3 w-3 text-gold-400" />
                       {formatDateLong(selectedDate)}
-                    </div>
+                    </span>
                   </div>
 
-                  {/* Multi-Court Column Table with Mobile-Optimized Sticky Headers */}
+                  {/* Multi-Court Column Table with horizontal-scroll affordance */}
                   {loadingSlots || loadingCourts ? (
                     <LoadingSpinner className="py-8 md:py-16" />
                   ) : error ? (
@@ -385,87 +407,100 @@ export function Landing() {
                       No courts found.
                     </div>
                   ) : (
-                    <div className="relative max-h-[62vh] overflow-y-auto overflow-x-auto rounded-xl border border-forest-700/60 bg-forest-950/40 p-2 sm:max-h-[70vh] sm:p-4 md:max-h-[75vh]">
-                      <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[520px]">
-                        
-                        {/* Sticky Court Column Headers */}
-                        <div
-                          className="sticky top-0 z-30 -mx-2 -mt-2 mb-3 border-b border-forest-700 bg-forest-900 px-2 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-wider text-gold-400 shadow-md backdrop-blur-md sm:-mx-4 sm:-mt-4 sm:mb-4 sm:px-4 sm:py-3 md:text-sm"
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: `repeat(${courts.length}, minmax(50px, 1fr))`,
-                            gap: '0.5rem',
-                          }}
-                        >
-                          {courts.map((court, idx) => {
-                            const accent = getCourtAccent(idx);
-                            return (
-                              <div
-                                key={court.id}
-                                className={`flex items-center justify-center gap-1.5 truncate text-[9px] sm:text-[10px] md:text-sm ${accent.header}`}
-                              >
-                                <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2 md:h-2 md:w-2 ${accent.dot}`} />
-                                <span className="truncate font-bold">{court.name}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                    <div className="relative">
+                      <div
+                        ref={tableScrollRef}
+                        className="max-h-[58vh] overflow-y-auto overflow-x-auto rounded-xl border border-forest-700/60 bg-forest-950/40 p-2 sm:max-h-[65vh] sm:p-4 md:max-h-[75vh]"
+                      >
+                        <div className="min-w-[320px] sm:min-w-[380px] md:min-w-[520px]">
 
-                        {/* Period Sections */}
-                        <div className="space-y-3 md:space-y-5">
-                          {morningTimes.length > 0 && (
-                            <PeriodSection
-                              title="MORNING"
-                              icon={<CloudSun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
-                              courts={courts}
-                              timeIntervals={morningTimes}
-                              getSlotForCourtAndTime={getSlotForCourtAndTime}
-                              selectedSlotIds={selectedSlotIds}
-                              onToggleSlot={toggleSlot}
-                              compact={true}
-                            />
-                          )}
+                          {/* Sticky Court Column Headers */}
+                          <div
+                            className="sticky top-0 z-30 -mx-2 -mt-2 mb-3 border-b border-forest-700 bg-forest-900 px-2 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-wider text-gold-400 shadow-md backdrop-blur-md sm:-mx-4 sm:-mt-4 sm:mb-4 sm:px-4 sm:py-3 md:text-sm"
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: `repeat(${courts.length}, minmax(50px, 1fr))`,
+                              gap: '0.5rem',
+                            }}
+                          >
+                            {courts.map((court, idx) => {
+                              const accent = getCourtAccent(idx);
+                              return (
+                                <div
+                                  key={court.id}
+                                  className={`flex items-center justify-center gap-1.5 truncate text-[9px] sm:text-[10px] md:text-sm ${accent.header}`}
+                                >
+                                  <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2 md:h-2 md:w-2 ${accent.dot}`} />
+                                  <span className="truncate font-bold">{court.name}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
 
-                          {afternoonTimes.length > 0 && (
-                            <PeriodSection
-                              title="AFTERNOON"
-                              icon={<Sun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
-                              courts={courts}
-                              timeIntervals={afternoonTimes}
-                              getSlotForCourtAndTime={getSlotForCourtAndTime}
-                              selectedSlotIds={selectedSlotIds}
-                              onToggleSlot={toggleSlot}
-                              compact={true}
-                            />
-                          )}
+                          {/* Period Sections */}
+                          <div className="space-y-3 md:space-y-5">
+                            {morningTimes.length > 0 && (
+                              <PeriodSection
+                                title="MORNING"
+                                icon={<CloudSun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+                                courts={courts}
+                                timeIntervals={morningTimes}
+                                getSlotForCourtAndTime={getSlotForCourtAndTime}
+                                selectedSlotIds={selectedSlotIds}
+                                onToggleSlot={toggleSlot}
+                                compact={true}
+                              />
+                            )}
 
-                          {eveningTimes.length > 0 && (
-                            <PeriodSection
-                              title="EVENING"
-                              icon={<Moon className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
-                              courts={courts}
-                              timeIntervals={eveningTimes}
-                              getSlotForCourtAndTime={getSlotForCourtAndTime}
-                              selectedSlotIds={selectedSlotIds}
-                              onToggleSlot={toggleSlot}
-                              compact={true}
-                            />
-                          )}
+                            {afternoonTimes.length > 0 && (
+                              <PeriodSection
+                                title="AFTERNOON"
+                                icon={<Sun className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+                                courts={courts}
+                                timeIntervals={afternoonTimes}
+                                getSlotForCourtAndTime={getSlotForCourtAndTime}
+                                selectedSlotIds={selectedSlotIds}
+                                onToggleSlot={toggleSlot}
+                                compact={true}
+                              />
+                            )}
+
+                            {eveningTimes.length > 0 && (
+                              <PeriodSection
+                                title="EVENING"
+                                icon={<Moon className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />}
+                                courts={courts}
+                                timeIntervals={eveningTimes}
+                                getSlotForCourtAndTime={getSlotForCourtAndTime}
+                                selectedSlotIds={selectedSlotIds}
+                                onToggleSlot={toggleSlot}
+                                compact={true}
+                              />
+                            )}
+                          </div>
                         </div>
                       </div>
+
+                      {/* Fade + hint indicating more courts exist off-screen to the right.
+                          Pointer-events-none so it never blocks taps on the table underneath. */}
+                      {canScrollRight && (
+                        <div className="pointer-events-none absolute right-0 top-0 flex h-full w-10 items-center justify-end rounded-r-xl bg-gradient-to-l from-forest-900 to-transparent sm:w-14">
+                          <ChevronRight className="mr-1 h-4 w-4 animate-pulse text-gold-400/80" />
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* Bottom Reservation Summary Bar */}
-                  <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-xl border border-forest-600 bg-forest-800/90 p-3 sm:mt-6 sm:flex-row sm:gap-4 sm:p-4 md:mt-10 md:p-5">
-                    <div className="text-center sm:text-left">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted sm:text-xs md:text-xs">
+                  {/* Desktop/tablet reservation bar — hidden on mobile in favor of the sticky bar below */}
+                  <div className="mt-4 hidden items-center justify-between gap-4 rounded-xl border border-forest-600 bg-forest-800/90 p-4 sm:flex md:mt-10 md:p-5">
+                    <div>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
                         Selected Slots
                       </span>
-                      <div className="font-display text-sm font-bold text-cream sm:text-base md:text-lg">
+                      <div className="text-base font-bold text-cream md:text-lg">
                         {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
                         {selectedSlotIds.length > 0 && (
-                          <span className="ml-1.5 font-sans text-xs font-semibold text-gold-400 sm:ml-2 sm:text-sm">
+                          <span className="ml-2 text-sm font-semibold text-gold-400">
                             ({formatCurrency(totalSelected)})
                           </span>
                         )}
@@ -476,8 +511,7 @@ export function Landing() {
                       size="md"
                       onClick={() => navigate('/booking')}
                       disabled={selectedSlotIds.length === 0}
-                      rightIcon={<ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />}
-                      className="w-full text-sm sm:w-auto"
+                      rightIcon={<ArrowRight className="h-5 w-5" />}
                     >
                       Proceed to Reservation
                     </Button>
@@ -489,16 +523,45 @@ export function Landing() {
         </section>
       </div>
 
+      {/* Sticky mobile summary/proceed bar — stays visible while scrolling the
+          court table, so users never have to hunt for how to proceed. Pinned to
+          viewport bottom, only rendered below sm:. */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-500 bg-charcoal/95 p-3 backdrop-blur sm:hidden">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            {selectedSlotIds.length > 0 ? (
+              <>
+                <p className="text-[10px] text-cream-muted">
+                  {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
+                </p>
+                <p className="text-lg font-bold text-gold-400">{formatCurrency(totalSelected)}</p>
+              </>
+            ) : (
+              <p className="text-xs text-cream-muted">Tap time slots to select</p>
+            )}
+          </div>
+          <Button
+            size="md"
+            onClick={() => navigate('/booking')}
+            disabled={selectedSlotIds.length === 0}
+            rightIcon={<ArrowRight className="h-4 w-4" />}
+            className="flex-shrink-0"
+          >
+            Proceed
+          </Button>
+        </div>
+      </div>
+
       {/* Features Section */}
-      <section className="border-b border-forest-500 bg-forest-900 py-20">
+      <section className="border-b border-forest-500 bg-forest-900 py-14 sm:py-20">
         <div className="container-page">
-          <div className="mb-12 text-center">
+          <div className="mb-10 text-center sm:mb-12">
             <span className="text-xs font-bold uppercase tracking-wider text-gold-400">
               Why CenterCourt
             </span>
             <h2 className="section-title mt-2">Built for Players</h2>
           </div>
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
             {[
               {
                 icon: CalendarPlus,
@@ -524,13 +587,13 @@ export function Landing() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
-                  className="card p-6"
+                  className="card p-4 sm:p-6"
                 >
-                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gold-400/10">
-                    <Icon className="h-6 w-6 text-gold-400" />
+                  <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gold-400/10 sm:mb-4 sm:h-12 sm:w-12">
+                    <Icon className="h-5 w-5 text-gold-400 sm:h-6 sm:w-6" />
                   </div>
-                  <h3 className="font-display text-lg font-bold text-cream">{feat.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-cream-muted">{feat.desc}</p>
+                  <h3 className="text-base font-bold text-cream sm:text-lg">{feat.title}</h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-cream-muted sm:mt-2 sm:text-sm">{feat.desc}</p>
                 </motion.div>
               );
             })}
@@ -539,16 +602,16 @@ export function Landing() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20">
+      <section className="py-14 sm:py-20">
         <div className="container-page">
-          <div className="mb-12 text-center">
+          <div className="mb-10 text-center sm:mb-12">
             <span className="text-xs font-bold uppercase tracking-wider text-gold-400">
               Simple Process
             </span>
             <h2 className="section-title mt-2">How It Works</h2>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-4">
+          <div className="grid gap-6 sm:gap-8 md:grid-cols-4">
             {[
               { step: '01', title: 'Select Court & Time', desc: 'Pick your preferred court, date, and available time slots.' },
               { step: '02', title: 'Enter Details', desc: 'Fill in your name, contact info, and any special requests.' },
@@ -563,11 +626,11 @@ export function Landing() {
                 transition={{ delay: i * 0.1 }}
                 className="relative"
               >
-                <div className="mb-4 font-display text-4xl font-bold text-gold-400/30">
+                <div className="mb-3 text-3xl font-bold text-gold-400/30 sm:mb-4 sm:text-4xl">
                   {item.step}
                 </div>
-                <h3 className="font-display text-lg font-bold text-cream">{item.title}</h3>
-                <p className="mt-2 text-sm text-cream-muted">{item.desc}</p>
+                <h3 className="text-base font-bold text-cream sm:text-lg">{item.title}</h3>
+                <p className="mt-1.5 text-xs text-cream-muted sm:mt-2 sm:text-sm">{item.desc}</p>
                 {i < 3 && (
                   <div className="mt-4 hidden h-px bg-gradient-to-r from-gold-400/40 to-transparent md:block" />
                 )}
