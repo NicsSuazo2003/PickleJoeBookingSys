@@ -245,22 +245,22 @@ export function OpenPlayManagement() {
 
   if (loadingAdminSessions) {
     return (
-      <div className="py-12 text-center">
+      <div className="py-10 text-center sm:py-12">
         <LoadingSpinner size="lg" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="flex items-center gap-2 font-display text-lg font-bold text-cream">
-            <Users className="h-5 w-5 text-gold-400" />
+          <h2 className="flex items-center gap-2 text-base font-bold text-cream sm:text-lg">
+            <Users className="h-4 w-4 text-gold-400 sm:h-5 sm:w-5" />
             Open Play Sessions
           </h2>
-          <p className="text-sm text-cream-muted">
+          <p className="text-xs text-cream-muted sm:text-sm">
             Create and manage social group play sessions
           </p>
         </div>
@@ -271,7 +271,7 @@ export function OpenPlayManagement() {
             leftIcon={<RefreshCw className="h-4 w-4" />}
             onClick={adminLoadSessions}
           >
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
           <Button
             size="sm"
@@ -284,7 +284,7 @@ export function OpenPlayManagement() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg bg-error/10 p-3 text-sm text-error">
+        <div className="flex items-center gap-2 rounded-lg bg-error/10 p-2.5 text-xs text-error sm:p-3 sm:text-sm">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
           {error}
           <button onClick={clearError} className="ml-auto text-error/70 hover:text-error">
@@ -295,13 +295,13 @@ export function OpenPlayManagement() {
 
       {/* Sessions List */}
       {adminSessions.length === 0 ? (
-        <div className="rounded-xl border border-forest-500 bg-forest-800/50 p-8 text-center">
-          <Users className="mx-auto h-10 w-10 text-cream-muted/40" />
-          <p className="mt-2 text-sm text-cream-muted">No Open Play sessions created yet.</p>
-          <p className="text-xs text-cream-muted/60">Create your first session to get started.</p>
+        <div className="rounded-xl border border-forest-500 bg-forest-800/50 p-6 text-center sm:p-8">
+          <Users className="mx-auto h-8 w-8 text-cream-muted/40 sm:h-10 sm:w-10" />
+          <p className="mt-2 text-xs text-cream-muted sm:text-sm">No Open Play sessions created yet.</p>
+          <p className="text-[11px] text-cream-muted/60 sm:text-xs">Create your first session to get started.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5 sm:space-y-3">
           {adminSessions.map((session) => {
             const status = STATUS_BADGE[session.status] ?? STATUS_BADGE.upcoming;
             return (
@@ -309,34 +309,34 @@ export function OpenPlayManagement() {
                 key={session.id}
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-forest-500 bg-forest-800/50 p-4"
+                className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-forest-500 bg-forest-800/50 p-3 sm:gap-3 sm:p-4"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-medium text-cream">{session.court_name}</h3>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${status.className}`}>
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <h3 className="text-sm font-medium text-cream sm:text-base">{session.court_name}</h3>
+                    <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold sm:px-2 sm:text-[10px] ${status.className}`}>
                       {status.label}
                     </span>
-                    <span className="rounded-full bg-gold-400/10 px-2 py-0.5 text-[10px] font-bold text-gold-300">
+                    <span className="rounded-full bg-gold-400/10 px-1.5 py-0.5 text-[9px] font-bold text-gold-300 sm:px-2 sm:text-[10px]">
                       {session.skill_level}
                     </span>
                     {!session.is_active && (
-                      <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-400">
+                      <span className="rounded-full bg-red-500/15 px-1.5 py-0.5 text-[9px] font-bold text-red-400 sm:px-2 sm:text-[10px]">
                         Inactive
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cream-muted">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-cream-muted sm:gap-x-4 sm:text-xs">
                     <span className="flex items-center gap-1">
-                      <CalendarDays className="h-3.5 w-3.5" />
+                      <CalendarDays className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       {formatDateLong(session.date)}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
+                      <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       {formatTimeRange(session.start_time, session.end_time)}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5" />
+                      <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       {session.current_players}/{session.max_players} players
                     </span>
                     <span className="font-medium text-gold-400">
@@ -344,20 +344,20 @@ export function OpenPlayManagement() {
                     </span>
                     {session.host_name && (
                       <span className="flex items-center gap-1">
-                        <UserCircle2 className="h-3.5 w-3.5" />
+                        <UserCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                         {session.host_name}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setViewingPlayers(session.id)}
                     className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
                     title="View players"
                   >
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </button>
 
                   <button
@@ -370,9 +370,9 @@ export function OpenPlayManagement() {
                     title={session.is_active ? 'Deactivate' : 'Activate'}
                   >
                     {session.is_active ? (
-                      <CheckCircle2 className="h-4 w-4" />
+                      <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     ) : (
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     )}
                   </button>
 
@@ -381,7 +381,7 @@ export function OpenPlayManagement() {
                     className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
                     title="Edit"
                   >
-                    <Edit3 className="h-4 w-4" />
+                    <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </button>
 
                   <button
@@ -389,7 +389,7 @@ export function OpenPlayManagement() {
                     className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-red-500 hover:text-red-400"
                     title="Delete"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </button>
                 </div>
               </motion.div>
@@ -409,13 +409,13 @@ export function OpenPlayManagement() {
         title={editingSession ? 'Edit Session' : 'Create Open Play Session'}
         size="lg"
       >
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-cream">Court *</label>
+            <label className="mb-1.5 block text-xs font-medium text-cream sm:text-sm">Court *</label>
             <select
               value={formData.court_id}
               onChange={(e) => setFormData({ ...formData, court_id: e.target.value })}
-              className="input-field"
+              className="input-field text-sm"
             >
               <option value="">Select a court</option>
               {courts.map((court) => (
@@ -426,7 +426,7 @@ export function OpenPlayManagement() {
             </select>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
             <Input
               label="Date *"
               type="date"
@@ -436,13 +436,13 @@ export function OpenPlayManagement() {
             />
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-cream">Skill Level *</label>
+              <label className="mb-1.5 block text-xs font-medium text-cream sm:text-sm">Skill Level *</label>
               <select
                 value={formData.skill_level}
                 onChange={(e) =>
                   setFormData({ ...formData, skill_level: e.target.value as OpenPlaySkillLevel })
                 }
-                className="input-field"
+                className="input-field text-sm"
               >
                 {SKILL_LEVELS.map((level) => (
                   <option key={level} value={level}>
@@ -453,7 +453,7 @@ export function OpenPlayManagement() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
             <Input
               label="Start Time *"
               type="time"
@@ -469,7 +469,7 @@ export function OpenPlayManagement() {
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
             <Input
               label="Max Players *"
               type="number"
@@ -515,7 +515,7 @@ export function OpenPlayManagement() {
             </div>
           )}
 
-          <div className="flex gap-3 border-t border-forest-500 pt-4">
+          <div className="flex flex-col gap-2.5 border-t border-forest-500 pt-3 sm:flex-row sm:gap-3 sm:pt-4">
             <Button
               fullWidth
               isLoading={loadingAction}
@@ -525,6 +525,8 @@ export function OpenPlayManagement() {
             </Button>
             <Button
               variant="ghost"
+              fullWidth
+              className="sm:w-auto"
               onClick={() => {
                 setShowCreateModal(false);
                 setEditingSession(null);
@@ -545,28 +547,28 @@ export function OpenPlayManagement() {
         size="lg"
       >
         {loadingPlayers ? (
-          <div className="py-8 text-center">
+          <div className="py-6 text-center sm:py-8">
             <LoadingSpinner />
           </div>
         ) : (
           <>
             {stats && (
-              <div className="mb-4 grid grid-cols-3 gap-3">
-                <div className="rounded-lg bg-forest-800 p-3 text-center">
-                  <p className="text-xs text-cream-muted">Players</p>
-                  <p className="font-display text-xl font-bold text-cream">
+              <div className="mb-3 grid grid-cols-3 gap-2 sm:mb-4 sm:gap-3">
+                <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+                  <p className="text-[10px] text-cream-muted sm:text-xs">Players</p>
+                  <p className="text-lg font-bold text-cream sm:text-xl">
                     {stats.total_players}/{stats.max_players}
                   </p>
                 </div>
-                <div className="rounded-lg bg-forest-800 p-3 text-center">
-                  <p className="text-xs text-cream-muted">Confirmed</p>
-                  <p className="font-display text-xl font-bold text-green-400">
+                <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+                  <p className="text-[10px] text-cream-muted sm:text-xs">Confirmed</p>
+                  <p className="text-lg font-bold text-green-400 sm:text-xl">
                     {stats.confirmed_count}
                   </p>
                 </div>
-                <div className="rounded-lg bg-forest-800 p-3 text-center">
-                  <p className="text-xs text-cream-muted">Revenue</p>
-                  <p className="font-display text-xl font-bold text-gold-400">
+                <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+                  <p className="text-[10px] text-cream-muted sm:text-xs">Revenue</p>
+                  <p className="text-lg font-bold text-gold-400 sm:text-xl">
                     {formatCurrency(stats.total_revenue)}
                   </p>
                 </div>
@@ -574,7 +576,7 @@ export function OpenPlayManagement() {
             )}
 
             {players.length === 0 ? (
-              <div className="py-8 text-center text-sm text-cream-muted">
+              <div className="py-6 text-center text-xs text-cream-muted sm:py-8 sm:text-sm">
                 No players have joined this session yet.
               </div>
             ) : (
@@ -584,28 +586,28 @@ export function OpenPlayManagement() {
                   return (
                     <div
                       key={player.booking_id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-forest-800 p-3"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-forest-800 p-2.5 sm:p-3"
                     >
-                      <div>
-                        <p className="font-medium text-cream">{player.customer_name}</p>
-                        <p className="text-xs text-cream-muted">{player.customer_email}</p>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-cream">{player.customer_name}</p>
+                        <p className="truncate text-[11px] text-cream-muted sm:text-xs">{player.customer_email}</p>
                         {player.customer_phone && (
-                          <p className="text-xs text-cream-muted/60">{player.customer_phone}</p>
+                          <p className="text-[11px] text-cream-muted/60 sm:text-xs">{player.customer_phone}</p>
                         )}
-                        <p className="text-xs font-mono text-gold-400/60">
+                        <p className="font-mono text-[11px] text-gold-400/60 sm:text-xs">
                           {player.reference_code}
                         </p>
                       </div>
                       <div className="text-right">
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${status.className}`}
+                          className={`rounded-full px-2 py-0.5 text-[9px] font-bold sm:text-[10px] ${status.className}`}
                         >
                           {status.label}
                         </span>
-                        <p className="mt-1 text-xs text-cream-muted">
+                        <p className="mt-1 text-[11px] text-cream-muted sm:text-xs">
                           {formatCurrency(player.amount_paid)} paid
                         </p>
-                        <p className="text-[10px] text-cream-muted/60">
+                        <p className="text-[9px] text-cream-muted/60 sm:text-[10px]">
                           Joined {new Date(player.joined_at).toLocaleDateString()}
                         </p>
                       </div>
