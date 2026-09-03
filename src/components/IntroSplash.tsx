@@ -410,27 +410,27 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
             </svg>
 
             {/* Tap Prompt CTA */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={
-                isSmashing
-                  ? { opacity: 0 }
-                  : {
-                      opacity: [0.4, 0.9, 0.4],
-                      scale: [1, 1.04, 1],
-                    }
-              }
-              transition={
-                isSmashing
-                  ? { duration: 0.2 }
-                  : { delay: 2.2, duration: 1.8, repeat: Infinity }
-              }
-              className="mt-6 flex flex-col items-center gap-1.5"
-            >
-              <span className="text-xs font-semibold uppercase tracking-[0.32em] text-white/90">
-                {phase === 'ready' ? 'Tap anywhere to Smash' : 'Tap to skip'}
-              </span>
-            </motion.div>
+<motion.div
+  initial={{ opacity: 0 }}
+  animate={
+    isSmashing
+      ? { opacity: 0 }
+      : {
+          opacity: [0.4, 0.9, 0.4],
+          scale: [1, 1.04, 1],
+        }
+  }
+  transition={
+    isSmashing
+      ? { duration: 0.2 }
+      : { delay: 2.2, duration: 1.8, repeat: Infinity }
+  }
+  className="mt-6 flex flex-col items-center gap-1.5"
+>
+  <span className="text-xs font-semibold uppercase tracking-[0.32em] text-white/90">
+    TAP YOUR WAY TO GAME TIME
+  </span>
+</motion.div>
           </motion.div>
 
           {/* Full Screen Impact Flash Transition */}

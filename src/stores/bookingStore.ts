@@ -26,6 +26,7 @@ interface BookingStoreState {
   setCustomer: (customer: Partial<CustomerDetails>) => void;
   createBooking: () => Promise<Booking>;
   reset: () => void;
+  refreshSlots: () => Promise<boolean>; // ✅ New method
 }
 
 const emptyCustomer: CustomerDetails = {
@@ -48,27 +49,24 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
   error: null,
 
   loadCourts: async () => {
-  set({ loadingCourts: true, error: null });
-  try {
-    const courts = await courtService.getCourts();
-    const activeCourts = courts.filter((c) => c.is_active !== false);
-    const initialCourt = activeCourts[0] ?? null;
+    set({ loadingCourts: true, error: null });
+    try {
+      const courts = await courtService.getCourts();
+      const activeCourts = courts.filter((c) => c.is_active !== false);
+      const initialCourt = activeCourts[0] ?? null;
 
-    set({
-      courts: activeCourts,
-      selectedCourt: initialCourt,
-      loadingCourts: false,
-    });
-    // Removed: if (initialCourt) get().loadSlots();
-    // Landing's useEffect on [selectedDate, courts.length] handles the
-    // initial slot fetch via loadAllCourtsSlots() once courts arrive.
-  } catch (err) {
-    set({
-      loadingCourts: false,
-      error: err instanceof Error ? err.message : 'Failed to load courts',
-    });
-  }
-},
+      set({
+        courts: activeCourts,
+        selectedCourt: initialCourt,
+        loadingCourts: false,
+      });
+    } catch (err) {
+      set({
+        loadingCourts: false,
+        error: err instanceof Error ? err.message : 'Failed to load courts',
+      });
+    }
+  },
 
   selectCourt: (court) => {
     set({ selectedCourt: court, selectedSlotIds: [], error: null });
@@ -77,10 +75,8 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
 
   setDate: (date) => {
     set({ selectedDate: date, selectedSlotIds: [], error: null });
-    
   },
 
-  // After
   loadSlots: async () => {
     const { selectedCourt, selectedDate } = get();
     if (!selectedCourt) return;
@@ -98,27 +94,59 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
   },
 
   loadAllCourtsSlots: async () => {
-  const { courts, selectedDate } = get();
-  if (courts.length === 0) return;
+    const { courts, selectedDate } = get();
+    if (courts.length === 0) return;
 
-  const requestDate = selectedDate;
-  set({ loadingSlots: true, error: null });
-  try {
-    const results = await Promise.all(
-      courts.map((c) => courtService.getAvailability(c.id, requestDate))
-    );
-    if (get().selectedDate === requestDate) {
-      set({ slots: results.flat(), loadingSlots: false });
+    const requestDate = selectedDate;
+    set({ loadingSlots: true, error: null });
+    try {
+      const results = await Promise.all(
+        courts.map((c) => courtService.getAvailability(c.id, requestDate))
+      );
+      if (get().selectedDate === requestDate) {
+        set({ slots: results.flat(), loadingSlots: false });
+      }
+    } catch (err) {
+      if (get().selectedDate === requestDate) {
+        set({
+          loadingSlots: false,
+          error: err instanceof Error ? err.message : 'Failed to load slots',
+        });
+      }
     }
-  } catch (err) {
-    if (get().selectedDate === requestDate) {
-      set({
-        loadingSlots: false,
-        error: err instanceof Error ? err.message : 'Failed to load slots',
+  },
+
+  // ✅ New method to refresh slots and check if selected slots are still available
+  refreshSlots: async (): Promise<boolean> => {
+    const { selectedCourt, selectedDate, selectedSlotIds } = get();
+    if (!selectedCourt || selectedSlotIds.length === 0) return true;
+
+    try {
+      const freshSlots = await courtService.getAvailability(selectedCourt.id, selectedDate);
+      set({ slots: freshSlots });
+
+      // Check if all selected slots are still available
+      const allAvailable = selectedSlotIds.every((slotId) => {
+        const slot = freshSlots.find((s) => s.id === slotId);
+        return slot?.is_available === true;
       });
+
+      if (!allAvailable) {
+        // Clear invalid selections
+        const stillAvailableIds = selectedSlotIds.filter((slotId) => {
+          const slot = freshSlots.find((s) => s.id === slotId);
+          return slot?.is_available === true;
+        });
+        set({ selectedSlotIds: stillAvailableIds });
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Failed to refresh slots:', err);
+      return true; // Assume available if we can't check
     }
-  }
-},
+  },
 
   toggleSlot: (slotId) => {
     set((state) => {
@@ -153,7 +181,30 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
     if (!selectedCourt) throw new Error('Please select a court');
     if (selectedSlotIds.length === 0) throw new Error('Please select at least one time slot');
 
-    const selectedSlots = slots.filter((s) => selectedSlotIds.includes(s.id));
+    // ✅ Refresh slots before booking to check availability
+    const freshSlots = await courtService.getAvailability(selectedCourt.id, selectedDate);
+    
+    // Check if selected slots are still available
+    const stillAvailable = selectedSlotIds.every((slotId) => {
+      const freshSlot = freshSlots.find((s) => s.id === slotId);
+      return freshSlot?.is_available === true;
+    });
+
+    if (!stillAvailable) {
+      // Update store with fresh slots
+      const stillAvailableIds = selectedSlotIds.filter((slotId) => {
+        const freshSlot = freshSlots.find((s) => s.id === slotId);
+        return freshSlot?.is_available === true;
+      });
+      set({ 
+        slots: freshSlots,
+        selectedSlotIds: stillAvailableIds 
+      });
+      throw new Error('One or more selected time slots are no longer available. Please select new slots.');
+    }
+
+    // Use fresh slots for booking
+    const selectedSlots = freshSlots.filter((s) => selectedSlotIds.includes(s.id));
     const bookingSlots: BookingSlotItem[] = selectedSlots.map((s) => ({
       id: s.id,
       slot_id: s.id,
