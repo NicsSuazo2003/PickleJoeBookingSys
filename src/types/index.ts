@@ -72,6 +72,7 @@ export interface Booking {
   status: BookingStatus;
   payment_screenshot_url?: string | null;
   payment_reference?: string;
+   payment_expires_at?: string | null;
   gcash_number: string;
   created_at: string;
   updated_at: string;

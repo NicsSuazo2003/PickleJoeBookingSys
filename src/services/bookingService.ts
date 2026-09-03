@@ -4,6 +4,10 @@ import { apiRequest } from './api';
 
 // ✅ Normalizes raw API booking data (camelCase, flat customer fields) into the app's Booking shape
 function normalizeBooking(raw: any): Booking {
+  // Debug: log what we received
+  console.log('📥 Raw booking data:', raw);
+  console.log('📥 PaymentScreenshot raw value:', raw.paymentScreenshot ?? raw.PaymentScreenshot);
+
   return {
     id: raw.id,
     reference_code: raw.referenceCode ?? raw.reference_code,
@@ -28,11 +32,13 @@ function normalizeBooking(raw: any): Booking {
     },
     total_amount: raw.totalAmount ?? raw.total_amount,
     status: raw.status,
-    payment_screenshot_url: raw.paymentScreenshot ?? raw.payment_screenshot_url ?? null,
-    payment_reference: raw.paymentReference ?? raw.payment_reference ?? null,
+    payment_screenshot_url: raw.paymentScreenshot ?? raw.payment_screenshot_url ?? raw.PaymentScreenshot ?? null,
+    payment_reference: raw.paymentReference ?? raw.payment_reference ?? raw.PaymentReference ?? null,
+    payment_expires_at: raw.paymentExpiresAt ?? raw.payment_expires_at ?? null,
     gcash_number: raw.gcashNumber ?? raw.gcash_number ?? '',
     created_at: raw.createdAt ?? raw.created_at,
     updated_at: raw.updatedAt ?? raw.updated_at ?? raw.createdAt ?? raw.created_at,
+    open_play_session_id: raw.openPlaySessionId ?? raw.open_play_session_id ?? null,
   };
 }
 
@@ -163,6 +169,7 @@ export const bookingService = {
       const res = await apiRequest<Booking | { data: Booking }>(url);
       const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
       console.log('✅ Booking tracked successfully:', booking.reference_code);
+      console.log('📸 Payment screenshot:', booking.payment_screenshot_url ? 'EXISTS' : 'NULL');
       return booking;
     } catch (error) {
       console.error('❌ Failed to track booking:', error);
@@ -195,7 +202,7 @@ export const bookingService = {
 
     const formData = new FormData();
     formData.append('screenshot', file);
-    formData.append('paymentReference', paymentReference); // ✅ Send payment reference
+    formData.append('paymentReference', paymentReference);
 
     try {
       const token = localStorage.getItem('admin_token');
@@ -219,6 +226,7 @@ export const bookingService = {
       const data = await res.json();
       const booking = normalizeBooking(data);
       console.log('✅ Payment uploaded successfully:', booking.reference_code);
+      console.log('📸 Payment screenshot saved:', booking.payment_screenshot_url ? 'EXISTS' : 'NULL');
       return booking;
     } catch (error) {
       console.error('❌ Failed to upload payment:', error);
