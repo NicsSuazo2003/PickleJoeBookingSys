@@ -29,7 +29,7 @@ function normalizeBooking(raw: any): Booking {
     total_amount: raw.totalAmount ?? raw.total_amount,
     status: raw.status,
     payment_screenshot_url: raw.paymentScreenshot ?? raw.payment_screenshot_url ?? null,
-    payment_reference: raw.paymentReference ?? raw.payment_reference,
+    payment_reference: raw.paymentReference ?? raw.payment_reference ?? null,
     gcash_number: raw.gcashNumber ?? raw.gcash_number ?? '',
     created_at: raw.createdAt ?? raw.created_at,
     updated_at: raw.updatedAt ?? raw.updated_at ?? raw.createdAt ?? raw.created_at,
@@ -120,13 +120,11 @@ export const bookingService = {
     
     // Build the payload exactly as backend expects
     const requestBody = {
-      courtId: courtId,  // Backend expects "courtId" (camelCase)
+      courtId: courtId,
       customerName: payload.customer.name.trim(),
       customerEmail: payload.customer.email.trim().toLowerCase(),
       customerPhone: payload.customer.phone.trim(),
       date: payload.date,
-      // Backend expects slots as: { startTime: string, endTime: string }[]
-      // It does NOT expect slotId, date, type, price, or is_peak
       slots: payload.slots.map((s) => ({
         startTime: s.start_time,
         endTime: s.end_time
@@ -145,8 +143,8 @@ export const bookingService = {
       });
       
       const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
-console.log('✅ Booking created successfully:', booking.reference_code);
-return booking;
+      console.log('✅ Booking created successfully:', booking.reference_code);
+      return booking;
     } catch (error) {
       console.error('❌ Failed to create booking:', error);
       throw error;
@@ -164,14 +162,15 @@ return booking;
     try {
       const res = await apiRequest<Booking | { data: Booking }>(url);
       const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
-console.log('✅ Booking created successfully:', booking.reference_code);
-return booking;
+      console.log('✅ Booking tracked successfully:', booking.reference_code);
+      return booking;
     } catch (error) {
       console.error('❌ Failed to track booking:', error);
       throw error;
     }
   },
 
+  // ✅ UPDATED: Send payment reference with the screenshot
   async uploadPayment(
     bookingId: string,
     screenshotDataUrl: string,
@@ -189,19 +188,16 @@ return booking;
       throw new Error('Payment reference is required');
     }
 
-    // Note: The backend expects a file upload, not base64
-    // You'll need to convert the data URL to a file
-    // Or use FormData to upload the file
-    const formData = new FormData();
-    
     // Convert base64 to blob
     const response = await fetch(screenshotDataUrl);
     const blob = await response.blob();
     const file = new File([blob], `payment-${bookingId}.jpg`, { type: 'image/jpeg' });
+
+    const formData = new FormData();
     formData.append('screenshot', file);
+    formData.append('paymentReference', paymentReference); // ✅ Send payment reference
 
     try {
-      // Use direct fetch with FormData instead of apiRequest
       const token = localStorage.getItem('admin_token');
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE_URL || 'https://pickleballcourbookingv2.onrender.com'}/api/bookings/${bookingId}/upload-payment`,
@@ -216,11 +212,14 @@ return booking;
       );
 
       if (!res.ok) {
-        throw new Error(`Upload failed: ${res.status}`);
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Upload failed: ${res.status}`);
       }
 
       const data = await res.json();
-return normalizeBooking(data);
+      const booking = normalizeBooking(data);
+      console.log('✅ Payment uploaded successfully:', booking.reference_code);
+      return booking;
     } catch (error) {
       console.error('❌ Failed to upload payment:', error);
       throw error;
@@ -234,9 +233,10 @@ return normalizeBooking(data);
     
     try {
       const res = await apiRequest<Booking | { data: Booking }>(`/api/bookings/${id}`);
-const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
-console.log(' Booking created successfully:', booking.reference_code);
-return booking;    } catch (error) {
+      const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
+      console.log('✅ Booking retrieved successfully:', booking.reference_code);
+      return booking;
+    } catch (error) {
       console.error('❌ Failed to get booking:', error);
       throw error;
     }
@@ -260,7 +260,7 @@ return booking;    } catch (error) {
         }
       );
       const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
-      console.log(' Booking cancelled successfully:', booking.reference_code);
+      console.log('✅ Booking cancelled successfully:', booking.reference_code);
       return booking;
     } catch (error) {
       console.error('❌ Failed to cancel booking:', error);

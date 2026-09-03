@@ -109,7 +109,7 @@ export function Checkout() {
   };
 
   const handleUpload = async () => {
-    if (!screenshot || !paymentRef.trim()) return;
+  if (!screenshot) return;
     setUploading(true);
     setUploadError(null);
     try {
@@ -360,7 +360,7 @@ export function Checkout() {
                   type="text"
                   value={paymentRef}
                   onChange={(e) => setPaymentRef(e.target.value)}
-                  placeholder="Reference number"
+                  placeholder="Reference number (Optional)"
                   className="input-field text-sm py-2"
                 />
               </div>
@@ -377,7 +377,7 @@ export function Checkout() {
                 fullWidth
                 className="mt-3"
                 isLoading={uploading}
-                disabled={!screenshot || !paymentRef.trim() || isExpired}
+                disabled={!screenshot || isExpired}
                 onClick={handleUpload}
                 leftIcon={<CheckCircle2 className="h-4 w-4" />}
               >
