@@ -1,3 +1,4 @@
+// src/pages/Track.tsx
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,6 +13,7 @@ import {
   AlertCircle,
   Wallet,
   ImageIcon,
+  CheckCircle2,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -105,6 +107,9 @@ export function Track() {
     const end = slot.endTime || slot.end_time || '';
     return formatTimeRange(start, end);
   };
+
+  // Check if booking has a payment screenshot
+  const hasPaymentScreenshot = booking?.payment_screenshot_url;
 
   return (
     <div className="min-h-screen bg-charcoal">
@@ -265,8 +270,33 @@ export function Track() {
                   )}
                 </div>
 
-                {/* Payment Upload (if pending) */}
-                {canUploadPayment && (
+                {/* ✅ Show uploaded payment screenshot if exists - FIXED null issue */}
+                {hasPaymentScreenshot && (
+                  <div className="card p-4 sm:p-6">
+                    <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-cream sm:text-lg">
+                      <CheckCircle2 className="h-5 w-5 text-green-400" />
+                      Payment Screenshot
+                    </h3>
+                    <p className="mb-3 text-xs text-cream-muted sm:text-sm">
+                      Your payment screenshot has been uploaded and is being reviewed.
+                    </p>
+                    <div className="rounded-lg border border-forest-500 bg-forest-800 p-2 sm:p-3">
+                      <img
+                        src={booking.payment_screenshot_url || undefined}
+                        alt="Payment Screenshot"
+                        className="mx-auto max-h-64 rounded-lg object-contain"
+                      />
+                    </div>
+                    {booking.payment_reference && (
+                      <p className="mt-2 text-xs text-cream-muted">
+                        Reference: <span className="font-mono text-gold-400">{booking.payment_reference}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Payment Upload (if pending and no screenshot uploaded yet) */}
+                {canUploadPayment && !hasPaymentScreenshot && (
                   <div className="card p-4 sm:p-6">
                     <h3 className="mb-2 flex items-center gap-2 text-base font-bold text-cream sm:text-lg">
                       <Wallet className="h-5 w-5 text-gold-400" />
