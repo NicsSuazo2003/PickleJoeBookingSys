@@ -16,20 +16,38 @@ function normalizeClientSettings(raw: any): ClientSettings {
     payment_methods: data.paymentMethods ?? data.payment_methods ?? [], // ✅ Already here
   };
 }
-
 function normalizeAnalytics(raw: any): Analytics {
   const data = raw?.data ?? raw;
-  
-  // Get revenue by day
-  const revenueByDay = (data.revenueByDay ?? []).map((d: any) => ({
+
+  // Check multiple possible key names the backend might use, instead of
+  // assuming camelCase revenueByDay is the only possibility.
+  const rawRevenueByDay =
+    data.revenueByDay ??
+    data.revenue_by_day ??
+    data.dailyRevenue ??
+    data.daily_revenue ??
+    data.revenueTrend ??
+    [];
+
+  if (rawRevenueByDay.length === 0) {
+    // Temporary diagnostic — remove once confirmed fixed. This tells you
+    // exactly what keys the backend actually sent, so you're not guessing.
+    console.warn(
+      '[analytics] revenue_by_day resolved to an empty array. Raw analytics keys:',
+      Object.keys(data)
+    );
+  }
+
+  const revenueByDay = rawRevenueByDay.map((d: any) => ({
     date: d.date || '',
     revenue: Number(d.revenue ?? 0),
     bookings: 0,
   }));
 
-  // Merge bookingsByDay into revenueByDay
-  const bookingsByDay = data.bookingsByDay ?? [];
-  bookingsByDay.forEach((bd: any) => {
+  const rawBookingsByDay =
+    data.bookingsByDay ?? data.bookings_by_day ?? [];
+
+  rawBookingsByDay.forEach((bd: any) => {
     const existing = revenueByDay.find((r: any) => r.date === bd.date);
     if (existing) {
       existing.bookings = Number(bd.bookings ?? 0);
@@ -42,17 +60,16 @@ function normalizeAnalytics(raw: any): Analytics {
     }
   });
 
-  // Sort by date
   revenueByDay.sort((a: any, b: any) => a.date.localeCompare(b.date));
 
   return {
-    total_bookings: Number(data.totalBookings ?? 0),
-    total_revenue: Number(data.totalRevenue ?? 0),
-    pending_payments: Number(data.pendingPayments ?? 0),
-    confirmed_bookings: Number(data.confirmedBookings ?? 0),
-    completed_bookings: Number(data.completedBookings ?? 0),
-    cancelled_bookings: Number(data.cancelledBookings ?? 0),
-    status_breakdown: data.statusBreakdown ?? {},
+    total_bookings: Number(data.totalBookings ?? data.total_bookings ?? 0),
+    total_revenue: Number(data.totalRevenue ?? data.total_revenue ?? 0),
+    pending_payments: Number(data.pendingPayments ?? data.pending_payments ?? 0),
+    confirmed_bookings: Number(data.confirmedBookings ?? data.confirmed_bookings ?? 0),
+    completed_bookings: Number(data.completedBookings ?? data.completed_bookings ?? 0),
+    cancelled_bookings: Number(data.cancelledBookings ?? data.cancelled_bookings ?? 0),
+    status_breakdown: data.statusBreakdown ?? data.status_breakdown ?? {},
     revenue_by_day: revenueByDay,
     court_breakdown: data.courtBreakdown ?? data.court_breakdown ?? [],
   };
