@@ -15,6 +15,7 @@ import { Settings } from '@/pages/admin/Settings';
 import { StaffBookings } from '@/pages/staff/StaffBookings';
 import { useAuthStore } from '@/stores/authStore';
 import { IntroSplash } from '@/components/IntroSplash';
+import { OpenPlay } from '@/pages/OpenPlay';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -42,6 +43,8 @@ export default function App() {
         <Route path="/success" element={<Success />} />
         <Route path="/track" element={<Track />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/open-play" element={<OpenPlay />} />
+
         
         {/* Admin Routes */}
         <Route path="/admin" element={<Dashboard />} />

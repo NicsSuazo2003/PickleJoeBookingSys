@@ -33,6 +33,7 @@ export function Navbar() {
 
   const navLinks = [
     { label: 'Home', path: '/' },
+    { label: 'Open Play', path: '/open-play' },
     { label: 'Book a Court', path: '/booking' },
     { label: 'Track Booking', path: '/track' },
   ];

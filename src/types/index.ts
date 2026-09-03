@@ -75,6 +75,7 @@ export interface Booking {
   gcash_number: string;
   created_at: string;
   updated_at: string;
+  open_play_session_id?: string | null;
 }
 
 export interface SlotSelection {
@@ -157,3 +158,62 @@ export interface ClientSettings {
 }
 
 export type AdminView = 'calendar' | 'list';
+
+export type OpenPlaySkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels';
+export type OpenPlaySessionStatus = 'upcoming' | 'active' | 'full' | 'past' | 'cancelled';
+
+export interface OpenPlaySession {
+  id: string;
+  court_id: string;
+  court_name: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  max_players: number;
+  current_players: number;
+  spots_left: number;
+  price_per_player: number;
+  skill_level: OpenPlaySkillLevel;
+  host_name?: string | null;
+  description?: string | null;
+  status: OpenPlaySessionStatus;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface OpenPlaySessionStats {
+  id: string;
+  total_players: number;
+  max_players: number;
+  total_revenue: number;
+  confirmed_count: number;
+  pending_count: number;
+}
+
+export interface OpenPlayPlayer {
+  booking_id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone?: string | null;
+  reference_code: string;
+  status: BookingStatus;
+  payment_method: string;
+  amount_paid: number;
+  joined_at: string;
+}
+
+export interface CreateOpenPlaySessionPayload {
+  court_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  max_players: number;
+  price_per_player: number;
+  skill_level: OpenPlaySkillLevel;
+  host_name?: string;
+  description?: string;
+}
+
+export interface UpdateOpenPlaySessionPayload extends CreateOpenPlaySessionPayload {
+  is_active: boolean;
+}

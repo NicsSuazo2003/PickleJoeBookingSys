@@ -39,6 +39,7 @@ import { APP_CONFIG } from '@/utils/constants';
 import type { ClientSettings, PaymentMethod } from '@/types';
 import { StaffManagement } from '@/components/ui/StaffManagement';
 import { Modal } from '@/components/ui/Modal';
+import { OpenPlayManagement } from './OpenPlayManagement';
 
 // ─────────────────────────────────────────────────────────────
 // Payment method type options
