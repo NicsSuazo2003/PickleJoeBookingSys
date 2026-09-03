@@ -12,10 +12,11 @@ import { Bookings } from '@/pages/admin/Bookings';
 import { Courts } from '@/pages/admin/Courts';
 import { Pricing } from '@/pages/admin/Pricing';
 import { Settings } from '@/pages/admin/Settings';
+import { OpenPlayManagement } from '@/pages/admin/OpenPlayManagement'; // ✅ ADD THIS
 import { StaffBookings } from '@/pages/staff/StaffBookings';
+import { OpenPlay } from '@/pages/OpenPlay'; // ✅ ADD THIS
 import { useAuthStore } from '@/stores/authStore';
 import { IntroSplash } from '@/components/IntroSplash';
-import { OpenPlay } from '@/pages/OpenPlay';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -42,15 +43,15 @@ export default function App() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/success" element={<Success />} />
         <Route path="/track" element={<Track />} />
+        <Route path="/open-play" element={<OpenPlay />} /> {/* ✅ ADD THIS */}
         <Route path="/login" element={<Login />} />
-        <Route path="/open-play" element={<OpenPlay />} />
-
         
         {/* Admin Routes */}
         <Route path="/admin" element={<Dashboard />} />
         <Route path="/admin/bookings" element={<Bookings />} />
         <Route path="/admin/courts" element={<Courts />} />
         <Route path="/admin/pricing" element={<Pricing />} />
+        <Route path="/admin/open-play" element={<OpenPlayManagement />} /> {/* ✅ ADD THIS */}
         <Route path="/admin/settings" element={<Settings />} />
         
         {/* Staff Routes */}

@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   X,
+  Users, // ✅ ADD THIS
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/authStore';
@@ -20,6 +21,7 @@ const navItems = [
   { path: '/admin/bookings', label: 'Bookings', icon: CalendarDays },
   { path: '/admin/courts', label: 'Courts', icon: Building2 },
   { path: '/admin/pricing', label: 'Pricing', icon: Tag },
+  { path: '/admin/open-play', label: 'Open Play', icon: Users }, // ✅ ADD THIS
   { path: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
