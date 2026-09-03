@@ -19,12 +19,14 @@ import {
   Check,
   X,
   Clock3,
+  Users,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
+import { useOpenPlayStore } from '@/stores/openPlayStore';
 import { COURT_IMAGES, APP_CONFIG } from '@/utils/constants';
 import {
   formatCurrency,
@@ -33,7 +35,7 @@ import {
   toISODate,
   addDays,
 } from '@/utils/format';
-import type { TimeSlot, Court } from '@/types';
+import type { TimeSlot, Court, OpenPlaySession } from '@/types';
 
 // Distinct accent color per court column
 const COURT_ACCENTS = [
@@ -65,7 +67,7 @@ function formatTimeRangeShort(start: string, end: string): string {
 export function Landing() {
   const navigate = useNavigate();
   const bookingSectionRef = useRef<HTMLDivElement>(null);
-  const tableScrollRef = useRef<HTMLDivElement>(null); // for horizontal-scroll affordance
+  const tableScrollRef = useRef<HTMLDivElement>(null);
 
   const {
     courts,
@@ -81,6 +83,12 @@ export function Landing() {
     loadAllCourtsSlots,
   } = useBookingStore();
 
+  const {
+    sessions: openPlaySessions,
+    loadingSessions: loadingOpenPlay,
+    loadUpcomingSessions,
+  } = useOpenPlayStore();
+
   const [weekOffset, setWeekOffset] = useState(0);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const weekStart = addDays(new Date(), weekOffset * 7);
@@ -90,7 +98,8 @@ export function Landing() {
     if (courts.length === 0) {
       loadCourts();
     }
-  }, [courts.length, loadCourts]);
+    loadUpcomingSessions();
+  }, [courts.length, loadCourts, loadUpcomingSessions]);
 
   useEffect(() => {
     if (courts.length > 0) {
@@ -98,8 +107,7 @@ export function Landing() {
     }
   }, [selectedDate, courts.length, loadAllCourtsSlots]);
 
-  // Detect whether the court table has more content to the right, so we can
-  // show a "swipe for more courts" fade/hint instead of leaving it invisible.
+  // Detect whether the court table has more content to the right
   useEffect(() => {
     const el = tableScrollRef.current;
     if (!el) return;
@@ -117,6 +125,35 @@ export function Landing() {
 
   const scrollToBooking = () => {
     bookingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // ✅ Get Open Play sessions for the selected date
+  const getOpenPlaySessionsForDate = (date: string): OpenPlaySession[] => {
+    return openPlaySessions.filter(
+      (session) => session.date === date && session.is_active
+    );
+  };
+
+  // ✅ Check if a slot has an Open Play session
+  const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: string): OpenPlaySession | undefined => {
+    return openPlaySessions.find(
+      (session) =>
+        session.court_id === courtId &&
+        session.start_time === startTime &&
+        session.end_time === endTime &&
+        session.date === selectedDate &&
+        session.is_active
+    );
+  };
+
+  // ✅ Check if a slot is occupied by an Open Play session
+  const isSlotOpenPlay = (courtId: string, startTime: string, endTime: string): boolean => {
+    return !!getOpenPlaySessionForSlot(courtId, startTime, endTime);
+  };
+
+  // ✅ Handle Open Play slot click
+  const handleOpenPlayClick = (session: OpenPlaySession) => {
+    navigate(`/open-play/join/${session.id}`);
   };
 
   const getTimeIntervalsByPeriod = (slotsList: TimeSlot[]) => {
@@ -222,8 +259,6 @@ export function Landing() {
               </Button>
             </div>
 
-            {/* Trust signals — condensed to the two most decision-relevant items
-                on mobile (rating + hours); full set from sm: up */}
             <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-cream-muted sm:mt-10 sm:gap-6 sm:text-sm">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <div className="flex">
@@ -370,13 +405,12 @@ export function Landing() {
                         </h3>
                       </div>
                     </div>
-                    {/* Date shown inline here instead of a separate redundant badge below */}
                     <span className="hidden text-xs font-semibold text-gold-300 sm:inline">
                       {formatDateLong(selectedDate)}
                     </span>
                   </div>
 
-                  {/* Status Legend Bar */}
+                  {/* Status Legend Bar - Updated with Open Play */}
                   <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-forest-700/80 pb-2 text-[10px] font-semibold sm:gap-2.5 md:gap-3 md:pb-4 md:text-xs">
                     <span className="inline-flex items-center gap-1 rounded-full border border-forest-500 bg-forest-800/80 px-2 py-1 text-cream-muted sm:px-3 sm:py-1.5">
                       <Check className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
@@ -390,15 +424,19 @@ export function Landing() {
                       <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
                       Booked
                     </span>
-                    {/* Date badge, mobile-only now (desktop shows it inline in the step header) */}
+                    {/* ✅ NEW: Open Play Badge */}
+                    <span className="inline-flex items-center gap-1 rounded-full border border-gold-400/30 bg-gold-400/10 px-2 py-1 text-gold-300 sm:px-3 sm:py-1.5">
+                      <Users className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+                      Open Play
+                    </span>
                     <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-gold-400/30 bg-forest-800/90 px-2.5 py-1 text-[10px] font-bold text-gold-300 sm:hidden">
                       <CalendarDays className="h-3 w-3 text-gold-400" />
                       {formatDateLong(selectedDate)}
                     </span>
                   </div>
 
-                  {/* Multi-Court Column Table with horizontal-scroll affordance */}
-                  {loadingSlots || loadingCourts ? (
+                  {/* Multi-Court Column Table */}
+                  {loadingSlots || loadingCourts || loadingOpenPlay ? (
                     <LoadingSpinner className="py-8 md:py-16" />
                   ) : error ? (
                     <div className="py-6 text-center font-medium text-red-400 md:py-12">{error}</div>
@@ -449,6 +487,8 @@ export function Landing() {
                                 selectedSlotIds={selectedSlotIds}
                                 onToggleSlot={toggleSlot}
                                 compact={true}
+                                getOpenPlaySession={getOpenPlaySessionForSlot}
+                                onOpenPlayClick={handleOpenPlayClick}
                               />
                             )}
 
@@ -462,6 +502,8 @@ export function Landing() {
                                 selectedSlotIds={selectedSlotIds}
                                 onToggleSlot={toggleSlot}
                                 compact={true}
+                                getOpenPlaySession={getOpenPlaySessionForSlot}
+                                onOpenPlayClick={handleOpenPlayClick}
                               />
                             )}
 
@@ -475,14 +517,14 @@ export function Landing() {
                                 selectedSlotIds={selectedSlotIds}
                                 onToggleSlot={toggleSlot}
                                 compact={true}
+                                getOpenPlaySession={getOpenPlaySessionForSlot}
+                                onOpenPlayClick={handleOpenPlayClick}
                               />
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Fade + hint indicating more courts exist off-screen to the right.
-                          Pointer-events-none so it never blocks taps on the table underneath. */}
                       {canScrollRight && (
                         <div className="pointer-events-none absolute right-0 top-0 flex h-full w-10 items-center justify-end rounded-r-xl bg-gradient-to-l from-forest-900 to-transparent sm:w-14">
                           <ChevronRight className="mr-1 h-4 w-4 animate-pulse text-gold-400/80" />
@@ -491,7 +533,7 @@ export function Landing() {
                     </div>
                   )}
 
-                  {/* Desktop/tablet reservation bar — hidden on mobile in favor of the sticky bar below */}
+                  {/* Desktop/tablet reservation bar */}
                   <div className="mt-4 hidden items-center justify-between gap-4 rounded-xl border border-forest-600 bg-forest-800/90 p-4 sm:flex md:mt-10 md:p-5">
                     <div>
                       <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
@@ -523,9 +565,7 @@ export function Landing() {
         </section>
       </div>
 
-      {/* Sticky mobile summary/proceed bar — stays visible while scrolling the
-          court table, so users never have to hunt for how to proceed. Pinned to
-          viewport bottom, only rendered below sm:. */}
+      {/* Sticky mobile summary/proceed bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-500 bg-charcoal/95 p-3 backdrop-blur sm:hidden">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
@@ -646,7 +686,7 @@ export function Landing() {
   );
 }
 
-// Period Section Subcomponent
+// Period Section Subcomponent - Updated with Open Play support
 function PeriodSection({
   title,
   icon,
@@ -656,6 +696,8 @@ function PeriodSection({
   selectedSlotIds,
   onToggleSlot,
   compact = false,
+  getOpenPlaySession,
+  onOpenPlayClick,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -665,6 +707,8 @@ function PeriodSection({
   selectedSlotIds: string[];
   onToggleSlot: (slotId: string) => void;
   compact?: boolean;
+  getOpenPlaySession?: (courtId: string, startTime: string, endTime: string) => OpenPlaySession | undefined;
+  onOpenPlayClick?: (session: OpenPlaySession) => void;
 }) {
   return (
     <div>
@@ -688,6 +732,10 @@ function PeriodSection({
             {courts.map((court, idx) => {
               const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
               const accent = getCourtAccent(idx);
+              
+              // ✅ Check if this slot has an Open Play session
+              const openPlaySession = getOpenPlaySession?.(court.id, interval.start_time, interval.end_time);
+              const isOpenPlay = !!openPlaySession;
 
               if (!slot) {
                 return (
@@ -700,6 +748,21 @@ function PeriodSection({
                 );
               }
 
+              // ✅ If it's an Open Play session, render the Open Play pill
+              if (isOpenPlay && openPlaySession) {
+                return (
+                  <div key={slot.id}>
+                    <OpenPlayPill
+                      session={openPlaySession}
+                      onClick={() => onOpenPlayClick?.(openPlaySession)}
+                      compact={compact}
+                      accent={accent}
+                    />
+                  </div>
+                );
+              }
+
+              // ✅ Regular slot pill
               return (
                 <div key={slot.id}>
                   <SlotPill
@@ -719,9 +782,49 @@ function PeriodSection({
   );
 }
 
+// ✅ NEW: Open Play Pill Component
+function OpenPlayPill({
+  session,
+  onClick,
+  compact = false,
+  accent,
+}: {
+  session: OpenPlaySession;
+  onClick: () => void;
+  compact?: boolean;
+  accent: CourtAccent;
+}) {
+  const height = compact ? 'h-9 sm:h-10 md:h-11' : 'h-12';
+  const textSize = compact ? 'text-[10px] sm:text-[11px] md:text-sm' : 'text-sm';
+
+  return (
+    <button
+      onClick={onClick}
+      className={`flex w-full flex-col items-center justify-center rounded-full border-2 border-gold-400 bg-gold-400/20 font-bold tracking-tight transition-all hover:bg-gold-400/30 hover:shadow-glow-gold ${height} ${textSize} px-1.5 sm:px-2.5 group relative`}
+      title={`Open Play: ${session.current_players}/${session.max_players} players · ${session.skill_level}`}
+    >
+      <span className="text-gold-300 font-extrabold">OP</span>
+      <span className="text-[7px] text-gold-400/70 sm:text-[8px]">
+        {session.current_players}/{session.max_players}
+      </span>
+      
+      {/* Tooltip on hover - hidden on touch devices */}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-forest-900 border border-forest-500 rounded-lg px-3 py-2 text-xs text-cream whitespace-nowrap z-50 shadow-xl">
+        <p className="font-semibold text-gold-300">Open Play Session</p>
+        <p className="text-cream-muted text-[10px]">{session.current_players}/{session.max_players} players</p>
+        <p className="text-cream-muted text-[10px]">{session.skill_level}</p>
+        {session.host_name && (
+          <p className="text-cream-muted text-[10px]">Host: {session.host_name}</p>
+        )}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-forest-900 border-r border-b border-forest-500" />
+      </div>
+    </button>
+  );
+}
+
 type CourtAccent = ReturnType<typeof getCourtAccent>;
 
-// Slot Pill Component
+// Slot Pill Component - Updated to check for Open Play
 function SlotPill({
   slot,
   isSelected,
