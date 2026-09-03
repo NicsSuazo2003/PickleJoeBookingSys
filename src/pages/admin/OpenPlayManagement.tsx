@@ -107,29 +107,19 @@ export function OpenPlayManagement() {
 
   const [formError, setFormError] = useState<string | null>(null);
 
-  // ✅ FIX: Load courts + sessions once on mount using useEffect
+  // Load courts + sessions once on mount
   useEffect(() => {
     loadCourts();
     adminLoadSessions();
-  }, []); // Empty dependency array - runs once on mount
+  }, []);
 
-  // ✅ FIX: Load players and stats when viewingPlayers changes
+  // Load players and stats when viewingPlayers changes
   useEffect(() => {
     if (viewingPlayers) {
-      console.log('🔄 Loading players for session:', viewingPlayers);
-      // Clear previous data first
-      // Then load fresh data
       adminLoadPlayers(viewingPlayers);
       adminLoadStats(viewingPlayers);
     }
   }, [viewingPlayers, adminLoadPlayers, adminLoadStats]);
-
-  // ✅ FIX: Debug logging - log when players update
-  useEffect(() => {
-    if (players.length > 0) {
-      console.log('📊 Players loaded:', players.length, 'players');
-    }
-  }, [players]);
 
   // Fetch slots with explicit values
   const fetchAndSetSlots = async (
@@ -385,13 +375,27 @@ export function OpenPlayManagement() {
     }
   };
 
+  // ✅ FIXED: Proper date handling for player details
   const openPlayerDetails = (player: OpenPlayPlayer) => {
+    // Extract date from joined_at (format: YYYY-MM-DD)
+    let dateStr = new Date().toISOString().split('T')[0];
+    if (player.joined_at) {
+      try {
+        const d = new Date(player.joined_at);
+        if (!isNaN(d.getTime())) {
+          dateStr = d.toISOString().split('T')[0];
+        }
+      } catch {
+        // Use default date if parsing fails
+      }
+    }
+
     const booking: Booking = {
       id: player.booking_id,
       reference_code: player.reference_code,
       court_id: '',
-      court_name: '',
-      date: player.joined_at,
+      court_name: 'Open Play Session',
+      date: dateStr,  // ✅ Valid date format
       slots: [],
       customer: {
         name: player.customer_name,
@@ -399,7 +403,7 @@ export function OpenPlayManagement() {
         phone: player.customer_phone ?? '',
         notes: '',
       },
-      total_amount: player.amount_paid,
+      total_amount: player.amount_paid || 0,
       status: player.status as BookingStatus,
       payment_screenshot_url: undefined,
       payment_reference: undefined,
@@ -411,7 +415,6 @@ export function OpenPlayManagement() {
     setSelectedPlayerBooking(booking);
   };
 
-  // ✅ FIX: Handle viewing players with proper loading state
   const handleViewPlayers = (sessionId: string) => {
     setViewingPlayers(sessionId);
   };
@@ -821,7 +824,10 @@ export function OpenPlayManagement() {
                             {status.label}
                           </span>
                           <p className="mt-1 text-[11px] text-cream-muted sm:text-xs">
-                            {formatCurrency(player.amount_paid)} paid
+                            {formatCurrency(player.amount_paid)} 
+                            {player.status === 'confirmed' || player.status === 'completed' 
+                              ? ' paid' 
+                              : ' (pending)'}
                           </p>
                           <p className="text-[9px] text-cream-muted/60 sm:text-[10px]">
                             Joined {new Date(player.joined_at).toLocaleDateString()}
