@@ -1,5 +1,5 @@
 // src/pages/admin/OpenPlayManagement.tsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -63,8 +63,6 @@ const PAYMENT_STATUS_BADGE: Record<string, { label: string; className: string }>
   rejected: { label: 'Rejected', className: 'bg-red-500/15 text-red-400' },
 };
 
-
-
 export function OpenPlayManagement() {
   const {
     adminSessions,
@@ -82,7 +80,6 @@ export function OpenPlayManagement() {
     clearError,
   } = useOpenPlayStore();
 
-  // Combined into a single destructure — was called twice before for no reason
   const { courts, loadCourts, updateBookingStatus } = useAdminStore();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -110,17 +107,31 @@ export function OpenPlayManagement() {
 
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Load courts + sessions once on mount. (No dependency-array footguns here —
-  // intentionally empty, this really should only run once.)
-  useState(() => {
+  // ✅ FIX: Load courts + sessions once on mount using useEffect
+  useEffect(() => {
     loadCourts();
     adminLoadSessions();
-  });
+  }, []); // Empty dependency array - runs once on mount
 
-  // Fetches slots for an EXPLICIT court/date instead of reading them from
-  // `formData` — this is what fixes the stale-closure bug. Every call site
-  // below passes the values it actually wants, so there's no dependency on
-  // when React flushes a prior setFormData().
+  // ✅ FIX: Load players and stats when viewingPlayers changes
+  useEffect(() => {
+    if (viewingPlayers) {
+      console.log('🔄 Loading players for session:', viewingPlayers);
+      // Clear previous data first
+      // Then load fresh data
+      adminLoadPlayers(viewingPlayers);
+      adminLoadStats(viewingPlayers);
+    }
+  }, [viewingPlayers, adminLoadPlayers, adminLoadStats]);
+
+  // ✅ FIX: Debug logging - log when players update
+  useEffect(() => {
+    if (players.length > 0) {
+      console.log('📊 Players loaded:', players.length, 'players');
+    }
+  }, [players]);
+
+  // Fetch slots with explicit values
   const fetchAndSetSlots = async (
     courtId: string,
     date: string,
@@ -310,8 +321,6 @@ export function OpenPlayManagement() {
       description: session.description || '',
     });
     setFormError(null);
-    // Explicit values from the session being edited — not from formData,
-    // so there's no race with the setFormData call above.
     fetchAndSetSlots(session.court_id, session.date, {
       start: session.start_time,
       end: session.end_time,
@@ -365,6 +374,7 @@ export function OpenPlayManagement() {
     setUpdatingStatus(status);
     try {
       await updateBookingStatus(bookingId, status);
+      // Refresh players list after status update
       if (viewingPlayers) {
         adminLoadPlayers(viewingPlayers);
         adminLoadStats(viewingPlayers);
@@ -376,30 +386,35 @@ export function OpenPlayManagement() {
   };
 
   const openPlayerDetails = (player: OpenPlayPlayer) => {
-  const booking: Booking = {
-    id: player.booking_id,
-    reference_code: player.reference_code,
-    court_id: '',
-    court_name: '',
-    date: player.joined_at,
-    slots: [],
-    customer: {
-      name: player.customer_name,
-      email: player.customer_email,
-      phone: player.customer_phone ?? '',   // ← handles null and undefined
-      notes: '',
-    },
-    total_amount: player.amount_paid,
-    status: player.status as BookingStatus,
-    payment_screenshot_url: undefined,
-    payment_reference: undefined,
-    gcash_number: '',
-    created_at: player.joined_at,
-    updated_at: player.joined_at,
-    open_play_session_id: viewingPlayers || '',
+    const booking: Booking = {
+      id: player.booking_id,
+      reference_code: player.reference_code,
+      court_id: '',
+      court_name: '',
+      date: player.joined_at,
+      slots: [],
+      customer: {
+        name: player.customer_name,
+        email: player.customer_email,
+        phone: player.customer_phone ?? '',
+        notes: '',
+      },
+      total_amount: player.amount_paid,
+      status: player.status as BookingStatus,
+      payment_screenshot_url: undefined,
+      payment_reference: undefined,
+      gcash_number: '',
+      created_at: player.joined_at,
+      updated_at: player.joined_at,
+      open_play_session_id: viewingPlayers || '',
+    };
+    setSelectedPlayerBooking(booking);
   };
-  setSelectedPlayerBooking(booking);
-};
+
+  // ✅ FIX: Handle viewing players with proper loading state
+  const handleViewPlayers = (sessionId: string) => {
+    setViewingPlayers(sessionId);
+  };
 
   if (loadingAdminSessions) {
     return (
@@ -511,7 +526,7 @@ export function OpenPlayManagement() {
 
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <button
-                    onClick={() => setViewingPlayers(session.id)}
+                    onClick={() => handleViewPlayers(session.id)}
                     className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
                     title="View players"
                   >
@@ -740,7 +755,9 @@ export function OpenPlayManagement() {
       {/* Players Modal */}
       <Modal
         isOpen={!!viewingPlayers}
-        onClose={() => setViewingPlayers(null)}
+        onClose={() => {
+          setViewingPlayers(null);
+        }}
         title="Players"
         size="lg"
       >
