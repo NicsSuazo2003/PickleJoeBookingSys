@@ -1,6 +1,5 @@
-// OpenPlay.tsx - Remove setCurrentBooking and use reset instead
-
-import { useEffect } from 'react';
+// src/pages/OpenPlay.tsx
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Clock, CalendarDays, UserCircle2, ArrowRight } from 'lucide-react';
@@ -8,10 +7,14 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
 import { useOpenPlayStore } from '@/stores/openPlayStore';
 import { useBookingStore } from '@/stores/bookingStore';
+import { useAdminStore } from '@/stores/adminStore';
 import { formatDateLong, formatTimeRange, formatCurrency } from '@/utils/format';
-import type { OpenPlaySession } from '@/types';
+import type { OpenPlaySession, CustomerDetails } from '@/types';
+import { openPlayService } from '@/services/openPlayService';
 
 const SKILL_BADGE: Record<string, string> = {
   Beginner: 'bg-green-500/15 text-green-400',
@@ -30,18 +33,74 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
 
 export function OpenPlay() {
   const navigate = useNavigate();
-  const { sessions, loadingSessions, error, loadUpcomingSessions, setSelectedSession } =
-    useOpenPlayStore();
-  const { reset } = useBookingStore(); // ✅ Use reset instead
+  const { sessions, loadingSessions, error, loadUpcomingSessions } = useOpenPlayStore();
+  const { courts, loadCourts } = useAdminStore();
+  
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<OpenPlaySession | null>(null);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
+    name: '',
+    email: '',
+    phone: '',
+    notes: '',
+  });
 
   useEffect(() => {
     loadUpcomingSessions();
-  }, [loadUpcomingSessions]);
+    loadCourts();
+  }, []);
 
-  const handleJoin = (session: OpenPlaySession) => {
+  const handleJoinClick = (session: OpenPlaySession) => {
     setSelectedSession(session);
-    reset(); // ✅ Clear any existing booking state
-    navigate(`/booking?openPlay=${session.id}`);
+    setShowJoinModal(true);
+    setJoinError(null);
+    setCustomerDetails({ name: '', email: '', phone: '', notes: '' });
+  };
+
+  const handleJoinConfirm = async () => {
+    if (!selectedSession) return;
+    if (!customerDetails.name.trim()) {
+      setJoinError('Name is required');
+      return;
+    }
+    if (!customerDetails.email.trim()) {
+      setJoinError('Email is required');
+      return;
+    }
+    if (!customerDetails.phone.trim()) {
+      setJoinError('Phone number is required');
+      return;
+    }
+
+    setJoining(true);
+    setJoinError(null);
+
+    try {
+      // Join the session via API
+      const booking = await openPlayService.joinSession(selectedSession.id, customerDetails);
+      
+      // ✅ Use the booking store's reset and then set the booking via createBooking
+      // But since we already have the booking, we need to set it directly
+      // Use the store's currentBooking property directly
+      const store = useBookingStore.getState();
+      
+      // Reset any existing booking state
+      store.reset();
+      
+      // Set the booking using a workaround - update the store directly
+      // Since we can't call setCurrentBooking, we'll use the store's internal state
+      useBookingStore.setState({ currentBooking: booking });
+      
+      // Navigate to checkout
+      setShowJoinModal(false);
+      navigate('/checkout');
+    } catch (err) {
+      setJoinError(err instanceof Error ? err.message : 'Failed to join session');
+    } finally {
+      setJoining(false);
+    }
   };
 
   return (
@@ -152,7 +211,7 @@ export function OpenPlay() {
                     <Button
                       size="sm"
                       disabled={isFull}
-                      onClick={() => handleJoin(session)}
+                      onClick={() => handleJoinClick(session)}
                       rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
                     >
                       {isFull ? 'Full' : 'Join Now'}
@@ -164,6 +223,81 @@ export function OpenPlay() {
           </div>
         )}
       </div>
+
+      {/* Join Modal */}
+      <Modal
+        isOpen={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        title="Join Open Play Session"
+        size="md"
+      >
+        {selectedSession && (
+          <div className="space-y-4">
+            {/* Session Summary */}
+            <div className="rounded-lg bg-forest-800 p-3">
+              <p className="text-sm font-medium text-cream">{selectedSession.court_name}</p>
+              <p className="text-xs text-cream-muted">
+                {formatDateLong(selectedSession.date)} · {formatTimeRange(selectedSession.start_time, selectedSession.end_time)}
+              </p>
+              <p className="text-xs text-cream-muted">
+                {selectedSession.current_players}/{selectedSession.max_players} players · {formatCurrency(selectedSession.price_per_player)}/player
+              </p>
+            </div>
+
+            {/* Customer Details */}
+            <Input
+              label="Full Name *"
+              placeholder="Enter your full name"
+              value={customerDetails.name}
+              onChange={(e) => setCustomerDetails({ ...customerDetails, name: e.target.value })}
+            />
+
+            <Input
+              label="Email Address *"
+              type="email"
+              placeholder="you@email.com"
+              value={customerDetails.email}
+              onChange={(e) => setCustomerDetails({ ...customerDetails, email: e.target.value })}
+            />
+
+            <Input
+              label="Phone Number *"
+              placeholder="0917 123 4567"
+              value={customerDetails.phone}
+              onChange={(e) => setCustomerDetails({ ...customerDetails, phone: e.target.value })}
+            />
+
+            <Input
+              label="Notes (optional)"
+              placeholder="Any special requests?"
+              value={customerDetails.notes || ''}
+              onChange={(e) => setCustomerDetails({ ...customerDetails, notes: e.target.value })}
+            />
+
+            {joinError && (
+              <div className="rounded-lg bg-error/10 p-2 text-xs text-error">
+                {joinError}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                fullWidth
+                isLoading={joining}
+                onClick={handleJoinConfirm}
+              >
+                Confirm & Pay
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setShowJoinModal(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Footer />
     </div>
