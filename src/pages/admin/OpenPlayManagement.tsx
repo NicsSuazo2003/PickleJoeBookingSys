@@ -375,7 +375,7 @@ export function OpenPlayManagement() {
     }
   };
 
-  // ✅ FIXED: Proper date handling for player details
+  // ✅ Fixed: Proper date handling for player details
   const openPlayerDetails = (player: OpenPlayPlayer) => {
     // Extract date from joined_at (format: YYYY-MM-DD)
     let dateStr = new Date().toISOString().split('T')[0];
@@ -395,7 +395,7 @@ export function OpenPlayManagement() {
       reference_code: player.reference_code,
       court_id: '',
       court_name: 'Open Play Session',
-      date: dateStr,  // ✅ Valid date format
+      date: dateStr,
       slots: [],
       customer: {
         name: player.customer_name,
@@ -770,28 +770,40 @@ export function OpenPlayManagement() {
           </div>
         ) : (
           <>
-            {stats && (
-              <div className="mb-3 grid grid-cols-3 gap-2 sm:mb-4 sm:gap-3">
-                <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-                  <p className="text-[10px] text-cream-muted sm:text-xs">Players</p>
-                  <p className="text-lg font-bold text-cream sm:text-xl">
-                    {stats.total_players}/{stats.max_players}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-                  <p className="text-[10px] text-cream-muted sm:text-xs">Confirmed</p>
-                  <p className="text-lg font-bold text-green-400 sm:text-xl">
-                    {stats.confirmed_count}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-                  <p className="text-[10px] text-cream-muted sm:text-xs">Revenue</p>
-                  <p className="text-lg font-bold text-gold-400 sm:text-xl">
-                    {formatCurrency(stats.total_revenue)}
-                  </p>
-                </div>
-              </div>
-            )}
+          {stats && (
+  <div className="mb-3 grid grid-cols-4 gap-2 sm:mb-4 sm:gap-3">
+    <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+      <p className="text-[10px] text-cream-muted sm:text-xs">Players</p>
+      <p className="text-lg font-bold text-cream sm:text-xl">
+        {stats.total_players}/{stats.max_players}
+      </p>
+    </div>
+    <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+      <p className="text-[10px] text-cream-muted sm:text-xs">Confirmed</p>
+      <p className="text-lg font-bold text-green-400 sm:text-xl">
+        {stats.confirmed_count}
+      </p>
+      {stats.total_revenue > 0 && (
+        <p className="text-[10px] text-gold-400">{formatCurrency(stats.total_revenue)}</p>
+      )}
+    </div>
+    <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+      <p className="text-[10px] text-cream-muted sm:text-xs">Pending</p>
+      <p className="text-lg font-bold text-yellow-400 sm:text-xl">
+        {stats.pending_count}
+      </p>
+      {stats.pending_revenue > 0 && (  // ✅ Changed from pendingRevenue
+        <p className="text-[10px] text-yellow-400">{formatCurrency(stats.pending_revenue)}</p>
+      )}
+    </div>
+    <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+      <p className="text-[10px] text-cream-muted sm:text-xs">Total Revenue</p>
+      <p className="text-lg font-bold text-gold-400 sm:text-xl">
+        {formatCurrency((stats.total_revenue || 0) + (stats.pending_revenue || 0))}
+      </p>
+    </div>
+  </div>
+)}
 
             {players.length === 0 ? (
               <div className="py-6 text-center text-xs text-cream-muted sm:py-8 sm:text-sm">

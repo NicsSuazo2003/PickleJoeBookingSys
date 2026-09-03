@@ -85,6 +85,7 @@ function normalizeStats(raw: any): OpenPlaySessionStats {
     total_players: raw.totalPlayers ?? raw.total_players ?? 0,
     max_players: raw.maxPlayers ?? raw.max_players ?? 0,
     total_revenue: raw.totalRevenue ?? raw.total_revenue ?? 0,
+    pending_revenue: raw.pendingRevenue ?? raw.pending_revenue ?? 0,
     confirmed_count: raw.confirmedCount ?? raw.confirmed_count ?? 0,
     pending_count: raw.pendingCount ?? raw.pending_count ?? 0,
   };

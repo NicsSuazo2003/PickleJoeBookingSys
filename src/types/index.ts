@@ -186,6 +186,7 @@ export interface OpenPlaySessionStats {
   total_players: number;
   max_players: number;
   total_revenue: number;
+  pending_revenue: number;
   confirmed_count: number;
   pending_count: number;
 }
