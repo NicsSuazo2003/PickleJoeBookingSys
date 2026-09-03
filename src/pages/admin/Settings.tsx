@@ -147,49 +147,56 @@ export function Settings() {
     setProfilePhone(user?.phone ?? '');
   }, [user]);
 
-  // ── Load Payment Methods ───────────────────────────
-  const loadPaymentMethods = async () => {
-    setLoadingPaymentMethods(true);
-    try {
-      const settings = await adminService.getSettings();
-      if (settings.payment_methods && settings.payment_methods.length > 0) {
-        setPaymentMethods(settings.payment_methods);
-      } else {
-        setPaymentMethods([
-          {
-            id: '1',
-            name: 'GCash',
-            type: 'gcash',
-            icon: 'Smartphone',
-            enabled: true,
-            config: {
-              account_name: APP_CONFIG.gcashAccountName || 'PickleJoe Courts',
-              account_number: APP_CONFIG.gcashNumber || '09XX XXX XXXX',
-            },
-            sort_order: 0,
+ // ── Load Payment Methods ───────────────────────────
+const loadPaymentMethods = async () => {
+  setLoadingPaymentMethods(true);
+  try {
+    const settings = await adminService.getSettings();
+    console.log('📡 Loaded settings:', settings);
+    console.log('📡 Payment methods from API:', settings.payment_methods);
+    
+    if (settings.payment_methods && settings.payment_methods.length > 0) {
+      setPaymentMethods(settings.payment_methods);
+    } else {
+      // Default payment methods
+      setPaymentMethods([
+        {
+          id: '1',
+          name: 'GCash',
+          type: 'gcash',
+          icon: 'Smartphone',
+          enabled: true,
+          config: {
+            account_name: APP_CONFIG.gcashAccountName || 'PickleJoe Courts',
+            account_number: APP_CONFIG.gcashNumber || '09XX XXX XXXX',
           },
-        ]);
-      }
-    } catch (error) {
-      console.error('Failed to load payment methods:', error);
-    } finally {
-      setLoadingPaymentMethods(false);
+          sort_order: 0,
+        },
+      ]);
     }
-  };
+  } catch (error) {
+    console.error('Failed to load payment methods:', error);
+  } finally {
+    setLoadingPaymentMethods(false);
+  }
+};
 
   // ── Save Payment Methods ───────────────────────────
-  const savePaymentMethods = async (methods: PaymentMethod[]) => {
-    try {
-      await adminService.updateSettings({
-        payment_methods: methods,
-      });
-      setPaymentMethods(methods);
-      return true;
-    } catch (error) {
-      console.error('Failed to save payment methods:', error);
-      return false;
-    }
-  };
+const savePaymentMethods = async (methods: PaymentMethod[]) => {
+  try {
+    const result = await adminService.updateSettings({
+      payment_methods: methods,
+    });
+    // ✅ Update local state with the saved methods
+    setPaymentMethods(methods);
+    console.log('✅ Payment methods saved successfully:', methods);
+    return true;
+  } catch (error) {
+    console.error('Failed to save payment methods:', error);
+    setMethodMsg({ type: 'error', text: 'Failed to save payment methods' });
+    return false;
+  }
+};
 
   // ── Handle QR Code Upload ──────────────────────────
 const handleQrUpload = async (file: File): Promise<string | null> => {
@@ -239,44 +246,43 @@ const handleQrUpload = async (file: File): Promise<string | null> => {
   }
 };
 
-  // ── Add Payment Method ─────────────────────────────
-  const handleAddMethod = async () => {
-    if (!formData.name?.trim()) {
-      setMethodMsg({ type: 'error', text: 'Payment method name is required.' });
-      return;
-    }
+ // ── Add Payment Method ─────────────────────────────
+const handleAddMethod = async () => {
+  if (!formData.name?.trim()) {
+    setMethodMsg({ type: 'error', text: 'Payment method name is required.' });
+    return;
+  }
 
-    setSavingMethod(true);
-    setMethodMsg(null);
+  setSavingMethod(true);
+  setMethodMsg(null);
 
-    const newMethod: PaymentMethod = {
-      id: Date.now().toString(),
-      name: formData.name.trim(),
-      type: (formData.type as PaymentMethod['type']) || 'other',
-      icon: formData.icon || 'Smartphone',
-      enabled: formData.enabled !== undefined ? formData.enabled : true,
-      config: {
-        account_name: formData.config?.account_name || '',
-        account_number: formData.config?.account_number || '',
-        qr_image_url: formData.config?.qr_image_url || '',
-        instructions: formData.config?.instructions || '',
-      },
-      sort_order: paymentMethods.length,
-    };
-
-    const updated = [...paymentMethods, newMethod];
-    const success = await savePaymentMethods(updated);
-    
-    if (success) {
-      setMethodMsg({ type: 'success', text: `"${newMethod.name}" added successfully.` });
-      setShowAddModal(false);
-      resetForm();
-      await loadPaymentMethods();
-    } else {
-      setMethodMsg({ type: 'error', text: 'Failed to add payment method.' });
-    }
-    setSavingMethod(false);
+  const newMethod: PaymentMethod = {
+    id: Date.now().toString(),
+    name: formData.name.trim(),
+    type: (formData.type as PaymentMethod['type']) || 'other',
+    icon: formData.icon || 'Smartphone',
+    enabled: formData.enabled !== undefined ? formData.enabled : true,
+    config: {
+      account_name: formData.config?.account_name || '',
+      account_number: formData.config?.account_number || '',
+      qr_image_url: formData.config?.qr_image_url || '',
+      instructions: formData.config?.instructions || '',
+    },
+    sort_order: paymentMethods.length,
   };
+
+  const updated = [...paymentMethods, newMethod];
+  const success = await savePaymentMethods(updated);
+  
+  if (success) {
+    setMethodMsg({ type: 'success', text: `"${newMethod.name}" added successfully.` });
+    setShowAddModal(false);
+    resetForm();
+    // ✅ Reload payment methods to get the latest data
+    await loadPaymentMethods();
+  }
+  setSavingMethod(false);
+};
 
   // ── Edit Payment Method ────────────────────────────
   const handleEditMethod = async () => {

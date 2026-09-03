@@ -13,6 +13,7 @@ function normalizeClientSettings(raw: any): ClientSettings {
     accent_color: data.accentColor ?? data.accent_color ?? '#C9A94E',
     gcash_number: data.gcashNumber ?? data.gcash_number ?? null,
     gcash_account_name: data.gcashAccountName ?? data.gcash_account_name ?? null,
+    payment_methods: data.paymentMethods ?? data.payment_methods ?? [], // ✅ Already here
   };
 }
 
