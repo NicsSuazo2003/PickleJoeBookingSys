@@ -134,17 +134,27 @@ export function Landing() {
     );
   };
 
-  // ✅ Check if a slot has an Open Play session
-  const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: string): OpenPlaySession | undefined => {
-    return openPlaySessions.find(
-      (session) =>
-        session.court_id === courtId &&
-        session.start_time === startTime &&
-        session.end_time === endTime &&
-        session.date === selectedDate &&
-        session.is_active
-    );
-  };
+  // Helper to convert time string to minutes
+const timeToMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+// ✅ Check if a slot has an Open Play session (checks if slot is within session range)
+const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: string): OpenPlaySession | undefined => {
+  const slotStart = timeToMinutes(startTime);
+  const slotEnd = timeToMinutes(endTime);
+  
+  return openPlaySessions.find(
+    (session) =>
+      session.court_id === courtId &&
+      session.date === selectedDate &&
+      session.is_active === true &&
+      // Check if the slot is within the session's time range
+      timeToMinutes(session.start_time) <= slotStart &&
+      timeToMinutes(session.end_time) >= slotEnd
+  );
+};
 
   // ✅ Check if a slot is occupied by an Open Play session
   const isSlotOpenPlay = (courtId: string, startTime: string, endTime: string): boolean => {
