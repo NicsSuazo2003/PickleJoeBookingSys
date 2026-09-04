@@ -109,13 +109,19 @@ export function Checkout() {
   };
 
   const handleUpload = async () => {
-  if (!screenshot) return;
+    // ✅ Reference is required - validate it first
+    if (!paymentRef.trim()) {
+      setUploadError('Reference number is required');
+      return;
+    }
+    
+    // ✅ Screenshot is optional - we can proceed without it
     setUploading(true);
     setUploadError(null);
     try {
       await bookingService.uploadPayment(
         currentBooking.id,
-        screenshot,
+        screenshot, // ✅ Can be null - screenshot is optional
         paymentRef.trim()
       );
       navigate('/success');
@@ -289,11 +295,39 @@ export function Checkout() {
               </div>
             )}
 
-            {/* Screenshot Upload */}
+            {/* Reference Number Input - Now Required */}
+            <div className="card p-4">
+              <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
+                <span className="text-red-400">*</span>
+                Reference Number
+              </h2>
+              
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={paymentRef}
+                  onChange={(e) => setPaymentRef(e.target.value)}
+                  placeholder="Enter your GCash reference number"
+                  className="input-field text-sm py-2"
+                />
+                <p className="mt-1 text-[10px] text-cream-muted">
+                  Required - Enter the reference number from your GCash payment
+                </p>
+              </div>
+
+              {uploadError && uploadError.includes('Reference number') && (
+                <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-error/10 p-2 text-xs text-error">
+                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                  {uploadError}
+                </div>
+              )}
+            </div>
+
+            {/* Screenshot Upload - Now Optional */}
             <div className="card p-4">
               <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
                 <Upload className="h-3.5 w-3.5" />
-                Upload Screenshot
+                Upload Screenshot (Optional)
               </h2>
 
               <div
@@ -329,14 +363,14 @@ export function Checkout() {
                         onClick={() => setScreenshot(null)}
                         className="text-[10px] text-cream-muted underline hover:text-gold-300"
                       >
-                        Change
+                        Remove
                       </button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center">
                     <ImageIcon className="h-8 w-8 text-cream-muted/40" />
-                    <p className="mt-1 text-xs text-cream-muted">Tap to upload</p>
+                    <p className="mt-1 text-xs text-cream-muted">Optional - tap to upload</p>
                     <label className="mt-1 inline-block cursor-pointer">
                       <span className="rounded-lg border border-gold-400 px-3 py-1 text-xs font-medium text-gold-300 transition hover:bg-gold-400/10">
                         Browse
@@ -355,17 +389,7 @@ export function Checkout() {
                 )}
               </div>
 
-              <div className="mt-2">
-                <input
-                  type="text"
-                  value={paymentRef}
-                  onChange={(e) => setPaymentRef(e.target.value)}
-                  placeholder="Reference number (Optional)"
-                  className="input-field text-sm py-2"
-                />
-              </div>
-
-              {uploadError && (
+              {uploadError && !uploadError.includes('Reference number') && (
                 <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-error/10 p-2 text-xs text-error">
                   <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
                   {uploadError}
@@ -377,7 +401,7 @@ export function Checkout() {
                 fullWidth
                 className="mt-3"
                 isLoading={uploading}
-                disabled={!screenshot || isExpired}
+                disabled={!paymentRef.trim() || isExpired}
                 onClick={handleUpload}
                 leftIcon={<CheckCircle2 className="h-4 w-4" />}
               >

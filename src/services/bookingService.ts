@@ -195,7 +195,7 @@ export const bookingService = {
   // ✅ UPDATED: Send payment reference with the screenshot
   async uploadPayment(
     bookingId: string,
-    screenshotDataUrl: string,
+   screenshotDataUrl: string | null,
     paymentReference: string
   ): Promise<Booking> {
     if (!bookingId) {
