@@ -137,27 +137,28 @@ export function Booking() {
   }
 
   // Nothing selected (direct link, refresh, or back navigation that cleared
-  // state) — send them back to the picker instead of showing an empty form.
-  if (!selectedCourt || selectedSlots.length === 0) {
-    return (
-      <div className="min-h-screen bg-charcoal">
-        <Navbar />
-        <div className="container-page flex flex-col items-center justify-center gap-4 pt-32 pb-24 text-center">
-          <CalendarDays className="h-10 w-10 text-cream-muted/40" />
-          <div>
-            <h1 className="text-lg font-bold text-cream">No court or time selected yet</h1>
-            <p className="mt-1 text-sm text-cream-muted">
-              Head back to the homepage to pick a court and a time slot first.
-            </p>
-          </div>
-          <Button size="md" to="/" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-            Choose Court & Time
-          </Button>
+// state) — send them back to the picker instead of showing an empty form.
+// ✅ Check selectedSlots instead of selectedCourt
+if (selectedSlots.length === 0) {
+  return (
+    <div className="min-h-screen bg-charcoal">
+      <Navbar />
+      <div className="container-page flex flex-col items-center justify-center gap-4 pt-32 pb-24 text-center">
+        <CalendarDays className="h-10 w-10 text-cream-muted/40" />
+        <div>
+          <h1 className="text-lg font-bold text-cream">No court or time selected yet</h1>
+          <p className="mt-1 text-sm text-cream-muted">
+            Head back to the homepage to pick a court and a time slot first.
+          </p>
         </div>
-        <Footer />
+        <Button size="md" to="/" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+          Choose Court & Time
+        </Button>
       </div>
-    );
-  }
+      <Footer />
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-charcoal">
