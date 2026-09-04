@@ -91,7 +91,8 @@ export function OpenPlayManagement() {
 
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [selectedSlotId, setSelectedSlotId] = useState<string>('');
+  // ✅ Changed to array for multi-select
+  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<CreateOpenPlaySessionPayload>({
     court_id: '',
@@ -129,7 +130,7 @@ export function OpenPlayManagement() {
   ) => {
     if (!courtId || !date) {
       setAvailableSlots([]);
-      setSelectedSlotId('');
+      setSelectedSlotIds([]);
       return;
     }
 
@@ -144,26 +145,31 @@ export function OpenPlayManagement() {
           (s) => s.start_time === match.start && s.end_time === match.end
         );
         if (found) {
-          setSelectedSlotId(found.id);
+          setSelectedSlotIds([found.id]);
+          setFormData((prev) => ({
+            ...prev,
+            start_time: found.start_time,
+            end_time: found.end_time,
+          }));
           return;
         }
       }
 
       if (available.length > 0) {
-        setSelectedSlotId(available[0].id);
+        setSelectedSlotIds([available[0].id]);
         setFormData((prev) => ({
           ...prev,
           start_time: available[0].start_time,
           end_time: available[0].end_time,
         }));
       } else {
-        setSelectedSlotId('');
+        setSelectedSlotIds([]);
         setFormData((prev) => ({ ...prev, start_time: '', end_time: '' }));
       }
     } catch (err) {
       console.error('Failed to load slots:', err);
       setAvailableSlots([]);
-      setSelectedSlotId('');
+      setSelectedSlotIds([]);
     } finally {
       setLoadingSlots(false);
     }
@@ -171,24 +177,44 @@ export function OpenPlayManagement() {
 
   const handleCourtChange = (courtId: string) => {
     setFormData((prev) => ({ ...prev, court_id: courtId, start_time: '', end_time: '' }));
-    setSelectedSlotId('');
+    setSelectedSlotIds([]);
     fetchAndSetSlots(courtId, formData.date);
   };
 
   const handleDateChange = (date: string) => {
     setFormData((prev) => ({ ...prev, date, start_time: '', end_time: '' }));
-    setSelectedSlotId('');
+    setSelectedSlotIds([]);
     fetchAndSetSlots(formData.court_id, date);
   };
 
+  // ✅ Updated to handle multiple slot selection
   const handleSlotSelect = (slotId: string) => {
     const slot = availableSlots.find((s) => s.id === slotId);
-    if (slot) {
-      setSelectedSlotId(slotId);
+    if (!slot) return;
+
+    setSelectedSlotIds((prev) => {
+      // If already selected, deselect it
+      if (prev.includes(slotId)) {
+        return prev.filter((id) => id !== slotId);
+      }
+      
+      // Otherwise, add it to the selection
+      return [...prev, slotId];
+    });
+
+    // Update form data with the selected slots
+    const updatedSlots = availableSlots.filter((s) => 
+      selectedSlotIds.includes(s.id) || s.id === slotId
+    );
+    
+    if (updatedSlots.length > 0) {
+      const sortedSlots = updatedSlots.sort((a, b) => 
+        a.start_time.localeCompare(b.start_time)
+      );
       setFormData((prev) => ({
         ...prev,
-        start_time: slot.start_time,
-        end_time: slot.end_time,
+        start_time: sortedSlots[0].start_time,
+        end_time: sortedSlots[sortedSlots.length - 1].end_time,
       }));
     }
   };
@@ -205,7 +231,7 @@ export function OpenPlayManagement() {
       host_name: '',
       description: '',
     });
-    setSelectedSlotId('');
+    setSelectedSlotIds([]);
     setAvailableSlots([]);
     setFormError(null);
   };
@@ -216,7 +242,7 @@ export function OpenPlayManagement() {
       return;
     }
     if (!formData.start_time || !formData.end_time) {
-      setFormError('Please select a time slot');
+      setFormError('Please select at least one time slot');
       return;
     }
     if (formData.max_players < 2 || formData.max_players > 20) {
@@ -249,7 +275,7 @@ export function OpenPlayManagement() {
       return;
     }
     if (!formData.start_time || !formData.end_time) {
-      setFormError('Please select a time slot');
+      setFormError('Please select at least one time slot');
       return;
     }
     if (formData.max_players < 2 || formData.max_players > 20) {
@@ -311,6 +337,7 @@ export function OpenPlayManagement() {
       description: session.description || '',
     });
     setFormError(null);
+    setSelectedSlotIds([]);
     fetchAndSetSlots(session.court_id, session.date, {
       start: session.start_time,
       end: session.end_time,
@@ -331,7 +358,7 @@ export function OpenPlayManagement() {
       host_name: '',
       description: '',
     });
-    setSelectedSlotId('');
+    setSelectedSlotIds([]);
     setAvailableSlots([]);
     setFormError(null);
     setShowCreateModal(true);
@@ -631,11 +658,16 @@ export function OpenPlayManagement() {
             </div>
           </div>
 
-          {/* Time Slot Selection */}
+          {/* Time Slot Selection - Multi-select */}
           <div>
             <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-cream sm:text-sm">
-              Time Slot *
+              Time Slots *
               {loadingSlots && <span className="text-[11px] text-cream-muted">Loading...</span>}
+              {selectedSlotIds.length > 0 && (
+                <span className="text-[11px] text-gold-400">
+                  ({selectedSlotIds.length} selected)
+                </span>
+              )}
             </label>
 
             {!formData.court_id || !formData.date ? (
@@ -648,37 +680,47 @@ export function OpenPlayManagement() {
             ) : availableSlots.length === 0 ? (
               <p className="text-[11px] text-yellow-400 sm:text-xs">No available slots for this court on this date</p>
             ) : (
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
-                {availableSlots.map((slot) => {
-                  const isSelected = selectedSlotId === slot.id;
-                  return (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      onClick={() => handleSlotSelect(slot.id)}
-                      className={`rounded-lg border p-2 text-center text-[11px] transition-all sm:text-xs ${
-                        isSelected
-                          ? 'border-gold-400 bg-gold-400/10 text-gold-300'
-                          : 'border-forest-500 text-cream-muted hover:border-gold-400/50 hover:text-cream'
-                      }`}
-                    >
-                      <span className="font-mono">{formatTimeRange(slot.start_time, slot.end_time)}</span>
-                      {slot.is_peak && (
-                        <span className="ml-1 text-[8px] uppercase text-gold-400">Peak</span>
-                      )}
-                      <span className="block text-[8px] text-cream-muted/60">
-                        {formatCurrency(slot.price)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+              <>
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
+                  {availableSlots.map((slot) => {
+                    const isSelected = selectedSlotIds.includes(slot.id);
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        onClick={() => handleSlotSelect(slot.id)}
+                        className={`rounded-lg border p-2 text-center text-[11px] transition-all sm:text-xs ${
+                          isSelected
+                            ? 'border-gold-400 bg-gold-400/10 text-gold-300'
+                            : 'border-forest-500 text-cream-muted hover:border-gold-400/50 hover:text-cream'
+                        }`}
+                      >
+                        <span className="font-mono">{formatTimeRange(slot.start_time, slot.end_time)}</span>
+                        {slot.is_peak && (
+                          <span className="ml-1 text-[8px] uppercase text-gold-400">Peak</span>
+                        )}
+                        <span className="block text-[8px] text-cream-muted/60">
+                          {formatCurrency(slot.price)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-            {selectedSlotId && !loadingSlots && (
-              <p className="mt-1 text-[11px] text-green-400 sm:text-xs">
-                Selected: {formatTimeRange(formData.start_time, formData.end_time)}
-              </p>
+                {/* Show selected slots info */}
+                {selectedSlotIds.length > 0 && !loadingSlots && (
+                  <div className="mt-2 rounded-lg bg-gold-400/10 p-2">
+                    <p className="text-[11px] text-gold-300 sm:text-xs">
+                      Selected: {selectedSlotIds.length} slot{selectedSlotIds.length > 1 ? 's' : ''}
+                    </p>
+                    {selectedSlotIds.length > 1 && (
+                      <p className="text-[10px] text-cream-muted">
+                        Range: {formatTimeRange(formData.start_time, formData.end_time)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -771,39 +813,39 @@ export function OpenPlayManagement() {
         ) : (
           <>
           {stats && (
-  <div className="mb-3 grid grid-cols-4 gap-2 sm:mb-4 sm:gap-3">
-    <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-      <p className="text-[10px] text-cream-muted sm:text-xs">Players</p>
-      <p className="text-lg font-bold text-cream sm:text-xl">
-        {stats.total_players}/{stats.max_players}
-      </p>
-    </div>
-    <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-      <p className="text-[10px] text-cream-muted sm:text-xs">Confirmed</p>
-      <p className="text-lg font-bold text-green-400 sm:text-xl">
-        {stats.confirmed_count}
-      </p>
-      {stats.total_revenue > 0 && (
-        <p className="text-[10px] text-gold-400">{formatCurrency(stats.total_revenue)}</p>
-      )}
-    </div>
-    <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-      <p className="text-[10px] text-cream-muted sm:text-xs">Pending</p>
-      <p className="text-lg font-bold text-yellow-400 sm:text-xl">
-        {stats.pending_count}
-      </p>
-      {stats.pending_revenue > 0 && (  // ✅ Changed from pendingRevenue
-        <p className="text-[10px] text-yellow-400">{formatCurrency(stats.pending_revenue)}</p>
-      )}
-    </div>
-    <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-      <p className="text-[10px] text-cream-muted sm:text-xs">Total Revenue</p>
-      <p className="text-lg font-bold text-gold-400 sm:text-xl">
-        {formatCurrency((stats.total_revenue || 0) + (stats.pending_revenue || 0))}
-      </p>
-    </div>
-  </div>
-)}
+            <div className="mb-3 grid grid-cols-4 gap-2 sm:mb-4 sm:gap-3">
+              <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+                <p className="text-[10px] text-cream-muted sm:text-xs">Players</p>
+                <p className="text-lg font-bold text-cream sm:text-xl">
+                  {stats.total_players}/{stats.max_players}
+                </p>
+              </div>
+              <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+                <p className="text-[10px] text-cream-muted sm:text-xs">Confirmed</p>
+                <p className="text-lg font-bold text-green-400 sm:text-xl">
+                  {stats.confirmed_count}
+                </p>
+                {stats.total_revenue > 0 && (
+                  <p className="text-[10px] text-gold-400">{formatCurrency(stats.total_revenue)}</p>
+                )}
+              </div>
+              <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+                <p className="text-[10px] text-cream-muted sm:text-xs">Pending</p>
+                <p className="text-lg font-bold text-yellow-400 sm:text-xl">
+                  {stats.pending_count}
+                </p>
+                {stats.pending_revenue > 0 && (
+                  <p className="text-[10px] text-yellow-400">{formatCurrency(stats.pending_revenue)}</p>
+                )}
+              </div>
+              <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
+                <p className="text-[10px] text-cream-muted sm:text-xs">Total Revenue</p>
+                <p className="text-lg font-bold text-gold-400 sm:text-xl">
+                  {formatCurrency((stats.total_revenue || 0) + (stats.pending_revenue || 0))}
+                </p>
+              </div>
+            </div>
+          )}
 
             {players.length === 0 ? (
               <div className="py-6 text-center text-xs text-cream-muted sm:py-8 sm:text-sm">
