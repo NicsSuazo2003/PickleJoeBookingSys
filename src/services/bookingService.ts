@@ -192,63 +192,64 @@ export const bookingService = {
     }
   },
 
-  // ✅ UPDATED: Send payment reference with the screenshot
-  async uploadPayment(
-    bookingId: string,
-   screenshotDataUrl: string | null,
-    paymentReference: string
-  ): Promise<Booking> {
-    if (!bookingId) {
-      throw new Error('Booking ID is required');
-    }
-    
-    if (!screenshotDataUrl) {
-      throw new Error('Payment screenshot is required');
-    }
-    
-    if (!paymentReference) {
-      throw new Error('Payment reference is required');
-    }
+  // ✅ UPDATED: Screenshot is optional, reference is required
+async uploadPayment(
+  bookingId: string,
+  screenshotDataUrl: string | null,
+  paymentReference: string
+): Promise<Booking> {
+  if (!bookingId) {
+    throw new Error('Booking ID is required');
+  }
+  
+  if (!paymentReference || !paymentReference.trim()) {
+    throw new Error('Payment reference is required');
+  }
 
-    // Convert base64 to blob
-    const response = await fetch(screenshotDataUrl);
-    const blob = await response.blob();
-    const file = new File([blob], `payment-${bookingId}.jpg`, { type: 'image/jpeg' });
+  const formData = new FormData();
+  formData.append('paymentReference', paymentReference.trim());
 
-    const formData = new FormData();
-    formData.append('screenshot', file);
-    formData.append('paymentReference', paymentReference);
-
+  // ✅ Only append screenshot if it exists
+  if (screenshotDataUrl) {
     try {
-      const token = localStorage.getItem('admin_token');
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'https://pickleballcourbookingv2.onrender.com'}/api/bookings/${bookingId}/upload-payment`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : '',
-            'X-Client-Subdomain': import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
-          },
-          body: formData,
-        }
-      );
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `Upload failed: ${res.status}`);
-      }
-
-      const data = await res.json();
-      const booking = normalizeBooking(data);
-      console.log('✅ Payment uploaded successfully:', booking.reference_code);
-      console.log('📸 Payment screenshot saved:', booking.payment_screenshot_url ? 'EXISTS' : 'NULL');
-      return booking;
+      const response = await fetch(screenshotDataUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `payment-${bookingId}.jpg`, { type: 'image/jpeg' });
+      formData.append('screenshot', file);
     } catch (error) {
-      console.error('❌ Failed to upload payment:', error);
-      throw error;
+      console.warn('Failed to process screenshot, continuing without it:', error);
     }
-  },
+  }
 
+  try {
+    const token = localStorage.getItem('admin_token');
+    const res = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL || 'https://pickleballcourbookingv2.onrender.com'}/api/bookings/${bookingId}/upload-payment`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'X-Client-Subdomain': import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
+        },
+        body: formData,
+      }
+    );
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || `Upload failed: ${res.status}`);
+    }
+
+    const data = await res.json();
+    const booking = normalizeBooking(data);
+    console.log('✅ Payment uploaded successfully:', booking.reference_code);
+    console.log('📸 Payment screenshot saved:', booking.payment_screenshot_url ? 'EXISTS' : 'NULL');
+    return booking;
+  } catch (error) {
+    console.error('❌ Failed to upload payment:', error);
+    throw error;
+  }
+},
   async getBooking(id: string): Promise<Booking> {
     if (!id) {
       throw new Error('Booking ID is required');
