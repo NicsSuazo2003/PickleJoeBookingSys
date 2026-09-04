@@ -34,7 +34,7 @@ interface OpenPlayStoreState {
   adminLoadStats: (id: string) => Promise<void>;
   clearError: () => void;
   
-  // ✅ NEW: Refresh public sessions after admin operations
+  // ✅ NEW: Refresh public sessions
   refreshPublicSessions: () => Promise<void>;
 }
 
@@ -55,7 +55,7 @@ export const useOpenPlayStore = create<OpenPlayStoreState>((set, get) => ({
     set({ loadingSessions: true, error: null });
     try {
       const sessions = await openPlayService.getUpcomingSessions();
-      // ✅ Only show active sessions on the public page
+      // ✅ Only show active sessions
       const activeSessions = sessions.filter(s => s.is_active !== false);
       set({ sessions: activeSessions, loadingSessions: false });
     } catch (err) {
@@ -72,6 +72,7 @@ export const useOpenPlayStore = create<OpenPlayStoreState>((set, get) => ({
       const sessions = await openPlayService.getUpcomingSessions();
       const activeSessions = sessions.filter(s => s.is_active !== false);
       set({ sessions: activeSessions });
+      console.log('🔄 Public sessions refreshed:', activeSessions.length);
     } catch (err) {
       console.error('Failed to refresh public sessions:', err);
     }
@@ -108,7 +109,7 @@ export const useOpenPlayStore = create<OpenPlayStoreState>((set, get) => ({
     const session = await openPlayService.adminCreateSession(payload);
     set((state) => ({ adminSessions: [session, ...state.adminSessions] }));
     
-    // ✅ Refresh public sessions so the OP pill appears on landing page
+    // ✅ Refresh public sessions so OP pill appears on landing page
     await get().refreshPublicSessions();
     
     return session;
