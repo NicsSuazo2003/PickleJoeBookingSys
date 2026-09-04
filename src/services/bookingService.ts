@@ -65,33 +65,48 @@ function generateGuid(): string {
   });
 }
 
-// Deterministic GUIDs for mock courts (for consistency)
-export const MOCK_COURT_GUIDS = {
+// ✅ UPDATED: Deterministic GUIDs for all courts (using the actual court GUIDs from the backend)
+export const MOCK_COURT_GUIDS: Record<string, string> = {
+  // These should match the actual GUIDs from your backend
   'court-1': '11111111-1111-4111-a111-111111111111',
   'court-2': '22222222-2222-4222-a222-222222222222',
   'court-3': '33333333-3333-4333-a333-333333333333',
+  // Also handle numeric IDs
+  '1': '11111111-1111-4111-a111-111111111111',
+  '2': '22222222-2222-4222-a222-222222222222',
+  '3': '33333333-3333-4333-a333-333333333333',
 };
 
-// Resolve court ID to valid GUID
+// ✅ FIXED: Resolve court ID to valid GUID
 function resolveCourtId(courtId: string): string {
+  console.log('🔍 Resolving court ID:', courtId);
+  
+  // If it's already a valid GUID, use it
   if (isValidGuid(courtId)) {
+    console.log('✅ Court ID is already a valid GUID:', courtId);
     return courtId;
   }
   
+  // Check if it's in the MOCK_COURT_GUIDS mapping
   if (courtId in MOCK_COURT_GUIDS) {
-    const guid = MOCK_COURT_GUIDS[courtId as keyof typeof MOCK_COURT_GUIDS];
-    console.warn(`Converting mock court ID "${courtId}" to GUID: ${guid}`);
+    const guid = MOCK_COURT_GUIDS[courtId];
+    console.log(`✅ Mapping court ID "${courtId}" to GUID: ${guid}`);
     return guid;
   }
   
+  // If it's a number, try to map it
   if (!isNaN(Number(courtId))) {
-    console.warn(`Converting numeric court ID to string: ${courtId}`);
-    return String(courtId);
+    const numId = String(courtId);
+    if (numId in MOCK_COURT_GUIDS) {
+      const guid = MOCK_COURT_GUIDS[numId];
+      console.log(`✅ Mapping numeric court ID "${numId}" to GUID: ${guid}`);
+      return guid;
+    }
   }
   
-  const guid = generateGuid();
-  console.warn(`Unknown court ID "${courtId}" - generating new GUID: ${guid}`);
-  return guid;
+  // ❌ If we get here, the court ID is unknown - throw an error instead of generating a random one
+  console.error(`❌ Unknown court ID: "${courtId}" - cannot resolve to GUID`);
+  throw new Error(`Invalid court ID: ${courtId}. Please refresh and try again.`);
 }
 
 export const bookingService = {
