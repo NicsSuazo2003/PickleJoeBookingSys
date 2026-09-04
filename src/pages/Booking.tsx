@@ -23,7 +23,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore, getSelectedSlotItems, getSelectedTotal } from '@/stores/bookingStore';
 import { formatTimeRange, formatCurrency, formatDateLong } from '@/utils/format';
 import { FIXED_SLOT } from '@/utils/constants';
-import type { CustomerDetails } from '@/types';
+import type { CustomerDetails, TimeSlot } from '@/types';
 
 const customerSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -47,6 +47,7 @@ export function Booking() {
     loadCourts,
     setCustomer,
     createBooking,
+    slots, // We need this to get court_id from TimeSlot
   } = useBookingStore();
 
   const [submitting, setSubmitting] = useState(false);
@@ -80,6 +81,32 @@ export function Booking() {
   const storeState = useBookingStore();
   const selectedSlots = getSelectedSlotItems(storeState);
   const total = getSelectedTotal(storeState);
+
+  // Helper function to get unique courts from selected slots
+  const getSelectedCourts = () => {
+    const courtMap = new Map();
+    
+    // Get the selected TimeSlot objects that have court_id
+    const selectedTimeSlots = slots.filter(s => storeState.selectedSlotIds.includes(s.id));
+    
+    selectedTimeSlots.forEach(slot => {
+      const court = courts.find(c => c.id === slot.court_id);
+      if (court && !courtMap.has(court.id)) {
+        courtMap.set(court.id, court);
+      }
+    });
+    
+    return Array.from(courtMap.values());
+  };
+
+  const selectedCourts = getSelectedCourts();
+
+  // Helper to get court for a slot
+  const getCourtForSlot = (slotId: string) => {
+    const timeSlot = slots.find(s => s.id === slotId);
+    if (!timeSlot) return null;
+    return courts.find(c => c.id === timeSlot.court_id);
+  };
 
   const onSubmit = async (data: CustomerForm) => {
     setSubmitting(true);
@@ -158,7 +185,7 @@ export function Booking() {
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
                   <CalendarDays className="h-3.5 w-3.5" />
-                  Your Selection
+                  Your Selection ({selectedCourts.length} court{selectedCourts.length > 1 ? 's' : ''})
                 </h2>
                 <Link
                   to="/"
@@ -169,49 +196,73 @@ export function Booking() {
                 </Link>
               </div>
 
-              <div className="flex items-center gap-3 rounded-xl border border-gold-400/30 bg-forest-700/50 p-3">
-                <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg sm:h-16 sm:w-16">
-                  <img
-                    src={selectedCourt.image}
-                    alt={selectedCourt.name}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-bold text-cream sm:text-base">
-                    {selectedCourt.name}
-                  </h3>
-                  <p className="truncate text-xs text-cream-muted">
-                    {selectedCourt.surface || selectedCourt.description}
-                  </p>
-                  <p className="text-xs font-semibold text-gold-400">
-                    {formatDateLong(selectedDate)}
-                  </p>
-                </div>
+              <p className="text-xs text-cream-muted mb-3">
+                {formatDateLong(selectedDate)}
+              </p>
+
+              {/* Display all courts with selected slots */}
+              <div className="space-y-2">
+                {selectedCourts.map((court) => {
+                  const courtSlots = selectedSlots.filter(s => {
+                    const timeSlot = slots.find(t => t.id === s.slot_id);
+                    return timeSlot?.court_id === court.id;
+                  });
+                  return (
+                    <div key={court.id} className="flex items-center gap-3 rounded-xl border border-gold-400/30 bg-forest-700/50 p-3">
+                      <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg sm:h-16 sm:w-16">
+                        <img
+                          src={court.image}
+                          alt={court.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-sm font-bold text-cream sm:text-base">
+                          {court.name}
+                        </h3>
+                        <p className="truncate text-xs text-cream-muted">
+                          {court.surface || court.description}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-semibold text-gold-400">
+                          {formatCurrency(courtSlots.reduce((sum, s) => sum + s.price, 0))}
+                        </p>
+                        <p className="text-[10px] text-cream-muted">
+                          {courtSlots.length} slot{courtSlots.length > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
+              {/* Time slots details */}
               <div className="mt-3 space-y-1.5">
-                {selectedSlots.map((slot) => (
-                  <div
-                    key={slot.slot_id}
-                    className="flex items-center justify-between rounded-lg bg-forest-800 px-3 py-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-3.5 w-3.5 text-cream-muted" />
-                      <span className="text-xs font-medium text-cream sm:text-sm">
-                        {formatTimeRange(slot.start_time, slot.end_time)}
-                      </span>
-                      {slot.type === 'fixed_2hr' && (
-                        <span className="rounded-full bg-gold-400 px-1.5 py-0.5 text-[9px] font-bold text-forest-950">
-                          {FIXED_SLOT.label}
+                {selectedSlots.map((slot) => {
+                  const court = getCourtForSlot(slot.slot_id);
+                  return (
+                    <div
+                      key={slot.slot_id}
+                      className="flex items-center justify-between rounded-lg bg-forest-800 px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-cream-muted" />
+                        <span className="text-xs font-medium text-cream sm:text-sm">
+                          {court?.name || 'Unknown Court'} · {formatTimeRange(slot.start_time, slot.end_time)}
                         </span>
-                      )}
+                        {slot.type === 'fixed_2hr' && (
+                          <span className="rounded-full bg-gold-400 px-1.5 py-0.5 text-[9px] font-bold text-forest-950">
+                            {FIXED_SLOT.label}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-semibold text-gold-400 sm:text-sm">
+                        {formatCurrency(slot.price)}
+                      </span>
                     </div>
-                    <span className="text-xs font-semibold text-gold-400 sm:text-sm">
-                      {formatCurrency(slot.price)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="mt-3 flex items-center justify-between border-t border-forest-600 pt-3">
@@ -290,10 +341,24 @@ export function Booking() {
               <div className="card p-4">
                 <h2 className="mb-3 font-display text-base font-bold text-cream">Booking Summary</h2>
 
-                <div className="mb-3 rounded-lg bg-forest-800 p-2.5">
-                  <p className="text-[10px] text-cream-muted">Court</p>
-                  <p className="text-sm font-semibold text-cream">{selectedCourt.name}</p>
-                  <p className="text-[10px] text-cream-muted">{formatDateLong(selectedDate)}</p>
+                {/* Display all courts with selected slots */}
+                <div className="space-y-2 mb-3">
+                  {selectedCourts.map((court) => {
+                    const courtSlots = selectedSlots.filter(s => {
+                      const timeSlot = slots.find(t => t.id === s.slot_id);
+                      return timeSlot?.court_id === court.id;
+                    });
+                    return (
+                      <div key={court.id} className="rounded-lg bg-forest-800 p-2.5">
+                        <p className="text-[10px] text-cream-muted">Court</p>
+                        <p className="text-sm font-semibold text-cream">{court.name}</p>
+                        <p className="text-[10px] text-cream-muted">{formatDateLong(selectedDate)}</p>
+                        <p className="text-[10px] text-gold-400 mt-1">
+                          {courtSlots.length} slot{courtSlots.length > 1 ? 's' : ''} · {formatCurrency(courtSlots.reduce((sum, s) => sum + s.price, 0))}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <AnimatePresence mode="popLayout">
@@ -303,26 +368,29 @@ export function Booking() {
                     animate={{ opacity: 1 }}
                     className="space-y-1.5"
                   >
-                    {selectedSlots.map((slot) => (
-                      <div
-                        key={slot.slot_id}
-                        className="flex items-center justify-between rounded-lg bg-forest-800 p-2"
-                      >
-                        <div>
-                          <p className="text-xs font-medium text-cream">
-                            {formatTimeRange(slot.start_time, slot.end_time)}
-                          </p>
-                          {slot.type === 'fixed_2hr' && (
-                            <span className="text-[9px] font-semibold text-gold-400">
-                              {FIXED_SLOT.label}
-                            </span>
-                          )}
+                    {selectedSlots.map((slot) => {
+                      const court = getCourtForSlot(slot.slot_id);
+                      return (
+                        <div
+                          key={slot.slot_id}
+                          className="flex items-center justify-between rounded-lg bg-forest-800 p-2"
+                        >
+                          <div>
+                            <p className="text-xs font-medium text-cream">
+                              {court?.name || 'Unknown Court'} · {formatTimeRange(slot.start_time, slot.end_time)}
+                            </p>
+                            {slot.type === 'fixed_2hr' && (
+                              <span className="text-[9px] font-semibold text-gold-400">
+                                {FIXED_SLOT.label}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs font-semibold text-gold-400">
+                            {formatCurrency(slot.price)}
+                          </span>
                         </div>
-                        <span className="text-xs font-semibold text-gold-400">
-                          {formatCurrency(slot.price)}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </motion.div>
                 </AnimatePresence>
 
