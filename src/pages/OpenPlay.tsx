@@ -1,6 +1,6 @@
 // src/pages/OpenPlay.tsx
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Clock, CalendarDays, UserCircle2, ArrowRight } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
@@ -33,6 +33,7 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
 
 export function OpenPlay() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { sessions, loadingSessions, error, loadUpcomingSessions } = useOpenPlayStore();
   const { courts, loadCourts } = useAdminStore();
   
@@ -51,6 +52,31 @@ export function OpenPlay() {
     loadUpcomingSessions();
     loadCourts();
   }, []);
+
+  // ✅ Auto-open join modal if session ID is passed via state
+  useEffect(() => {
+    const state = location.state as { selectedSessionId?: string } | null;
+    const sessionId = state?.selectedSessionId;
+
+    if (sessionId && sessions.length > 0) {
+      const session = sessions.find(s => s.id === sessionId);
+      if (session) {
+        // Check if session is still active and not full
+        if (session.status === 'full') {
+          // Session is full, show a message or just don't open modal
+          console.log('Session is full');
+          return;
+        }
+        if (session.status === 'past' || session.status === 'cancelled') {
+          // Session is past or cancelled
+          console.log('Session is no longer available');
+          return;
+        }
+        // Auto-open the join modal
+        handleJoinClick(session);
+      }
+    }
+  }, [sessions, location.state]);
 
   const handleJoinClick = (session: OpenPlaySession) => {
     setSelectedSession(session);
@@ -81,16 +107,9 @@ export function OpenPlay() {
       // Join the session via API
       const booking = await openPlayService.joinSession(selectedSession.id, customerDetails);
       
-      // ✅ Use the booking store's reset and then set the booking via createBooking
-      // But since we already have the booking, we need to set it directly
-      // Use the store's currentBooking property directly
+      // Use the booking store to set the booking
       const store = useBookingStore.getState();
-      
-      // Reset any existing booking state
       store.reset();
-      
-      // Set the booking using a workaround - update the store directly
-      // Since we can't call setCurrentBooking, we'll use the store's internal state
       useBookingStore.setState({ currentBooking: booking });
       
       // Navigate to checkout
@@ -101,6 +120,13 @@ export function OpenPlay() {
     } finally {
       setJoining(false);
     }
+  };
+
+  const handleModalClose = () => {
+    setShowJoinModal(false);
+    setSelectedSession(null);
+    // Clear the state so if user navigates back, it doesn't reopen
+    navigate('/open-play', { replace: true, state: {} });
   };
 
   return (
@@ -227,7 +253,7 @@ export function OpenPlay() {
       {/* Join Modal */}
       <Modal
         isOpen={showJoinModal}
-        onClose={() => setShowJoinModal(false)}
+        onClose={handleModalClose}
         title="Join Open Play Session"
         size="md"
       >
@@ -290,7 +316,7 @@ export function OpenPlay() {
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => setShowJoinModal(false)}
+                onClick={handleModalClose}
               >
                 Cancel
               </Button>

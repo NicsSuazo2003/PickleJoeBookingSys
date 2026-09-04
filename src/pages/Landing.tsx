@@ -163,7 +163,7 @@ const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: 
 
   // ✅ Handle Open Play slot click
   const handleOpenPlayClick = (session: OpenPlaySession) => {
-    navigate(`/open-play/join/${session.id}`);
+  navigate('/open-play', { state: { selectedSessionId: session.id } });
   };
 
   const getTimeIntervalsByPeriod = (slotsList: TimeSlot[]) => {
