@@ -1,16 +1,17 @@
 import { Link } from 'react-router-dom';
 
 interface LogoProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   withText?: boolean;
   to?: string;
 }
 
 export function Logo({ size = 'md', withText = true, to = '/' }: LogoProps) {
   const sizes = {
-    sm: { image: 28, text: 'text-lg' },
-    md: { image: 36, text: 'text-xl' },
-    lg: { image: 52, text: 'text-3xl' },
+    sm: { image: 40, text: 'text-lg' },
+    md: { image: 50, text: 'text-xl' },
+    lg: { image: 65, text: 'text-3xl' },
+    xl: { image: 80, text: 'text-4xl' },
   };
   const s = sizes[size];
 
