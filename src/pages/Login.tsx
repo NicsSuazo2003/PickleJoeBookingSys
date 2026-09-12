@@ -72,9 +72,9 @@ export function Login() {
           className="card p-8"
         >
           <div className="mb-6 text-center">
-            {/* Just the image logo, bigger */}
+            {/* Just the image logo, bigger, no text */}
             <div className="flex justify-center">
-              <Logo size="xl" to="" />
+              <Logo size="xl" to="" withText={false} />
             </div>
             <h1 className="mt-4 font-display text-2xl font-bold text-cream">Admin Portal</h1>
             <p className="mt-1 text-sm text-cream-muted">Sign in to manage bookings</p>
