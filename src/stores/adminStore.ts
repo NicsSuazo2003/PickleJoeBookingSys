@@ -70,16 +70,16 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
   },
 
   updateBookingStatus: async (bookingId, status) => {
-    try {
-      const updated = await adminService.updateBookingStatus(bookingId, status);
-      set((state) => ({
-        bookings: state.bookings.map((b) => (b.id === bookingId ? updated : b)),
-      }));
-    } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Failed to update booking' });
-    }
-  },
-
+  try {
+    const updated = await adminService.updateBookingStatus(bookingId, status);
+    set((state) => ({
+      bookings: state.bookings.map((b) => (b.id === bookingId ? updated : b)),
+    }));
+  } catch (err) {
+    set({ error: err instanceof Error ? err.message : 'Failed to update booking' });
+    throw err; // let caller know it failed
+  }
+},
   loadCourts: async () => {
     set({ loadingCourts: true, error: null });
     try {

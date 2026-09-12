@@ -42,6 +42,8 @@ export function Bookings() {
   const loadBookings = useAdminStore((state) => state.loadBookings);
   const loadCourts = useAdminStore((state) => state.loadCourts);
   const updateBookingStatus = useAdminStore((state) => state.updateBookingStatus);
+  // ✅ Needed to refresh Dashboard's stat cards after a status change
+  const loadAnalytics = useAdminStore((state) => state.loadAnalytics);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
@@ -79,6 +81,11 @@ export function Bookings() {
     try {
       await updateBookingStatus(bookingId, status);
       setSelectedBooking((prev) => (prev && prev.id === bookingId ? { ...prev, status } : prev));
+      // ✅ /api/admin/analytics is admin-only — staff would get a 403,
+      // so only refresh analytics when the current user is an admin.
+      if (user?.role === 'admin') {
+        await loadAnalytics();
+      }
     } finally {
       setUpdatingStatus(null);
     }
