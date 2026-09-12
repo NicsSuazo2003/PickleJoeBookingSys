@@ -32,6 +32,7 @@ import {
   formatCountdown,
 } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
+import { isInAppBrowser, getInAppBrowserName } from '@/utils/browser';
 import type { PaymentMethod } from '@/types';
 
 // Map icon names to components
@@ -178,9 +179,20 @@ const displayAccountName =
           <p className="text-xs text-cream-muted">Complete your payment to confirm your booking</p>
         </div>
 
-        <div className="grid gap-4 md:gap-6 lg:grid-cols-5">
+                <div className="grid gap-4 md:gap-6 lg:grid-cols-5">
           {/* Left: Payment Instructions */}
           <div className="space-y-3 lg:col-span-3">
+            {isInAppBrowser() && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-amber-400" />
+                <span>
+                  You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. For a
+                  smoother payment experience, tap <strong>⋯</strong> (top right) and choose{' '}
+                  <strong>"Open in Browser"</strong> before continuing.
+                </span>
+              </div>
+            )}
+
             {/* Payment Timer */}
             <div className={`card p-3 sm:p-4 ${isExpired ? 'border-error' : ''}`}>
               <div className="flex items-center justify-between">
@@ -285,7 +297,7 @@ const displayAccountName =
                   </span>
                 </div>
 
-                <div className="mt-2 flex items-center gap-2 rounded-lg bg-forest-800 p-2">
+                               <div className="mt-2 flex items-center gap-2 rounded-lg bg-forest-800 p-2">
                   <span className="text-[10px] text-cream-muted">Ref:</span>
                   <span className="font-mono text-xs font-bold text-gold-400">
                     {currentBooking.reference_code}
@@ -296,6 +308,16 @@ const displayAccountName =
                   >
                     {copiedRef ? <CheckCircle2 className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                   </button>
+                </div>
+
+                <div className="mt-2 rounded-lg border border-gold-400/20 bg-gold-400/5 p-2.5 text-[10px] text-cream-muted">
+                  <strong className="text-gold-300">Save your reference number.</strong> After
+                  sending payment, come back here to submit it. If this page ever closes before
+                  you finish, go to{' '}
+                  <Link to="/track" className="underline text-gold-300 hover:text-gold-200">
+                    Track My Booking
+                  </Link>{' '}
+                  and enter your reference code to pick up where you left off.
                 </div>
 
                 {/* Instructions if available */}

@@ -108,12 +108,21 @@ export function Booking() {
     return courts.find(c => c.id === timeSlot.court_id);
   };
 
-  const onSubmit = async (data: CustomerForm) => {
+    const onSubmit = async (data: CustomerForm) => {
     setSubmitting(true);
     setSubmitError(null);
     try {
       setCustomer(data);
       await createBooking();
+
+      // Save the reference immediately after the booking exists, so the
+      // recovery path works even if the user never reaches/finishes Checkout
+      // (e.g. bounced by an in-app browser before payment).
+      const created = useBookingStore.getState().currentBooking;
+      if (created?.reference_code) {
+        localStorage.setItem('pendingBookingRef', created.reference_code);
+      }
+
       navigate('/checkout');
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create booking');
@@ -121,7 +130,6 @@ export function Booking() {
       setSubmitting(false);
     }
   };
-
   const handleSummaryButtonClick = () => {
     handleSubmit(onSubmit)();
   };

@@ -30,6 +30,7 @@ import {
   formatDateTime,
 } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
+import { isInAppBrowser, getInAppBrowserName } from '@/utils/browser';
 import type { Booking } from '@/types';
 
 export function Track() {
@@ -37,7 +38,9 @@ export function Track() {
   const loadSettings = useClientStore((state) => state.loadSettings);
   const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber;
 
-  const [reference, setReference] = useState('');
+   const [reference, setReference] = useState(
+    () => localStorage.getItem('pendingBookingRef') || ''
+  );
   const [email, setEmail] = useState('');
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(false);
@@ -82,7 +85,7 @@ export function Track() {
     if (!booking || !screenshot || !paymentRef.trim()) return;
     setUploading(true);
     try {
-      const updated = await bookingService.uploadPayment(
+           const updated = await bookingService.uploadPayment(
         booking.id,
         screenshot,
         paymentRef.trim()
@@ -91,6 +94,7 @@ export function Track() {
       setUploadSuccess(true);
       setScreenshot(null);
       setPaymentRef('');
+      localStorage.removeItem('pendingBookingRef');
     } catch {
       setError('Failed to upload payment. Please try again.');
     } finally {
@@ -115,7 +119,17 @@ export function Track() {
     <div className="min-h-screen bg-charcoal">
       <Navbar />
 
-      <div className="container-page pt-20 pb-10 sm:pt-24 sm:pb-12">
+            <div className="container-page pt-20 pb-10 sm:pt-24 sm:pb-12">
+        {isInAppBrowser() && (
+          <div className="mx-auto mb-4 flex max-w-3xl items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+            <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-amber-400" />
+            <span>
+              You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. If uploading
+              a screenshot doesn't work, tap <strong>⋯</strong> and choose{' '}
+              <strong>"Open in Browser."</strong>
+            </span>
+          </div>
+        )}
         <div className="mx-auto max-w-3xl">
           <div className="mb-5 text-center sm:mb-8">
             <h1 className="text-xl font-bold text-cream sm:text-3xl">Track Your Booking</h1>
