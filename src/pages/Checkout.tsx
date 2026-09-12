@@ -24,7 +24,6 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
 import { useClientStore } from '@/stores/clientStore';
-import { useAdminStore } from '@/stores/adminStore';
 import { bookingService } from '@/services/bookingService';
 import {
   formatTimeRange,
@@ -50,8 +49,7 @@ export function Checkout() {
   const { currentBooking, reset } = useBookingStore();
   const settings = useClientStore((state) => state.settings);
   const loadSettings = useClientStore((state) => state.loadSettings);
-  const paymentMethods = useAdminStore((state) => state.paymentMethods) || [];
-  const loadPaymentMethods = useAdminStore((state) => state.loadPaymentMethods);
+  const paymentMethods = settings?.payment_methods ?? [];   // ← replaces the two useAdminStore lines
 
   const [timeLeft, setTimeLeft] = useState(APP_CONFIG.paymentTimerSeconds);
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -64,11 +62,10 @@ export function Checkout() {
   const [showDetails, setShowDetails] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
 
-  useEffect(() => {
-    loadSettings();
-    loadPaymentMethods();
-  }, [loadSettings, loadPaymentMethods]);
-
+    useEffect(() => {
+    loadSettings();          // ← loadPaymentMethods() call removed
+  }, [loadSettings]);
+  
   useEffect(() => {
     if (!currentBooking) {
       navigate('/booking');
