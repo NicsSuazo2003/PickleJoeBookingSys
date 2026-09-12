@@ -322,11 +322,11 @@ const displayAccountName =
                   type="text"
                   value={paymentRef}
                   onChange={(e) => setPaymentRef(e.target.value)}
-                  placeholder="Enter your GCash reference number"
+                  placeholder="Enter your reference number from the banking app you used to pay"
                   className="input-field text-sm py-2"
                 />
                 <p className="mt-1 text-[10px] text-cream-muted">
-                  Required - Enter the reference number from your GCash payment
+                  Required - Enter the reference number from your payment
                 </p>
               </div>
 
