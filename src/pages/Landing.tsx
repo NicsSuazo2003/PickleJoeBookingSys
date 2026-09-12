@@ -620,14 +620,13 @@ export function Landing() {
                     /* Court Time Slot Table — side-by-side columns, scrolls horizontally on narrow screens */
                     <div className="block">
                       <div className="max-h-[75vh] overflow-y-auto overflow-x-auto rounded-2xl border border-forest-700/60 bg-forest-950/40">
-                        <div className="min-w-[580px] p-4">
+                        <div className="w-full p-4 sm:min-w-[580px]">
                           {/* Sticky Court Column Headers */}
                           <div
                             className="sticky -top-4 z-30 -mx-4 -mt-4 mb-4 border-b border-forest-700 bg-forest-900 px-4 py-3 text-center text-xs font-extrabold uppercase tracking-wider text-gold-400 shadow-md backdrop-blur-md"
                             style={{
                               display: 'grid',
-                              gridTemplateColumns: `repeat(${courts.length}, minmax(80px, 1fr))`,
-                              gap: '0.75rem',
+gridTemplateColumns: `repeat(${courts.length}, minmax(56px, 1fr))`,                              gap: '0.75rem',
                             }}
                           >
                             {courts.map((court, idx) => {
@@ -996,8 +995,7 @@ function SlotPill({
     <button
       onClick={isAvailable && !isPending ? onToggle : undefined}
       disabled={!isAvailable || isPending}
-      className={`flex h-11 w-full items-center justify-center rounded-xl border text-xs font-semibold tracking-tight transition-all px-2.5 ${styleClasses}`}
-    >
+className={`flex h-11 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-tight transition-all px-1 ${styleClasses}`}    >
       <span className="truncate">
         {formatTimeRangeShort(slot.start_time, slot.end_time)}
       </span>
