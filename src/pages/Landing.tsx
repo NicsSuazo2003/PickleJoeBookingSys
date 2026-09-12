@@ -361,7 +361,7 @@ export function Landing() {
                     <Star key={i} className="h-3.5 w-3.5 fill-gold-400 text-gold-400 sm:h-4 sm:w-4" />
                   ))}
                 </div>
-                <span>Loved by 500+ players</span>
+                
               </div>
               <div className="hidden items-center gap-2 sm:flex">
                 <MapPin className="h-4 w-4 text-gold-400" />
