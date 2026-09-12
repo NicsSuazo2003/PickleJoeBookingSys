@@ -20,6 +20,7 @@ import {
   X,
   Clock3,
   Users,
+  UserCircle2,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -34,6 +35,7 @@ import {
   formatDateLong,
   toISODate,
   addDays,
+  formatTimeRange,
 } from '@/utils/format';
 import type { TimeSlot, Court, OpenPlaySession } from '@/types';
 
@@ -51,6 +53,9 @@ function getCourtAccent(index: number) {
   return COURT_ACCENTS[index % COURT_ACCENTS.length];
 }
 
+// ✅ FIX: Declare CourtAccent type here, at the top, before it's used
+type CourtAccent = ReturnType<typeof getCourtAccent>;
+
 // Helper to format time as "7PM-8PM"
 function formatTimeShort(time: string): string {
   if (!time) return '';
@@ -63,6 +68,39 @@ function formatTimeShort(time: string): string {
 function formatTimeRangeShort(start: string, end: string): string {
   return `${formatTimeShort(start)}-${formatTimeShort(end)}`;
 }
+
+// ✅ Check if session is within N hours from now
+function isWithinHours(session: OpenPlaySession, hours: number): boolean {
+  try {
+    const sessionStart = new Date(`${session.date}T${session.start_time}`);
+    const now = new Date();
+    const diffHours = (sessionStart.getTime() - now.getTime()) / (1000 * 60 * 60);
+    return diffHours >= -1 && diffHours <= hours;
+  } catch {
+    return false;
+  }
+}
+
+// ✅ Check if session is within the next 7 days
+function isWithinNextWeek(session: OpenPlaySession): boolean {
+  try {
+    const sessionDate = new Date(session.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekFromNow = new Date(today);
+    weekFromNow.setDate(weekFromNow.getDate() + 7);
+    return sessionDate >= today && sessionDate <= weekFromNow;
+  } catch {
+    return false;
+  }
+}
+
+const SKILL_BADGE: Record<string, string> = {
+  Beginner: 'bg-green-500/15 text-green-400',
+  Intermediate: 'bg-yellow-500/15 text-yellow-400',
+  Advanced: 'bg-red-500/15 text-red-400',
+  'All Levels': 'bg-gold-400/15 text-gold-300',
+};
 
 export function Landing() {
   const navigate = useNavigate();
@@ -107,7 +145,6 @@ export function Landing() {
     }
   }, [selectedDate, courts.length, loadAllCourtsSlots]);
 
-  // Detect whether the court table has more content to the right
   useEffect(() => {
     const el = tableScrollRef.current;
     if (!el) return;
@@ -127,43 +164,64 @@ export function Landing() {
     bookingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // ✅ Get Open Play sessions for the selected date
-  const getOpenPlaySessionsForDate = (date: string): OpenPlaySession[] => {
-    return openPlaySessions.filter(
-      (session) => session.date === date && session.is_active
+  // ✅ Open Play: Next upcoming session (within 48h)
+  const nextSession = openPlaySessions
+    .filter(
+      (s) =>
+        s.is_active &&
+        s.status !== 'cancelled' &&
+        s.status !== 'past' &&
+        isWithinHours(s, 48)
+    )
+    .sort((a, b) => {
+      const aStart = new Date(`${a.date}T${a.start_time}`).getTime();
+      const bStart = new Date(`${b.date}T${b.start_time}`).getTime();
+      return aStart - bStart;
+    })[0];
+
+  // ✅ Open Play: This week's sessions (max 6)
+  const weekSessions = openPlaySessions
+    .filter(
+      (s) =>
+        s.is_active &&
+        s.status !== 'cancelled' &&
+        s.status !== 'past' &&
+        isWithinNextWeek(s)
+    )
+    .sort((a, b) => {
+      const aStart = new Date(`${a.date}T${a.start_time}`).getTime();
+      const bStart = new Date(`${b.date}T${b.start_time}`).getTime();
+      return aStart - bStart;
+    })
+    .slice(0, 6);
+
+  // Helper to convert time string to minutes
+  const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  // ✅ Check if a slot has an Open Play session
+  const getOpenPlaySessionForSlot = (
+    courtId: string,
+    startTime: string,
+    endTime: string
+  ): OpenPlaySession | undefined => {
+    const slotStart = timeToMinutes(startTime);
+    const slotEnd = timeToMinutes(endTime);
+
+    return openPlaySessions.find(
+      (session) =>
+        session.court_id === courtId &&
+        session.date === selectedDate &&
+        session.is_active === true &&
+        timeToMinutes(session.start_time) <= slotStart &&
+        timeToMinutes(session.end_time) >= slotEnd
     );
   };
 
-  // Helper to convert time string to minutes
-const timeToMinutes = (time: string): number => {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
-};
-
-// ✅ Check if a slot has an Open Play session (checks if slot is within session range)
-const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: string): OpenPlaySession | undefined => {
-  const slotStart = timeToMinutes(startTime);
-  const slotEnd = timeToMinutes(endTime);
-  
-  return openPlaySessions.find(
-    (session) =>
-      session.court_id === courtId &&
-      session.date === selectedDate &&
-      session.is_active === true &&
-      // Check if the slot is within the session's time range
-      timeToMinutes(session.start_time) <= slotStart &&
-      timeToMinutes(session.end_time) >= slotEnd
-  );
-};
-
-  // ✅ Check if a slot is occupied by an Open Play session
-  const isSlotOpenPlay = (courtId: string, startTime: string, endTime: string): boolean => {
-    return !!getOpenPlaySessionForSlot(courtId, startTime, endTime);
-  };
-
-  // ✅ Handle Open Play slot click
   const handleOpenPlayClick = (session: OpenPlaySession) => {
-  navigate('/open-play', { state: { selectedSessionId: session.id } });
+    navigate('/open-play', { state: { selectedSessionId: session.id } });
   };
 
   const getTimeIntervalsByPeriod = (slotsList: TimeSlot[]) => {
@@ -233,6 +291,33 @@ const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: 
             transition={{ duration: 0.7, ease: 'easeOut' }}
             className="max-w-2xl"
           >
+            {/* ✅ FEATURE 1: Floating Open Play Banner */}
+            {nextSession && (
+              <motion.button
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.5 }}
+                onClick={() => navigate('/open-play')}
+                className="mb-4 flex w-full items-center gap-2 rounded-full border border-gold-400/40 bg-gold-400/15 px-3 py-1.5 backdrop-blur-md transition hover:border-gold-400 hover:bg-gold-400/25 sm:mb-5 sm:w-auto sm:px-4 sm:py-2"
+              >
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold-400 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-gold-400"></span>
+                </span>
+                <Users className="h-3.5 w-3.5 shrink-0 text-gold-400 sm:h-4 sm:w-4" />
+                <span className="truncate text-xs font-semibold text-gold-200 sm:text-sm">
+                  Open Play{' '}
+                  {nextSession.status === 'active'
+                    ? 'happening now'
+                    : nextSession.date === todayISO()
+                      ? 'today'
+                      : 'soon'}{' '}
+                  · {nextSession.current_players}/{nextSession.max_players} joined
+                </span>
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-gold-300 sm:h-4 sm:w-4" />
+              </motion.button>
+            )}
+
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/10 px-3 py-1 backdrop-blur-md sm:mb-6 sm:px-4 sm:py-1.5">
               <Sparkles className="h-3.5 w-3.5 text-gold-400 sm:h-4 sm:w-4" />
               <span className="text-xs font-medium text-gold-300 sm:text-sm">
@@ -291,6 +376,114 @@ const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: 
         </div>
       </section>
 
+      {/* ✅ FEATURE 2: Open Play This Week Section */}
+      {weekSessions.length > 0 && (
+        <section className="relative border-b border-forest-500 bg-forest-900 py-10 sm:py-14">
+          <div className="container-page">
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-6">
+              <div>
+                <span className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-gold-400/10 px-2.5 py-1 text-[10px] font-semibold text-gold-300 sm:px-3 sm:text-xs">
+                  <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  Open Play
+                </span>
+                <h2 className="text-xl font-bold tracking-tight text-cream sm:text-2xl md:text-3xl">
+                  Join a Session This Week
+                </h2>
+                <p className="text-xs text-cream-muted sm:text-sm">
+                  Meet other players and split the court — spots fill fast
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => navigate('/open-play')}
+                rightIcon={<ArrowRight className="h-4 w-4" />}
+              >
+                See all
+              </Button>
+            </div>
+
+            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
+              {weekSessions.map((session, i) => {
+                const isFull =
+                  session.status === 'full' ||
+                  session.current_players >= session.max_players;
+                const spotsLeft = Math.max(0, session.max_players - session.current_players);
+                const isToday = session.date === todayISO();
+                return (
+                  <motion.div
+                    key={session.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 }}
+                    className="w-[260px] shrink-0 sm:w-auto"
+                  >
+                    <div className="card flex h-full flex-col p-3.5 sm:p-4">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gold-400/10 px-2 py-0.5 text-[10px] font-bold text-gold-300">
+                          {isToday
+                            ? 'TODAY'
+                            : formatDateLong(session.date).split(',')[0].toUpperCase()}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            SKILL_BADGE[session.skill_level] ?? SKILL_BADGE['All Levels']
+                          }`}
+                        >
+                          {session.skill_level}
+                        </span>
+                      </div>
+
+                      <h3 className="truncate font-display text-sm font-bold text-cream sm:text-base">
+                        {session.court_name}
+                      </h3>
+
+                      <div className="mt-1.5 space-y-1 text-[11px] text-cream-muted sm:text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5" />
+                          {formatTimeRange(session.start_time, session.end_time)}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Users className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5" />
+                          {session.current_players}/{session.max_players} · {spotsLeft}{' '}
+                          spot{spotsLeft === 1 ? '' : 's'} left
+                        </div>
+                        {session.host_name && (
+                          <div className="flex items-center gap-1.5">
+                            <UserCircle2 className="h-3 w-3 text-gold-400 sm:h-3.5 sm:w-3.5" />
+                            <span className="truncate">Hosted by {session.host_name}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-auto flex items-center justify-between border-t border-forest-600 pt-2.5 sm:pt-3">
+                        <div>
+                          <p className="text-[9px] text-cream-muted sm:text-[10px]">
+                            Per player
+                          </p>
+                          <p className="font-display text-base font-bold text-gold-400 sm:text-lg">
+                            {formatCurrency(session.price_per_player)}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          disabled={isFull}
+                          onClick={() => handleOpenPlayClick(session)}
+                          rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
+                        >
+                          {isFull ? 'Full' : 'Join'}
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Booking Section */}
       <div ref={bookingSectionRef}>
         <section className="relative z-20 border-y border-forest-500 bg-forest-950 py-8 md:py-16">
@@ -346,6 +539,9 @@ const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: 
                         const dayName = day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
                         const dayNumber = day.getDate();
                         const monthName = day.toLocaleDateString('en-US', { month: 'short' });
+                        const hasOpenPlay = openPlaySessions.some(
+                          (s) => s.date === iso && s.is_active && s.status !== 'cancelled'
+                        );
 
                         return (
                           <button
@@ -367,6 +563,14 @@ const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: 
                               >
                                 TODAY
                               </span>
+                            )}
+                            {/* ✅ Open Play dot on date */}
+                            {!isToday && hasOpenPlay && (
+                              <span
+                                className={`absolute -top-1 right-1 h-1.5 w-1.5 rounded-full sm:-top-1.5 sm:right-1.5 sm:h-2 sm:w-2 ${
+                                  isSelected ? 'bg-forest-950' : 'bg-gold-400'
+                                }`}
+                              />
                             )}
                             <span
                               className={`text-[7px] font-semibold tracking-wider sm:text-[8px] md:text-[10px] ${
@@ -420,7 +624,7 @@ const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: 
                     </span>
                   </div>
 
-                  {/* Status Legend Bar - Updated with Open Play */}
+                  {/* Status Legend Bar */}
                   <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-forest-700/80 pb-2 text-[10px] font-semibold sm:gap-2.5 md:gap-3 md:pb-4 md:text-xs">
                     <span className="inline-flex items-center gap-1 rounded-full border border-forest-500 bg-forest-800/80 px-2 py-1 text-cream-muted sm:px-3 sm:py-1.5">
                       <Check className="h-2.5 w-2.5 text-gold-400 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
@@ -434,7 +638,6 @@ const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: 
                       <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
                       Booked
                     </span>
-                    {/* ✅ NEW: Open Play Badge */}
                     <span className="inline-flex items-center gap-1 rounded-full border border-gold-400/30 bg-gold-400/10 px-2 py-1 text-gold-300 sm:px-3 sm:py-1.5">
                       <Users className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
                       Open Play
@@ -696,7 +899,7 @@ const getOpenPlaySessionForSlot = (courtId: string, startTime: string, endTime: 
   );
 }
 
-// Period Section Subcomponent - Updated with Open Play support
+// Period Section Subcomponent
 function PeriodSection({
   title,
   icon,
@@ -742,8 +945,7 @@ function PeriodSection({
             {courts.map((court, idx) => {
               const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
               const accent = getCourtAccent(idx);
-              
-              // ✅ Check if this slot has an Open Play session
+
               const openPlaySession = getOpenPlaySession?.(court.id, interval.start_time, interval.end_time);
               const isOpenPlay = !!openPlaySession;
 
@@ -758,7 +960,6 @@ function PeriodSection({
                 );
               }
 
-              // ✅ If it's an Open Play session, render the Open Play pill
               if (isOpenPlay && openPlaySession) {
                 return (
                   <div key={slot.id}>
@@ -772,7 +973,6 @@ function PeriodSection({
                 );
               }
 
-              // ✅ Regular slot pill
               return (
                 <div key={slot.id}>
                   <SlotPill
@@ -792,12 +992,12 @@ function PeriodSection({
   );
 }
 
-// ✅ NEW: Open Play Pill Component
+// Open Play Pill Component
 function OpenPlayPill({
   session,
   onClick,
   compact = false,
-  accent,
+  accent: _accent,
 }: {
   session: OpenPlaySession;
   onClick: () => void;
@@ -810,31 +1010,31 @@ function OpenPlayPill({
   return (
     <button
       onClick={onClick}
-      className={`flex w-full flex-col items-center justify-center rounded-full border-2 border-gold-400 bg-gold-400/20 font-bold tracking-tight transition-all hover:bg-gold-400/30 hover:shadow-glow-gold ${height} ${textSize} px-1.5 sm:px-2.5 group relative`}
+      className={`group relative flex w-full flex-col items-center justify-center rounded-full border-2 border-gold-400 bg-gold-400/20 font-bold tracking-tight transition-all hover:bg-gold-400/30 hover:shadow-glow-gold ${height} ${textSize} px-1.5 sm:px-2.5`}
       title={`Open Play: ${session.current_players}/${session.max_players} players · ${session.skill_level}`}
     >
-      <span className="text-gold-300 font-extrabold">OP</span>
+      <span className="font-extrabold text-gold-300">OP</span>
       <span className="text-[7px] text-gold-400/70 sm:text-[8px]">
         {session.current_players}/{session.max_players}
       </span>
-      
-      {/* Tooltip on hover - hidden on touch devices */}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-forest-900 border border-forest-500 rounded-lg px-3 py-2 text-xs text-cream whitespace-nowrap z-50 shadow-xl">
+
+      {/* Tooltip */}
+      <div className="absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-forest-500 bg-forest-900 px-3 py-2 text-xs text-cream shadow-xl group-hover:block">
         <p className="font-semibold text-gold-300">Open Play Session</p>
-        <p className="text-cream-muted text-[10px]">{session.current_players}/{session.max_players} players</p>
-        <p className="text-cream-muted text-[10px]">{session.skill_level}</p>
+        <p className="text-[10px] text-cream-muted">
+          {session.current_players}/{session.max_players} players
+        </p>
+        <p className="text-[10px] text-cream-muted">{session.skill_level}</p>
         {session.host_name && (
-          <p className="text-cream-muted text-[10px]">Host: {session.host_name}</p>
+          <p className="text-[10px] text-cream-muted">Host: {session.host_name}</p>
         )}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-forest-900 border-r border-b border-forest-500" />
+        <div className="absolute bottom-0 left-1/2 h-2 w-2 -translate-x-1/2 translate-y-1/2 rotate-45 border-b border-r border-forest-500 bg-forest-900" />
       </div>
     </button>
   );
 }
 
-type CourtAccent = ReturnType<typeof getCourtAccent>;
-
-// Slot Pill Component - Updated to check for Open Play
+// Slot Pill Component
 function SlotPill({
   slot,
   isSelected,
