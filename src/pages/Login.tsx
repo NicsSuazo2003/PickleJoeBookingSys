@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, AlertCircle, ArrowLeft, Shield } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,7 +11,7 @@ import { ADMIN_CREDENTIALS, COURT_IMAGES } from '@/utils/constants';
 export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loading, error, isAuthenticated, initializing } = useAuthStore(); // ✅ added initializing
+  const { login, loading, error, isAuthenticated, initializing } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -19,7 +19,7 @@ export function Login() {
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/admin';
 
   useEffect(() => {
-    // ✅ wait for init() to resolve before deciding whether to redirect
+    // wait for init() to resolve before deciding whether to redirect
     if (!initializing && isAuthenticated) {
       navigate(from, { replace: true });
     }
@@ -72,10 +72,10 @@ export function Login() {
           className="card p-8"
         >
           <div className="mb-6 text-center">
-            <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-400/10">
-              <Shield className="h-7 w-7 text-gold-400" />
+            {/* Just the image logo, bigger */}
+            <div className="flex justify-center">
+              <Logo size="xl" to="" />
             </div>
-            <Logo size="md" to="" />
             <h1 className="mt-4 font-display text-2xl font-bold text-cream">Admin Portal</h1>
             <p className="mt-1 text-sm text-cream-muted">Sign in to manage bookings</p>
           </div>

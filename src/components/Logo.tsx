@@ -2,33 +2,27 @@ import { Link } from 'react-router-dom';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
-  withText?: boolean;
   to?: string;
 }
 
-export function Logo({ size = 'md', withText = true, to = '/' }: LogoProps) {
+export function Logo({ size = 'md', to = '/' }: LogoProps) {
   const sizes = {
-    sm: { image: 40, text: 'text-lg' },
-    md: { image: 50, text: 'text-xl' },
-    lg: { image: 65, text: 'text-3xl' },
-    xl: { image: 80, text: 'text-4xl' },
+    sm: { image: 56 },
+    md: { image: 80 },
+    lg: { image: 110 },
+    xl: { image: 150 },
   };
   const s = sizes[size];
 
   const content = (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center justify-center">
       <img
         src="/images/CC.png"
-        alt="Center Court"
+        alt="PickleJoe"
         width={s.image}
         height={s.image}
         className="object-contain"
       />
-      {withText && (
-        <span className={`font-display ${s.text} font-bold tracking-tight text-cream`}>
-          Center<span className="text-gold-400">Court</span>
-        </span>
-      )}
     </div>
   );
 
