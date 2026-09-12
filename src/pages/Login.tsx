@@ -74,10 +74,10 @@ export function Login() {
           <div className="mb-6 text-center">
             {/* Just the image logo, bigger, no text */}
             <div className="flex justify-center">
-              <Logo size="xl" to="" withText={false} />
+              <Logo size="2xl" to="" withText={false} />
             </div>
-            <h1 className="mt-4 font-display text-2xl font-bold text-cream">Admin Portal</h1>
-            <p className="mt-1 text-sm text-cream-muted">Sign in to manage bookings</p>
+            <h1 className="mt-3 font-display text-lg font-bold text-cream">Admin Portal</h1>
+            <p className="mt-1 text-xs text-cream-muted">Sign in to manage bookings</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

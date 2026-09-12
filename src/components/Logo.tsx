@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 interface LogoProps {
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   withText?: boolean;
   to?: string;
 }
@@ -12,6 +12,7 @@ export function Logo({ size = 'md', withText = true, to = '/' }: LogoProps) {
     md: { image: 50, text: 'text-xl' },
     lg: { image: 65, text: 'text-3xl' },
     xl: { image: 80, text: 'text-4xl' },
+    '2xl': { image: 120, text: 'text-5xl' },
   };
   const s = sizes[size];
 
