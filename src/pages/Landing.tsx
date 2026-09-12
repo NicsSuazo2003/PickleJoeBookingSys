@@ -271,14 +271,14 @@ export function Landing() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.5 }}
                 onClick={() => navigate('/open-play')}
-                className="mb-4 flex w-full items-center gap-2 rounded-full border border-gold-400/40 bg-gold-400/15 px-3 py-2 backdrop-blur-md transition hover:border-gold-400 hover:bg-gold-400/25 sm:mb-5 sm:w-auto sm:px-4"
+                className="mb-4 flex w-full items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-400/15 px-3 py-2 backdrop-blur-md transition hover:border-cyan-400 hover:bg-cyan-400/25 sm:mb-5 sm:w-auto sm:px-4"
               >
                 <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold-400 opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-gold-400"></span>
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-400"></span>
                 </span>
-                <Users className="h-4 w-4 shrink-0 text-gold-400" />
-                <span className="truncate text-xs font-semibold text-gold-200 sm:text-sm">
+                <Users className="h-4 w-4 shrink-0 text-cyan-400" />
+                <span className="truncate text-xs font-semibold text-cyan-100 sm:text-sm">
                   Open Play{' '}
                   {nextSession.status === 'active'
                     ? 'happening now'
@@ -287,7 +287,7 @@ export function Landing() {
                       : 'soon'}{' '}
                   · {nextSession.current_players}/{nextSession.max_players} joined
                 </span>
-                <ArrowRight className="h-4 w-4 shrink-0 text-gold-300" />
+                <ArrowRight className="h-4 w-4 shrink-0 text-cyan-300" />
               </motion.button>
             )}
 
@@ -347,7 +347,7 @@ export function Landing() {
           <div className="container-page">
             <div className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-6">
               <div>
-                <span className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-gold-400/10 px-3 py-1 text-xs font-semibold text-gold-300">
+                <span className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
                   <Users className="h-3.5 w-3.5" />
                   Open Play
                 </span>
@@ -386,7 +386,7 @@ export function Landing() {
                   >
                     <div className="card flex h-full flex-col p-4">
                       <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center rounded-full bg-gold-400/10 px-2.5 py-0.5 text-xs font-bold text-gold-300">
+                        <span className="inline-flex items-center rounded-full bg-cyan-400/10 px-2.5 py-0.5 text-xs font-bold text-cyan-300">
                           {isToday
                             ? 'TODAY'
                             : formatDateLong(session.date).split(',')[0].toUpperCase()}
@@ -406,17 +406,17 @@ export function Landing() {
 
                       <div className="mt-2 space-y-1.5 text-xs text-cream-muted">
                         <div className="flex items-center gap-2">
-                          <Clock className="h-3.5 w-3.5 text-gold-400" />
+                          <Clock className="h-3.5 w-3.5 text-cyan-400" />
                           {formatTimeRange(session.start_time, session.end_time)}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Users className="h-3.5 w-3.5 text-gold-400" />
+                          <Users className="h-3.5 w-3.5 text-cyan-400" />
                           {session.current_players}/{session.max_players} · {spotsLeft}{' '}
                           spot{spotsLeft === 1 ? '' : 's'} left
                         </div>
                         {session.host_name && (
                           <div className="flex items-center gap-2">
-                            <UserCircle2 className="h-3.5 w-3.5 text-gold-400" />
+                            <UserCircle2 className="h-3.5 w-3.5 text-cyan-400" />
                             <span className="truncate">Hosted by {session.host_name}</span>
                           </div>
                         )}
@@ -425,7 +425,7 @@ export function Landing() {
                       <div className="mt-4 flex items-center justify-between border-t border-forest-600 pt-3">
                         <div>
                           <p className="text-[10px] text-cream-muted uppercase tracking-wider">Per player</p>
-                          <p className="font-display text-base font-bold text-gold-400 sm:text-lg">
+                          <p className="font-display text-base font-bold text-cyan-400 sm:text-lg">
                             {formatCurrency(session.price_per_player)}
                           </p>
                         </div>
@@ -531,7 +531,7 @@ export function Landing() {
                             {!isToday && hasOpenPlay && (
                               <span
                                 className={`absolute top-1.5 right-1.5 h-2 w-2 rounded-full ${
-                                  isSelected ? 'bg-forest-950' : 'bg-gold-400'
+                                  isSelected ? 'bg-forest-950' : 'bg-cyan-400'
                                 }`}
                               />
                             )}
@@ -602,7 +602,7 @@ export function Landing() {
                       <X className="h-3.5 w-3.5" />
                       Booked
                     </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/30 bg-gold-400/10 px-2.5 py-1 text-gold-300">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1 text-cyan-300">
                       <Users className="h-3.5 w-3.5" />
                       Open Play
                     </span>
@@ -944,17 +944,17 @@ function OpenPlayPill({
   return (
     <button
       onClick={onClick}
-      className="group relative flex h-11 w-full items-center justify-between rounded-xl border-2 border-gold-400 bg-gold-400/20 px-3 font-bold transition-all hover:bg-gold-400/30 hover:shadow-glow-gold"
+      className="group relative flex h-11 w-full items-center justify-between rounded-xl border-2 border-cyan-400 bg-cyan-400/20 px-3 font-bold transition-all hover:bg-cyan-400/30 hover:shadow-[0_0_20px_-4px_rgba(56,189,248,0.6)]"
       title={`Open Play: ${session.current_players}/${session.max_players} players · ${session.skill_level}`}
     >
-      <span className="text-xs font-black text-gold-300">OP</span>
-      <span className="text-xs font-semibold text-gold-200">
+      <span className="text-xs font-black text-cyan-300">OP</span>
+      <span className="text-xs font-semibold text-cyan-100">
         {session.current_players}/{session.max_players} joined
       </span>
 
       {/* Hover tooltip for larger screens */}
       <div className="absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-forest-500 bg-forest-900 px-3 py-2 text-xs text-cream shadow-xl group-hover:block pointer-events-none">
-        <p className="font-semibold text-gold-300">Open Play Session</p>
+        <p className="font-semibold text-cyan-300">Open Play Session</p>
         <p className="text-[11px] text-cream-muted">
           {session.current_players}/{session.max_players} players · {session.skill_level}
         </p>
