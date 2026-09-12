@@ -9,7 +9,6 @@ import {
   ArrowRight,
   Star,
   MapPin,
-  Sparkles,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -123,7 +122,6 @@ export function Landing() {
   } = useOpenPlayStore();
 
   const [weekOffset, setWeekOffset] = useState(0);
-  const [activeMobileCourtId, setActiveMobileCourtId] = useState<string>('');
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -133,12 +131,6 @@ export function Landing() {
     }
     loadUpcomingSessions();
   }, [courts.length, loadCourts, loadUpcomingSessions]);
-
-  useEffect(() => {
-    if (courts.length > 0 && !activeMobileCourtId) {
-      setActiveMobileCourtId(courts[0].id);
-    }
-  }, [courts, activeMobileCourtId]);
 
   useEffect(() => {
     if (courts.length > 0) {
@@ -250,15 +242,12 @@ export function Landing() {
     );
   };
 
-  const activeCourtIndex = Math.max(0, courts.findIndex((c) => c.id === activeMobileCourtId));
-  const activeCourt = courts[activeCourtIndex] || courts[0];
-
   return (
     <div className="min-h-screen bg-charcoal text-cream">
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative flex min-h-screen items-start pt-28 sm:items-center sm:pt-20 overflow-hidden">
+      <section className="relative flex min-h-[85vh] items-start pt-28 sm:min-h-screen sm:items-center sm:pt-20 overflow-hidden">
         <div className="absolute inset-0">
           <img
             src={COURT_IMAGES.hero}
@@ -301,8 +290,6 @@ export function Landing() {
                 <ArrowRight className="h-4 w-4 shrink-0 text-gold-300" />
               </motion.button>
             )}
-
-           
 
             <h1 className="text-4xl font-bold leading-[1.1] tracking-tight text-cream sm:text-6xl lg:text-7xl">
               Center<span className="text-gold-400">Court</span>
@@ -630,145 +617,78 @@ export function Landing() {
                       No courts found.
                     </div>
                   ) : (
-                    <>
-                      {/* MOBILE VIEW: Horizontal Court Tabs + 2-Column Slot Layout */}
-                      <div className="block md:hidden">
-  <div className="sticky top-20 z-30 -mx-4 mb-4 flex items-center gap-2 overflow-x-auto bg-forest-950/95 px-4 py-2 backdrop-blur-md">
-    {courts.map((court, idx) => {
-  const accent = getCourtAccent(idx);
-  const isCourtActive = (activeMobileCourtId || courts[0].id) === court.id;
-  return (
-                              <button
-                                key={court.id}
-                                onClick={() => setActiveMobileCourtId(court.id)}
-                                className={`flex items-center gap-2 shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition-all ${
-                                  isCourtActive
-                                    ? `${accent.border} ${accent.bg} ${accent.header} shadow-sm`
-                                    : 'border-forest-700 bg-forest-800 text-cream-muted hover:border-forest-600'
-                                }`}
-                              >
-                                <span className={`h-2.5 w-2.5 rounded-full ${accent.dot}`} />
-                                <span>{court.name}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {activeCourt && (
-                          <div className="space-y-4 rounded-xl border border-forest-700/70 bg-forest-950/40 p-3">
-                            <MobilePeriodSection
-                              title="Morning"
-                              icon={<CloudSun className="h-4 w-4 text-gold-400" />}
-                              court={activeCourt}
-                              courtIndex={activeCourtIndex}
-                              timeIntervals={morningTimes}
-                              getSlotForCourtAndTime={getSlotForCourtAndTime}
-                              selectedSlotIds={selectedSlotIds}
-                              onToggleSlot={toggleSlot}
-                              getOpenPlaySession={getOpenPlaySessionForSlot}
-                              onOpenPlayClick={handleOpenPlayClick}
-                            />
-                            <MobilePeriodSection
-                              title="Afternoon"
-                              icon={<Sun className="h-4 w-4 text-gold-400" />}
-                              court={activeCourt}
-                              courtIndex={activeCourtIndex}
-                              timeIntervals={afternoonTimes}
-                              getSlotForCourtAndTime={getSlotForCourtAndTime}
-                              selectedSlotIds={selectedSlotIds}
-                              onToggleSlot={toggleSlot}
-                              getOpenPlaySession={getOpenPlaySessionForSlot}
-                              onOpenPlayClick={handleOpenPlayClick}
-                            />
-                            <MobilePeriodSection
-                              title="Evening"
-                              icon={<Moon className="h-4 w-4 text-gold-400" />}
-                              court={activeCourt}
-                              courtIndex={activeCourtIndex}
-                              timeIntervals={eveningTimes}
-                              getSlotForCourtAndTime={getSlotForCourtAndTime}
-                              selectedSlotIds={selectedSlotIds}
-                              onToggleSlot={toggleSlot}
-                              getOpenPlaySession={getOpenPlaySessionForSlot}
-                              onOpenPlayClick={handleOpenPlayClick}
-                            />
+                    /* Court Time Slot Table — side-by-side columns, scrolls horizontally on narrow screens */
+                    <div className="block">
+                      <div className="max-h-[75vh] overflow-y-auto overflow-x-auto rounded-2xl border border-forest-700/60 bg-forest-950/40">
+                        <div className="min-w-[580px] p-4">
+                          {/* Sticky Court Column Headers */}
+                          <div
+                            className="sticky -top-4 z-30 -mx-4 -mt-4 mb-4 border-b border-forest-700 bg-forest-900 px-4 py-3 text-center text-xs font-extrabold uppercase tracking-wider text-gold-400 shadow-md backdrop-blur-md"
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: `repeat(${courts.length}, minmax(80px, 1fr))`,
+                              gap: '0.75rem',
+                            }}
+                          >
+                            {courts.map((court, idx) => {
+                              const accent = getCourtAccent(idx);
+                              return (
+                                <div
+                                  key={court.id}
+                                  className={`flex items-center justify-center gap-2 truncate ${accent.header}`}
+                                >
+                                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${accent.dot}`} />
+                                  <span className="truncate font-bold">{court.name}</span>
+                                </div>
+                              );
+                            })}
                           </div>
-                        )}
+
+                          {/* Period Sections */}
+                          <div className="space-y-6">
+                            {morningTimes.length > 0 && (
+                              <DesktopPeriodSection
+                                title="MORNING"
+                                icon={<CloudSun className="h-4 w-4 text-gold-400" />}
+                                courts={courts}
+                                timeIntervals={morningTimes}
+                                getSlotForCourtAndTime={getSlotForCourtAndTime}
+                                selectedSlotIds={selectedSlotIds}
+                                onToggleSlot={toggleSlot}
+                                getOpenPlaySession={getOpenPlaySessionForSlot}
+                                onOpenPlayClick={handleOpenPlayClick}
+                              />
+                            )}
+                            {afternoonTimes.length > 0 && (
+                              <DesktopPeriodSection
+                                title="AFTERNOON"
+                                icon={<Sun className="h-4 w-4 text-gold-400" />}
+                                courts={courts}
+                                timeIntervals={afternoonTimes}
+                                getSlotForCourtAndTime={getSlotForCourtAndTime}
+                                selectedSlotIds={selectedSlotIds}
+                                onToggleSlot={toggleSlot}
+                                getOpenPlaySession={getOpenPlaySessionForSlot}
+                                onOpenPlayClick={handleOpenPlayClick}
+                              />
+                            )}
+                            {eveningTimes.length > 0 && (
+                              <DesktopPeriodSection
+                                title="EVENING"
+                                icon={<Moon className="h-4 w-4 text-gold-400" />}
+                                courts={courts}
+                                timeIntervals={eveningTimes}
+                                getSlotForCourtAndTime={getSlotForCourtAndTime}
+                                selectedSlotIds={selectedSlotIds}
+                                onToggleSlot={toggleSlot}
+                                getOpenPlaySession={getOpenPlaySessionForSlot}
+                                onOpenPlayClick={handleOpenPlayClick}
+                              />
+                            )}
+                          </div>
+                        </div>
                       </div>
-
-                      {/* DESKTOP/TABLET VIEW: Multi-Column Table */}
-<div className="hidden md:block">
-  <div className="max-h-[75vh] overflow-y-auto overflow-x-auto rounded-2xl border border-forest-700/60 bg-forest-950/40">
-    <div className="min-w-[580px] p-4">
-      {/* Sticky Court Column Headers */}
-      <div
-        className="sticky -top-4 z-30 -mx-4 -mt-4 mb-4 border-b border-forest-700 bg-forest-900 px-4 py-3 text-center text-xs font-extrabold uppercase tracking-wider text-gold-400 shadow-md backdrop-blur-md"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${courts.length}, minmax(80px, 1fr))`,
-          gap: '0.75rem',
-        }}
-      >
-        {courts.map((court, idx) => {
-          const accent = getCourtAccent(idx);
-          return (
-            <div
-              key={court.id}
-              className={`flex items-center justify-center gap-2 truncate ${accent.header}`}
-            >
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${accent.dot}`} />
-              <span className="truncate font-bold">{court.name}</span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Period Sections */}
-      <div className="space-y-6">
-        {morningTimes.length > 0 && (
-          <DesktopPeriodSection
-            title="MORNING"
-            icon={<CloudSun className="h-4 w-4 text-gold-400" />}
-            courts={courts}
-            timeIntervals={morningTimes}
-            getSlotForCourtAndTime={getSlotForCourtAndTime}
-            selectedSlotIds={selectedSlotIds}
-            onToggleSlot={toggleSlot}
-            getOpenPlaySession={getOpenPlaySessionForSlot}
-            onOpenPlayClick={handleOpenPlayClick}
-          />
-        )}
-        {afternoonTimes.length > 0 && (
-          <DesktopPeriodSection
-            title="AFTERNOON"
-            icon={<Sun className="h-4 w-4 text-gold-400" />}
-            courts={courts}
-            timeIntervals={afternoonTimes}
-            getSlotForCourtAndTime={getSlotForCourtAndTime}
-            selectedSlotIds={selectedSlotIds}
-            onToggleSlot={toggleSlot}
-            getOpenPlaySession={getOpenPlaySessionForSlot}
-            onOpenPlayClick={handleOpenPlayClick}
-          />
-        )}
-        {eveningTimes.length > 0 && (
-          <DesktopPeriodSection
-            title="EVENING"
-            icon={<Moon className="h-4 w-4 text-gold-400" />}
-            courts={courts}
-            timeIntervals={eveningTimes}
-            getSlotForCourtAndTime={getSlotForCourtAndTime}
-            selectedSlotIds={selectedSlotIds}
-            onToggleSlot={toggleSlot}
-            getOpenPlaySession={getOpenPlaySessionForSlot}
-            onOpenPlayClick={handleOpenPlayClick}
-          />
-        )}
-      </div>
-    </div>
-  </div>
-</div>
-                    </>
+                    </div>
                   )}
 
                   {/* Desktop reservation bar */}
@@ -926,84 +846,6 @@ export function Landing() {
 // --------------------------------------------------------
 // SUB-COMPONENTS
 // --------------------------------------------------------
-
-function MobilePeriodSection({
-  title,
-  icon,
-  court,
-  courtIndex,
-  timeIntervals,
-  getSlotForCourtAndTime,
-  selectedSlotIds,
-  onToggleSlot,
-  getOpenPlaySession,
-  onOpenPlayClick,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  court: Court;
-  courtIndex: number;
-  timeIntervals: { start_time: string; end_time: string }[];
-  getSlotForCourtAndTime: (courtId: string, startTime: string, endTime: string) => TimeSlot | undefined;
-  selectedSlotIds: string[];
-  onToggleSlot: (slotId: string) => void;
-  getOpenPlaySession?: (courtId: string, startTime: string, endTime: string) => OpenPlaySession | undefined;
-  onOpenPlayClick?: (session: OpenPlaySession) => void;
-}) {
-  if (timeIntervals.length === 0) return null;
-  const accent = getCourtAccent(courtIndex);
-
-  return (
-    <div>
-      <div className="mb-2 flex items-center gap-2">
-        <span className="h-4 w-4">{icon}</span>
-        <span className="text-xs font-bold uppercase tracking-wider text-gold-400">
-          {title}
-        </span>
-        <div className="h-px flex-1 bg-forest-700/80" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {timeIntervals.map((interval) => {
-          const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
-          const openPlaySession = getOpenPlaySession?.(court.id, interval.start_time, interval.end_time);
-
-          if (!slot) {
-            return (
-              <div
-                key={`${court.id}-${interval.start_time}`}
-                className="flex h-11 select-none items-center justify-center rounded-xl border border-forest-800/60 bg-forest-950/60 text-xs text-forest-700"
-              >
-                {formatTimeRangeShort(interval.start_time, interval.end_time)} (N/A)
-              </div>
-            );
-          }
-
-          if (openPlaySession) {
-            return (
-              <OpenPlayPill
-                key={slot.id}
-                session={openPlaySession}
-                onClick={() => onOpenPlayClick?.(openPlaySession)}
-                accent={accent}
-              />
-            );
-          }
-
-          return (
-            <SlotPill
-              key={slot.id}
-              slot={slot}
-              isSelected={selectedSlotIds.includes(slot.id)}
-              onToggle={() => onToggleSlot(slot.id)}
-              accent={accent}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function DesktopPeriodSection({
   title,
