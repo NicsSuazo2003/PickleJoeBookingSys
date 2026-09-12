@@ -485,15 +485,15 @@ export function Landing() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <button
-                      onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
-                      disabled={weekOffset === 0}
-                      className="flex h-12 w-11 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30 sm:w-12"
-                      aria-label="Previous week"
-                    >
-                      <ChevronLeft className="h-5 w-5" />
-                    </button>
+                  <div className="flex items-center gap-1 sm:gap-2">
+  <button
+    onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
+    disabled={weekOffset === 0}
+    className="flex h-12 w-7 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30 sm:w-12"
+    aria-label="Previous week"
+  >
+    <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+  </button>
 
                     <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-2">
                       {weekDays.map((day) => {
@@ -558,12 +558,12 @@ export function Landing() {
                     </div>
 
                     <button
-                      onClick={() => setWeekOffset((w) => w + 1)}
-                      className="flex h-12 w-11 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 sm:w-12"
-                      aria-label="Next week"
-                    >
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
+  onClick={() => setWeekOffset((w) => w + 1)}
+  className="flex h-12 w-7 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 sm:w-12"
+  aria-label="Next week"
+>
+  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+</button>
                   </div>
                 </div>
 
