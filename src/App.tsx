@@ -18,6 +18,7 @@ import { OpenPlay } from '@/pages/OpenPlay';
 import { AdminLayout } from '@/components/layout/AdminLayout'; // ✅ ADD THIS
 import { useAuthStore } from '@/stores/authStore';
 import { IntroSplash } from '@/components/IntroSplash';
+import { isInAppBrowser } from '@/utils/browser';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -27,8 +28,27 @@ function ScrollToTop() {
   return null;
 }
 
+function useForceExternalBrowser() {
+  useEffect(() => {
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (!isAndroid || !isInAppBrowser()) return;
+
+    const alreadyTried = sessionStorage.getItem('triedExternalRedirect');
+    if (alreadyTried) return;
+    sessionStorage.setItem('triedExternalRedirect', '1');
+
+    const currentUrl = window.location.href;
+    const cleanUrl = currentUrl.replace(/^https?:\/\//, '');
+    const fallback = encodeURIComponent(currentUrl);
+    const intentUrl = `intent://${cleanUrl}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${fallback};end`;
+
+    window.location.href = intentUrl;
+  }, []);
+}
+
 export default function App() {
   const init = useAuthStore((s) => s.init);
+  useForceExternalBrowser();
 
   useEffect(() => {
     init();
