@@ -161,7 +161,7 @@ export function Dashboard() {
               <TrendingUp className="h-5 w-5 text-gold-400" />
               <h2 className="font-display text-lg font-bold text-cream">Revenue (Last 7 Days)</h2>
             </div>
-            <div className="flex h-48 items-end gap-2">
+            <div className="flex h-48 gap-2">
               {analytics.revenue_by_day.map((day) => {
                 const maxRev = Math.max(...analytics.revenue_by_day.map((d) => d.revenue), 1);
                 const heightPct = (day.revenue / maxRev) * 100;
