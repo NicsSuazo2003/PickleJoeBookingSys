@@ -133,11 +133,12 @@ export function Checkout() {
   };
 
   const copyGcash = () => {
-    const number = selectedMethod?.config?.account_number || displayNumber;
-    navigator.clipboard.writeText(number.replace(/\s/g, ''));
-    setCopiedGcash(true);
-    setTimeout(() => setCopiedGcash(false), 2000);
-  };
+  const number = selectedMethod?.config?.account_number;
+  if (!number) return;
+  navigator.clipboard.writeText(number.replace(/\s/g, ''));
+  setCopiedGcash(true);
+  setTimeout(() => setCopiedGcash(false), 2000);
+};
 
   const copyReference = () => {
     navigator.clipboard.writeText(currentBooking.reference_code);
@@ -148,8 +149,12 @@ export function Checkout() {
   const isExpired = timeLeft <= 0;
 
   // Get display values from selected method or fallback
-  const displayNumber = selectedMethod?.config?.account_number || settings?.gcash_number || APP_CONFIG.gcashNumber;
-  const displayAccountName = selectedMethod?.config?.account_name || settings?.gcash_account_name || APP_CONFIG.gcashAccountName;
+  const displayNumber = selectedMethod?.config?.account_number || '';
+const displayAccountName =
+  selectedMethod?.config?.account_name ||
+  (selectedMethod?.type === 'gcash'
+    ? settings?.gcash_account_name || APP_CONFIG.gcashAccountName
+    : '');
   const methodName = selectedMethod?.name || 'GCash';
   const methodIcon = selectedMethod?.icon || 'Smartphone';
   const IconComponent = ICON_MAP[methodIcon] || Smartphone;
@@ -235,20 +240,30 @@ export function Checkout() {
                   {methodName} Payment
                 </h2>
 
-                <div className="flex items-center justify-between rounded-lg border border-forest-500 bg-forest-800 p-2.5">
-                  <div>
-                    <p className="text-[10px] text-cream-muted">Send to</p>
-                    <p className="font-display text-sm font-bold text-cream">{displayNumber}</p>
-                    <p className="text-[10px] text-cream-muted">{displayAccountName}</p>
-                  </div>
-                  <button
-                    onClick={copyGcash}
-                    className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
-                  >
-                    {copiedGcash ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
+                {displayNumber && (
+  <div className="flex items-center justify-between rounded-lg border border-forest-500 bg-forest-800 p-2.5">
+    <div>
+      <p className="text-[10px] text-cream-muted">Send to</p>
+      <p className="font-display text-sm font-bold text-cream">{displayNumber}</p>
+      {displayAccountName && (
+        <p className="text-[10px] text-cream-muted">{displayAccountName}</p>
+      )}
+    </div>
+    <button
+      onClick={copyGcash}
+      className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
+    >
+      {copiedGcash ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
+  </div>
+)}
 
+{!displayNumber && displayAccountName && (
+  <div className="rounded-lg border border-forest-500 bg-forest-800 p-2.5">
+    <p className="text-[10px] text-cream-muted">Account Name</p>
+    <p className="font-display text-sm font-bold text-cream">{displayAccountName}</p>
+  </div>
+)}
                 {/* Show QR Code if available */}
                 {selectedMethod.config?.qr_image_url && (
                   <div className="mt-3 flex justify-center">
