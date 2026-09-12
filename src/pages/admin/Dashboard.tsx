@@ -108,12 +108,12 @@ export function Dashboard() {
     bg: 'bg-success/10',
   },
   {
-    label: 'Confirmed Bookings',
-    value: analytics?.confirmed_bookings ?? 0,
-    icon: CheckCircle2,
-    color: 'text-blue-400',
-    bg: 'bg-blue-500/10',
-  },
+  label: 'Completed Bookings',
+  value: analytics?.completed_bookings ?? 0,
+  icon: CheckCircle2,
+  color: 'text-blue-400',
+  bg: 'bg-blue-500/10',
+},
   {
     label: 'Pending Payments',
     value: analytics?.pending_payments ?? 0,
