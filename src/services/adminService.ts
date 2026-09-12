@@ -38,29 +38,17 @@ function normalizeAnalytics(raw: any): Analytics {
     );
   }
 
-  const revenueByDay = rawRevenueByDay.map((d: any) => ({
-    date: d.date || '',
-    revenue: Number(d.revenue ?? 0),
-    bookings: 0,
-  }));
-
-  const rawBookingsByDay =
-    data.bookingsByDay ?? data.bookings_by_day ?? [];
-
-  rawBookingsByDay.forEach((bd: any) => {
-    const existing = revenueByDay.find((r: any) => r.date === bd.date);
-    if (existing) {
-      existing.bookings = Number(bd.bookings ?? 0);
-    } else {
-      revenueByDay.push({
-        date: bd.date || '',
-        revenue: 0,
-        bookings: Number(bd.bookings ?? 0),
-      });
-    }
-  });
-
-  revenueByDay.sort((a: any, b: any) => a.date.localeCompare(b.date));
+  // ✅ Only use actual revenue-bearing days here. Do NOT merge in
+  // bookingsByDay dates — those can include days that have bookings but
+  // $0 confirmed/completed revenue (e.g. still payment_submitted), which
+  // used to show up as extra near-zero-height bars on the revenue chart
+  // and made the x-axis look non-contiguous (duplicate weekday labels).
+  const revenueByDay = rawRevenueByDay
+    .map((d: any) => ({
+      date: d.date || '',
+      revenue: Number(d.revenue ?? 0),
+    }))
+    .sort((a: any, b: any) => a.date.localeCompare(b.date));
 
   return {
     total_bookings: Number(data.totalBookings ?? data.total_bookings ?? 0),

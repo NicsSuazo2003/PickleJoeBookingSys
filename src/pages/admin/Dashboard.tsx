@@ -108,12 +108,16 @@ export function Dashboard() {
     bg: 'bg-success/10',
   },
   {
-  label: 'Completed Bookings',
-  value: analytics?.completed_bookings ?? 0,
-  icon: CheckCircle2,
-  color: 'text-blue-400',
-  bg: 'bg-blue-500/10',
-},
+    // ✅ Changed from "Confirmed Bookings" — the admin flow here goes
+    // straight from payment_submitted to completed, so confirmed_bookings
+    // stays 0 in practice. completed_bookings is the number that
+    // actually accumulates and matters day to day.
+    label: 'Completed Bookings',
+    value: analytics?.completed_bookings ?? 0,
+    icon: CheckCircle2,
+    color: 'text-blue-400',
+    bg: 'bg-blue-500/10',
+  },
   {
     label: 'Pending Payments',
     value: analytics?.pending_payments ?? 0,
@@ -159,14 +163,20 @@ export function Dashboard() {
           <div className="mb-8 card p-6">
             <div className="mb-4 flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-gold-400" />
-              <h2 className="font-display text-lg font-bold text-cream">Revenue (Last 7 Days)</h2>
+              <h2 className="font-display text-lg font-bold text-cream">
+                Revenue Trend ({analytics.revenue_by_day.length} day{analytics.revenue_by_day.length !== 1 ? 's' : ''} with activity)
+              </h2>
             </div>
-            <div className="flex h-48 gap-2">
+            <div className="flex h-56 items-stretch gap-2">
               {analytics.revenue_by_day.map((day) => {
                 const maxRev = Math.max(...analytics.revenue_by_day.map((d) => d.revenue), 1);
                 const heightPct = (day.revenue / maxRev) * 100;
                 return (
-                  <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
+                  <div key={day.date} className="flex flex-1 flex-col items-center gap-1.5">
+                    {/* ✅ Visible amount, not just a hover-only title tooltip */}
+                    <span className="text-[10px] font-semibold text-gold-300 whitespace-nowrap">
+                      {day.revenue > 0 ? formatCurrency(day.revenue) : '—'}
+                    </span>
                     <div className="flex w-full flex-1 items-end">
                       <div
                         className="w-full rounded-t-lg bg-gradient-to-t from-gold-600 to-gold-400 transition-all hover:from-gold-500 hover:to-gold-300"
@@ -174,8 +184,11 @@ export function Dashboard() {
                         title={formatCurrency(day.revenue)}
                       />
                     </div>
-                    <span className="text-[10px] text-cream-muted">
-                      {new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
+                    {/* ✅ Full date (e.g. "Sep 5"), not just weekday — avoids
+                        duplicate "Sat"/"Sun" labels when dates aren't
+                        consecutive (gaps in activity across weeks) */}
+                    <span className="text-[10px] text-cream-muted whitespace-nowrap">
+                      {new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
                 );
