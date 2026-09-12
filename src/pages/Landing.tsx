@@ -633,8 +633,8 @@ export function Landing() {
                     <>
                       {/* MOBILE VIEW: Horizontal Court Tabs + 2-Column Slot Layout */}
                       <div className="block md:hidden">
-                        <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1">
-                          {courts.map((court, idx) => {
+  <div className="sticky top-20 z-30 -mx-4 mb-4 flex items-center gap-2 overflow-x-auto bg-forest-950/95 px-4 py-2 backdrop-blur-md">
+    {courts.map((court, idx) => {
   const accent = getCourtAccent(idx);
   const isCourtActive = (activeMobileCourtId || courts[0].id) === court.id;
   return (
