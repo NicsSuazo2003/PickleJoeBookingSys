@@ -65,7 +65,7 @@ export function Checkout() {
     useEffect(() => {
     loadSettings();          // ← loadPaymentMethods() call removed
   }, [loadSettings]);
-  
+
   useEffect(() => {
     if (!currentBooking) {
       navigate('/booking');
@@ -106,6 +106,7 @@ export function Checkout() {
   };
 
   const handleUpload = async () => {
+    if (uploading) return; 
     // ✅ Reference is required - validate it first
     if (!paymentRef.trim()) {
       setUploadError('Reference number is required');
