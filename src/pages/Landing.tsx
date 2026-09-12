@@ -258,7 +258,7 @@ export function Landing() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative flex min-h-screen items-center overflow-hidden pt-20">
+      <section className="relative flex min-h-screen items-start pt-28 sm:items-center sm:pt-20 overflow-hidden">
         <div className="absolute inset-0">
           <img
             src={COURT_IMAGES.hero}
@@ -269,7 +269,7 @@ export function Landing() {
           <div className="absolute inset-0 bg-grid opacity-25" />
         </div>
 
-        <div className="container-page relative z-10 py-16 sm:py-20">
+        <div className="container-page relative z-10 py-8 sm:py-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
