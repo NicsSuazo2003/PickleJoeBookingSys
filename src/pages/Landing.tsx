@@ -697,77 +697,77 @@ export function Landing() {
                       </div>
 
                       {/* DESKTOP/TABLET VIEW: Multi-Column Table */}
-                      <div className="hidden md:block">
-                        <div className="max-h-[75vh] overflow-y-auto overflow-x-auto rounded-2xl border border-forest-700/60 bg-forest-950/40 p-4">
-                          <div className="min-w-[580px]">
-                            {/* Sticky Court Column Headers */}
-                            <div
-                              className="sticky top-0 z-30 -mx-4 -mt-4 mb-4 border-b border-forest-700 bg-forest-900 px-4 py-3 text-center text-xs font-extrabold uppercase tracking-wider text-gold-400 shadow-md backdrop-blur-md"
-                              style={{
-                                display: 'grid',
-                                gridTemplateColumns: `repeat(${courts.length}, minmax(80px, 1fr))`,
-                                gap: '0.75rem',
-                              }}
-                            >
-                              {courts.map((court, idx) => {
-                                const accent = getCourtAccent(idx);
-                                return (
-                                  <div
-                                    key={court.id}
-                                    className={`flex items-center justify-center gap-2 truncate ${accent.header}`}
-                                  >
-                                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${accent.dot}`} />
-                                    <span className="truncate font-bold">{court.name}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
+<div className="hidden md:block">
+  <div className="max-h-[75vh] overflow-y-auto overflow-x-auto rounded-2xl border border-forest-700/60 bg-forest-950/40">
+    <div className="min-w-[580px] p-4">
+      {/* Sticky Court Column Headers */}
+      <div
+        className="sticky -top-4 z-30 -mx-4 -mt-4 mb-4 border-b border-forest-700 bg-forest-900 px-4 py-3 text-center text-xs font-extrabold uppercase tracking-wider text-gold-400 shadow-md backdrop-blur-md"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${courts.length}, minmax(80px, 1fr))`,
+          gap: '0.75rem',
+        }}
+      >
+        {courts.map((court, idx) => {
+          const accent = getCourtAccent(idx);
+          return (
+            <div
+              key={court.id}
+              className={`flex items-center justify-center gap-2 truncate ${accent.header}`}
+            >
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${accent.dot}`} />
+              <span className="truncate font-bold">{court.name}</span>
+            </div>
+          );
+        })}
+      </div>
 
-                            {/* Period Sections */}
-                            <div className="space-y-6">
-                              {morningTimes.length > 0 && (
-                                <DesktopPeriodSection
-                                  title="MORNING"
-                                  icon={<CloudSun className="h-4 w-4 text-gold-400" />}
-                                  courts={courts}
-                                  timeIntervals={morningTimes}
-                                  getSlotForCourtAndTime={getSlotForCourtAndTime}
-                                  selectedSlotIds={selectedSlotIds}
-                                  onToggleSlot={toggleSlot}
-                                  getOpenPlaySession={getOpenPlaySessionForSlot}
-                                  onOpenPlayClick={handleOpenPlayClick}
-                                />
-                              )}
-                              {afternoonTimes.length > 0 && (
-                                <DesktopPeriodSection
-                                  title="AFTERNOON"
-                                  icon={<Sun className="h-4 w-4 text-gold-400" />}
-                                  courts={courts}
-                                  timeIntervals={afternoonTimes}
-                                  getSlotForCourtAndTime={getSlotForCourtAndTime}
-                                  selectedSlotIds={selectedSlotIds}
-                                  onToggleSlot={toggleSlot}
-                                  getOpenPlaySession={getOpenPlaySessionForSlot}
-                                  onOpenPlayClick={handleOpenPlayClick}
-                                />
-                              )}
-                              {eveningTimes.length > 0 && (
-                                <DesktopPeriodSection
-                                  title="EVENING"
-                                  icon={<Moon className="h-4 w-4 text-gold-400" />}
-                                  courts={courts}
-                                  timeIntervals={eveningTimes}
-                                  getSlotForCourtAndTime={getSlotForCourtAndTime}
-                                  selectedSlotIds={selectedSlotIds}
-                                  onToggleSlot={toggleSlot}
-                                  getOpenPlaySession={getOpenPlaySessionForSlot}
-                                  onOpenPlayClick={handleOpenPlayClick}
-                                />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+      {/* Period Sections */}
+      <div className="space-y-6">
+        {morningTimes.length > 0 && (
+          <DesktopPeriodSection
+            title="MORNING"
+            icon={<CloudSun className="h-4 w-4 text-gold-400" />}
+            courts={courts}
+            timeIntervals={morningTimes}
+            getSlotForCourtAndTime={getSlotForCourtAndTime}
+            selectedSlotIds={selectedSlotIds}
+            onToggleSlot={toggleSlot}
+            getOpenPlaySession={getOpenPlaySessionForSlot}
+            onOpenPlayClick={handleOpenPlayClick}
+          />
+        )}
+        {afternoonTimes.length > 0 && (
+          <DesktopPeriodSection
+            title="AFTERNOON"
+            icon={<Sun className="h-4 w-4 text-gold-400" />}
+            courts={courts}
+            timeIntervals={afternoonTimes}
+            getSlotForCourtAndTime={getSlotForCourtAndTime}
+            selectedSlotIds={selectedSlotIds}
+            onToggleSlot={toggleSlot}
+            getOpenPlaySession={getOpenPlaySessionForSlot}
+            onOpenPlayClick={handleOpenPlayClick}
+          />
+        )}
+        {eveningTimes.length > 0 && (
+          <DesktopPeriodSection
+            title="EVENING"
+            icon={<Moon className="h-4 w-4 text-gold-400" />}
+            courts={courts}
+            timeIntervals={eveningTimes}
+            getSlotForCourtAndTime={getSlotForCourtAndTime}
+            selectedSlotIds={selectedSlotIds}
+            onToggleSlot={toggleSlot}
+            getOpenPlaySession={getOpenPlaySessionForSlot}
+            onOpenPlayClick={handleOpenPlayClick}
+          />
+        )}
+      </div>
+    </div>
+  </div>
+</div>
                     </>
                   )}
 
