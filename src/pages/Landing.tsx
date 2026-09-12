@@ -302,12 +302,7 @@ export function Landing() {
               </motion.button>
             )}
 
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/10 px-3.5 py-1.5 backdrop-blur-md sm:mb-6 sm:px-4">
-              <Sparkles className="h-4 w-4 text-gold-400" />
-              <span className="text-xs font-medium text-gold-300 sm:text-sm">
-                Premium Pickleball Courts in the City
-              </span>
-            </div>
+           
 
             <h1 className="text-4xl font-bold leading-[1.1] tracking-tight text-cream sm:text-6xl lg:text-7xl">
               Center<span className="text-gold-400">Court</span>
