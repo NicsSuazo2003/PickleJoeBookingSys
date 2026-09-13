@@ -6,7 +6,9 @@ import {
   CheckCircle2,
   XCircle,
   Eye,
+  Plus,
 } from 'lucide-react';
+import { StaffCreateBookingModal } from './StaffCreateBookingModal';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { StaffLayout } from '@/components/layout/StaffLayout';
 import { Button } from '@/components/ui/Button';
@@ -32,6 +34,7 @@ const statusOptions: { value: BookingStatus | 'all'; label: string }[] = [
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'rejected', label: 'Rejected' },
+  { value: 'expired', label: 'Expired' },   // ✅ ADD THIS
 ];
 
 export function Bookings() {
@@ -44,7 +47,7 @@ export function Bookings() {
   const updateBookingStatus = useAdminStore((state) => state.updateBookingStatus);
   // ✅ Needed to refresh Dashboard's stat cards after a status change
   const loadAnalytics = useAdminStore((state) => state.loadAnalytics);
-
+const [showCreateModal, setShowCreateModal] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
   const [courtFilter, setCourtFilter] = useState('all');
@@ -97,10 +100,19 @@ export function Bookings() {
   return (
     <Layout>
       <div className="container-page py-8">
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-cream">Bookings</h1>
-          <p className="mt-1 text-sm text-cream-muted">Manage and update all court bookings</p>
-        </div>
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 className="font-display text-3xl font-bold text-cream">Bookings</h1>
+    <p className="mt-1 text-sm text-cream-muted">Manage and update all court bookings</p>
+  </div>
+  <Button
+    size="md"
+    leftIcon={<Plus className="h-4 w-4" />}
+    onClick={() => setShowCreateModal(true)}
+  >
+    New Booking
+  </Button>
+</div>
 
         <div className="mb-6 card p-4">
           <div className="grid gap-3 sm:grid-cols-3">
@@ -335,6 +347,11 @@ export function Bookings() {
           </Modal>
         )}
       </AnimatePresence>
+      <StaffCreateBookingModal
+  isOpen={showCreateModal}
+  onClose={() => setShowCreateModal(false)}
+  onCreated={() => loadBookings()}
+/>
     </Layout>
   );
 }

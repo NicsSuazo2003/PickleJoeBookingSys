@@ -2,16 +2,31 @@ import { create } from 'zustand';
 import type { Analytics, Booking, BookingStatus, Court, BlockedDate, PaymentMethod } from '@/types';
 import { adminService } from '@/services/adminService';
 
+// ✅ Type for the manual booking payload — matches adminService.createManualBooking
+export interface ManualBookingPayload {
+  court_id: string;
+  date: string;
+  slots: { start_time: string; end_time: string }[];
+  customer_name: string;
+  customer_email?: string;
+  customer_phone?: string;
+  notes?: string;
+  payment_mode: 'cash' | 'gcash' | 'pay_later' | 'free';
+  total_amount?: number;
+  staff_notes?: string;
+  send_confirmation?: boolean;
+}
+
 interface AdminStoreState {
   analytics: Analytics | null;
   bookings: Booking[];
   courts: Court[];
   blockedDates: BlockedDate[];
-  paymentMethods: PaymentMethod[]; // ✅ Add this
+  paymentMethods: PaymentMethod[];
   loadingAnalytics: boolean;
   loadingBookings: boolean;
   loadingCourts: boolean;
-  loadingPaymentMethods: boolean; // ✅ Add this
+  loadingPaymentMethods: boolean;
   error: string | null;
 
   loadAnalytics: () => Promise<void>;
@@ -22,13 +37,15 @@ interface AdminStoreState {
     search?: string;
   }) => Promise<void>;
   updateBookingStatus: (bookingId: string, status: BookingStatus) => Promise<void>;
+  // ✅ NEW: staff/admin manual booking
+  createManualBooking: (payload: ManualBookingPayload) => Promise<Booking>;
   loadCourts: () => Promise<void>;
   updateCourt: (court: Court) => Promise<void>;
   loadBlockedDates: (courtId?: string) => Promise<void>;
   addBlockedDate: (blocked: Omit<BlockedDate, 'id'>) => Promise<void>;
   removeBlockedDate: (id: string) => Promise<void>;
-  loadPaymentMethods: () => Promise<void>; // ✅ Add this
-  updatePaymentMethods: (methods: PaymentMethod[]) => Promise<void>; // ✅ Add this
+  loadPaymentMethods: () => Promise<void>;
+  updatePaymentMethods: (methods: PaymentMethod[]) => Promise<void>;
 }
 
 export const useAdminStore = create<AdminStoreState>((set, get) => ({
@@ -36,11 +53,11 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
   bookings: [],
   courts: [],
   blockedDates: [],
-  paymentMethods: [], // ✅ Add this
+  paymentMethods: [],
   loadingAnalytics: false,
   loadingBookings: false,
   loadingCourts: false,
-  loadingPaymentMethods: false, // ✅ Add this
+  loadingPaymentMethods: false,
   error: null,
 
   loadAnalytics: async () => {
@@ -70,16 +87,32 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
   },
 
   updateBookingStatus: async (bookingId, status) => {
-  try {
-    const updated = await adminService.updateBookingStatus(bookingId, status);
-    set((state) => ({
-      bookings: state.bookings.map((b) => (b.id === bookingId ? updated : b)),
-    }));
-  } catch (err) {
-    set({ error: err instanceof Error ? err.message : 'Failed to update booking' });
-    throw err; // let caller know it failed
-  }
-},
+    try {
+      const updated = await adminService.updateBookingStatus(bookingId, status);
+      set((state) => ({
+        bookings: state.bookings.map((b) => (b.id === bookingId ? updated : b)),
+      }));
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to update booking' });
+      throw err;
+    }
+  },
+
+  // ✅ NEW: Create a booking on behalf of a customer (admin or staff)
+  createManualBooking: async (payload) => {
+    try {
+      const booking = await adminService.createManualBooking(payload);
+      // Prepend so it shows up first in the list
+      set((state) => ({ bookings: [booking, ...state.bookings] }));
+      return booking;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Failed to create booking',
+      });
+      throw err;
+    }
+  },
+
   loadCourts: async () => {
     set({ loadingCourts: true, error: null });
     try {
@@ -133,7 +166,6 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
     }
   },
 
-  // ✅ Load payment methods from settings
   loadPaymentMethods: async () => {
     set({ loadingPaymentMethods: true, error: null });
     try {
@@ -150,7 +182,6 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
     }
   },
 
-  // ✅ Update payment methods
   updatePaymentMethods: async (methods: PaymentMethod[]) => {
     try {
       await adminService.updateSettings({

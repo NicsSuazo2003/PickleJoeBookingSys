@@ -259,4 +259,39 @@ async updateSettings(payload: {
       method: 'DELETE',
     });
   },
+
+  async createManualBooking(payload: {
+  court_id: string;
+  date: string;
+  slots: { start_time: string; end_time: string }[];
+  customer_name: string;
+  customer_email?: string;
+  customer_phone?: string;
+  notes?: string;
+  payment_mode: 'cash' | 'gcash' | 'pay_later' | 'free';
+  total_amount?: number;
+  staff_notes?: string;
+  send_confirmation?: boolean;
+}): Promise<Booking> {
+  const res = await apiRequest<any>('/api/admin/bookings/manual', {
+    method: 'POST',
+    body: JSON.stringify({
+      courtId: payload.court_id,
+      date: payload.date,
+      slots: payload.slots.map(s => ({
+        startTime: s.start_time,
+        endTime: s.end_time,
+      })),
+      customerName: payload.customer_name,
+      customerEmail: payload.customer_email || null,
+      customerPhone: payload.customer_phone || null,
+      notes: payload.notes || null,
+      paymentMode: payload.payment_mode,
+      totalAmount: payload.total_amount ?? null,
+      staffNotes: payload.staff_notes || null,
+      sendConfirmation: payload.send_confirmation ?? false,
+    }),
+  });
+  return normalizeBooking(res?.data ?? res);
+},
 };
