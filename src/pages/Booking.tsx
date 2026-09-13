@@ -324,17 +324,7 @@ if (selectedSlots.length === 0) {
                   {...register('notes')}
                 />
 
-                {/* Inline submit — hidden on mobile in favor of the sticky bar */}
-                <Button
-                  type="submit"
-                  size="lg"
-                  fullWidth
-                  isLoading={submitting}
-                  rightIcon={<ArrowRight className="h-5 w-5" />}
-                  className="hidden lg:flex"
-                >
-                  Proceed to Checkout
-                </Button>
+              
 
                 {submitError && (
                   <p className="rounded-lg bg-error/10 p-2 text-xs text-error">{submitError}</p>
