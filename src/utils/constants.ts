@@ -70,6 +70,14 @@ export const BOOKING_STATUS_META: Record<
     border: 'border-error/40',
     dot: 'bg-error',
   },
+  // ✅ NEW — added for expired pending payments
+  expired: {
+    label: 'Expired',
+    color: 'text-cream-muted',
+    bg: 'bg-forest-600/30',
+    border: 'border-forest-500/50',
+    dot: 'bg-forest-400',
+  },
 };
 
 export const COURT_IMAGES = {

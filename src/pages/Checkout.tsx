@@ -50,9 +50,18 @@ export function Checkout() {
   const { currentBooking, reset } = useBookingStore();
   const settings = useClientStore((state) => state.settings);
   const loadSettings = useClientStore((state) => state.loadSettings);
-  const paymentMethods = settings?.payment_methods ?? [];   // ← replaces the two useAdminStore lines
+  const paymentMethods = settings?.payment_methods ?? [];
 
-  const [timeLeft, setTimeLeft] = useState(APP_CONFIG.paymentTimerSeconds);
+  // ✅ Timer now derives from the actual backend expiry time, not a hardcoded 15 min
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    if (!currentBooking?.payment_expires_at) {
+      return APP_CONFIG.paymentTimerSeconds;
+    }
+    const expiresAt = new Date(currentBooking.payment_expires_at).getTime();
+    const secondsLeft = Math.floor((expiresAt - Date.now()) / 1000);
+    return Math.max(0, secondsLeft);
+  });
+
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [paymentRef, setPaymentRef] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -63,8 +72,8 @@ export function Checkout() {
   const [showDetails, setShowDetails] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
 
-    useEffect(() => {
-    loadSettings();          // ← loadPaymentMethods() call removed
+  useEffect(() => {
+    loadSettings();
   }, [loadSettings]);
 
   useEffect(() => {
@@ -73,11 +82,32 @@ export function Checkout() {
     }
   }, [currentBooking, navigate]);
 
+  // ✅ If the backend already marked this booking expired, kick them back to booking
   useEffect(() => {
-    if (timeLeft <= 0) return;
-    const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+    if (currentBooking?.status === 'expired') {
+      navigate('/booking');
+    }
+  }, [currentBooking?.status, navigate]);
+
+  // ✅ Countdown derived from the real expiry timestamp every second
+  useEffect(() => {
+    if (!currentBooking?.payment_expires_at) {
+      // No expiry set — fall back to local countdown
+      if (timeLeft <= 0) return;
+      const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+      return () => clearInterval(timer);
+    }
+
+    const tick = () => {
+      const expiresAt = new Date(currentBooking.payment_expires_at!).getTime();
+      const secondsLeft = Math.floor((expiresAt - Date.now()) / 1000);
+      setTimeLeft(Math.max(0, secondsLeft));
+    };
+
+    tick(); // run immediately so it doesn't briefly show a stale value
+    const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [currentBooking?.payment_expires_at]);
 
   // Set default payment method when methods load
   useEffect(() => {
@@ -107,20 +137,18 @@ export function Checkout() {
   };
 
   const handleUpload = async () => {
-    if (uploading) return; 
-    // ✅ Reference is required - validate it first
+    if (uploading) return;
     if (!paymentRef.trim()) {
       setUploadError('Reference number is required');
       return;
     }
-    
-    // ✅ Screenshot is optional - we can proceed without it
+
     setUploading(true);
     setUploadError(null);
     try {
       await bookingService.uploadPayment(
         currentBooking.id,
-        screenshot, // ✅ Can be null - screenshot is optional
+        screenshot,
         paymentRef.trim()
       );
       navigate('/success');
@@ -132,12 +160,12 @@ export function Checkout() {
   };
 
   const copyGcash = () => {
-  const number = selectedMethod?.config?.account_number;
-  if (!number) return;
-  navigator.clipboard.writeText(number.replace(/\s/g, ''));
-  setCopiedGcash(true);
-  setTimeout(() => setCopiedGcash(false), 2000);
-};
+    const number = selectedMethod?.config?.account_number;
+    if (!number) return;
+    navigator.clipboard.writeText(number.replace(/\s/g, ''));
+    setCopiedGcash(true);
+    setTimeout(() => setCopiedGcash(false), 2000);
+  };
 
   const copyReference = () => {
     navigator.clipboard.writeText(currentBooking.reference_code);
@@ -147,18 +175,17 @@ export function Checkout() {
 
   const isExpired = timeLeft <= 0;
 
-  // Get display values from selected method or fallback
+  // Display values from selected method or fallback
   const displayNumber = selectedMethod?.config?.account_number || '';
-const displayAccountName =
-  selectedMethod?.config?.account_name ||
-  (selectedMethod?.type === 'gcash'
-    ? settings?.gcash_account_name || APP_CONFIG.gcashAccountName
-    : '');
+  const displayAccountName =
+    selectedMethod?.config?.account_name ||
+    (selectedMethod?.type === 'gcash'
+      ? settings?.gcash_account_name || APP_CONFIG.gcashAccountName
+      : '');
   const methodName = selectedMethod?.name || 'GCash';
   const methodIcon = selectedMethod?.icon || 'Smartphone';
   const IconComponent = ICON_MAP[methodIcon] || Smartphone;
 
-  // Get enabled payment methods
   const enabledMethods = paymentMethods.filter((m: PaymentMethod) => m.enabled);
 
   return (
@@ -179,7 +206,7 @@ const displayAccountName =
           <p className="text-xs text-cream-muted">Complete your payment to confirm your booking</p>
         </div>
 
-                <div className="grid gap-4 md:gap-6 lg:grid-cols-5">
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-5">
           {/* Left: Payment Instructions */}
           <div className="space-y-3 lg:col-span-3">
             {isInAppBrowser() && (
@@ -251,29 +278,30 @@ const displayAccountName =
                 </h2>
 
                 {displayNumber && (
-  <div className="flex items-center justify-between rounded-lg border border-forest-500 bg-forest-800 p-2.5">
-    <div>
-      <p className="text-[10px] text-cream-muted">Send to</p>
-      <p className="font-display text-sm font-bold text-cream">{displayNumber}</p>
-      {displayAccountName && (
-        <p className="text-[10px] text-cream-muted">{displayAccountName}</p>
-      )}
-    </div>
-    <button
-      onClick={copyGcash}
-      className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
-    >
-      {copiedGcash ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-    </button>
-  </div>
-)}
+                  <div className="flex items-center justify-between rounded-lg border border-forest-500 bg-forest-800 p-2.5">
+                    <div>
+                      <p className="text-[10px] text-cream-muted">Send to</p>
+                      <p className="font-display text-sm font-bold text-cream">{displayNumber}</p>
+                      {displayAccountName && (
+                        <p className="text-[10px] text-cream-muted">{displayAccountName}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={copyGcash}
+                      className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
+                    >
+                      {copiedGcash ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                )}
 
-{!displayNumber && displayAccountName && (
-  <div className="rounded-lg border border-forest-500 bg-forest-800 p-2.5">
-    <p className="text-[10px] text-cream-muted">Account Name</p>
-    <p className="font-display text-sm font-bold text-cream">{displayAccountName}</p>
-  </div>
-)}
+                {!displayNumber && displayAccountName && (
+                  <div className="rounded-lg border border-forest-500 bg-forest-800 p-2.5">
+                    <p className="text-[10px] text-cream-muted">Account Name</p>
+                    <p className="font-display text-sm font-bold text-cream">{displayAccountName}</p>
+                  </div>
+                )}
+
                 {/* Show QR Code if available */}
                 {selectedMethod.config?.qr_image_url && (
                   <div className="mt-3 flex justify-center">
@@ -297,7 +325,7 @@ const displayAccountName =
                   </span>
                 </div>
 
-                               <div className="mt-2 flex items-center gap-2 rounded-lg bg-forest-800 p-2">
+                <div className="mt-2 flex items-center gap-2 rounded-lg bg-forest-800 p-2">
                   <span className="text-[10px] text-cream-muted">Ref:</span>
                   <span className="font-mono text-xs font-bold text-gold-400">
                     {currentBooking.reference_code}
@@ -336,7 +364,7 @@ const displayAccountName =
                 <span className="text-red-400">*</span>
                 Reference Number
               </h2>
-              
+
               <div className="mt-2">
                 <input
                   type="text"

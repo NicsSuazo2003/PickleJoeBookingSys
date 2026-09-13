@@ -4,7 +4,8 @@ export type BookingStatus =
   | 'confirmed'
   | 'completed'
   | 'cancelled'
-  | 'rejected';
+  | 'rejected'
+  | 'expired';
 
 export type SlotType = 'standard' | 'fixed_2hr';
 
@@ -43,7 +44,7 @@ export interface TimeSlot {
 }
 
 export interface BookingSlotItem {
-  id: string;           // ✅ Add this
+  id: string;
   slot_id: string;
   start_time: string;
   end_time: string;
@@ -72,7 +73,7 @@ export interface Booking {
   status: BookingStatus;
   payment_screenshot_url?: string | null;
   payment_reference?: string;
-   payment_expires_at?: string | null;
+  payment_expires_at?: string | null;
   gcash_number: string;
   created_at: string;
   updated_at: string;
@@ -89,15 +90,15 @@ export interface SlotSelection {
   is_peak: boolean;
 }
 
-// src/types/index.ts
 export interface BlockedDate {
   id: string;
   court_id: string;
   date: string;
   reason: string;
-  startTime?: string | null;  // ✅ Add this
-  endTime?: string | null;    // ✅ Add this
+  startTime?: string | null;
+  endTime?: string | null;
 }
+
 export interface PricingRule {
   court_id: string;
   peak_start: string;
@@ -134,18 +135,18 @@ export interface PaymentMethod {
   sort_order: number;
 }
 
-// src/types/index.ts
 export interface AdminUser {
   id: string;
   email: string;
   name: string;
   phone?: string;
-  role: 'admin' | 'staff';  // ✅ Already has this
+  role: 'admin' | 'staff';
   avatar?: string;
   createdAt?: string;
   bookingsCount?: number;
   status?: string;
 }
+
 export interface ClientSettings {
   id: string;
   name: string;
@@ -155,7 +156,7 @@ export interface ClientSettings {
   accent_color: string;
   gcash_number?: string | null;
   gcash_account_name?: string | null;
-   payment_methods?: PaymentMethod[];
+  payment_methods?: PaymentMethod[];
 }
 
 export type AdminView = 'calendar' | 'list';
