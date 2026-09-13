@@ -31,7 +31,7 @@ const monthNames = [
 
 export function Dashboard() {
   const analytics = useAdminStore((state) => state.analytics);
-  const bookings = useAdminStore((state) => state.bookings || []); // ✅ Ensure array
+  const bookings = useAdminStore((state) => state.bookings || []);
   const loadingAnalytics = useAdminStore((state) => state.loadingAnalytics);
   const loadingBookings = useAdminStore((state) => state.loadingBookings);
   const loadAnalytics = useAdminStore((state) => state.loadAnalytics);
@@ -50,20 +50,19 @@ export function Dashboard() {
   const month = calendarDate.getMonth();
   const weeks = getMonthMatrix(year, month);
 
-  // ✅ Filter out undefined/null bookings when grouping by date
+  // Group bookings by date
   const bookingsByDate = new Map<string, Booking[]>();
   bookings.forEach((b) => {
-    if (!b || !b.date) return; // Skip invalid bookings
+    if (!b || !b.date) return;
     const existing = bookingsByDate.get(b.date) ?? [];
     existing.push(b);
     bookingsByDate.set(b.date, existing);
   });
 
   const selectedDateBookings = selectedDate
-    ? (bookingsByDate.get(selectedDate) ?? []).filter(b => b) // Filter out undefined
+    ? (bookingsByDate.get(selectedDate) ?? []).filter(b => b)
     : [];
 
-  // ✅ Helper to format slot time (uses snake_case)
   const formatSlotTime = (slot: any): string => {
     if (!slot) return '?';
     const start = slot.start_time || '?';
@@ -71,13 +70,6 @@ export function Dashboard() {
     return `${start}-${end}`;
   };
 
-  // ✅ Helper to get slot start time
-  const getSlotStartTime = (slot: any): string => {
-    if (!slot) return 'N/A';
-    return slot.start_time || 'N/A';
-  };
-
-  // ✅ Helper to safely get customer first name
   const getCustomerFirstName = (booking: any): string => {
     if (!booking) return 'Unknown';
     if (!booking.customer) return 'Unknown';
@@ -85,7 +77,6 @@ export function Dashboard() {
     return booking.customer.name.split(' ')[0] || 'Unknown';
   };
 
-  // ✅ Helper to safely get customer full name
   const getCustomerName = (booking: any): string => {
     if (!booking) return 'Unknown';
     if (!booking.customer) return 'Unknown';
@@ -93,49 +84,48 @@ export function Dashboard() {
   };
 
   const statCards = [
-  {
-    label: 'Total Bookings',
-    value: analytics?.total_bookings ?? 0,
-    icon: CalendarDays,
-    color: 'text-gold-400',
-    bg: 'bg-gold-400/10',
-  },
-  {
-    label: 'Total Revenue',
-    value: formatCurrency(analytics?.total_revenue ?? 0),
-    icon: DollarSign,
-    color: 'text-success',
-    bg: 'bg-success/10',
-  },
-  {
-    // ✅ Changed from "Confirmed Bookings" — the admin flow here goes
-    // straight from payment_submitted to completed, so confirmed_bookings
-    // stays 0 in practice. completed_bookings is the number that
-    // actually accumulates and matters day to day.
-    label: 'Completed Bookings',
-    value: analytics?.completed_bookings ?? 0,
-    icon: CheckCircle2,
-    color: 'text-blue-400',
-    bg: 'bg-blue-500/10',
-  },
-  {
-    label: 'Pending Payments',
-    value: analytics?.pending_payments ?? 0,
-    icon: Clock,
-    color: 'text-warning',
-    bg: 'bg-warning/10',
-  },
-];
+    {
+      label: 'Total Bookings',
+      value: analytics?.total_bookings ?? 0,
+      icon: CalendarDays,
+      color: 'text-gold-400',
+      bg: 'bg-gold-400/10',
+    },
+    {
+      label: 'Total Revenue',
+      value: formatCurrency(analytics?.total_revenue ?? 0),
+      icon: DollarSign,
+      color: 'text-success',
+      bg: 'bg-success/10',
+    },
+    {
+      label: 'Completed Bookings',
+      value: analytics?.completed_bookings ?? 0,
+      icon: CheckCircle2,
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/10',
+    },
+    {
+      label: 'Pending Payments',
+      value: analytics?.pending_payments ?? 0,
+      icon: Clock,
+      color: 'text-warning',
+      bg: 'bg-warning/10',
+    },
+  ];
+
   return (
     <AdminLayout>
-      <div className="container-page py-8">
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-cream">Dashboard</h1>
-          <p className="mt-1 text-sm text-cream-muted">Overview of your court bookings and revenue</p>
+      <div className="container-page py-6 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="font-display text-2xl font-bold text-cream sm:text-3xl">Dashboard</h1>
+          <p className="mt-1 text-xs text-cream-muted sm:text-sm">
+            Overview of your court bookings and revenue
+          </p>
         </div>
 
         {/* Stats */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid gap-3 sm:mb-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
           {statCards.map((stat, i) => {
             const Icon = stat.icon;
             return (
@@ -144,15 +134,15 @@ export function Dashboard() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="card p-5"
+                className="card p-4 sm:p-5"
               >
                 <div className="flex items-center justify-between">
-                  <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.bg}`}>
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl sm:h-11 sm:w-11 ${stat.bg}`}>
                     <Icon className={`h-5 w-5 ${stat.color}`} />
                   </div>
                 </div>
-                <p className="mt-3 text-2xl font-bold text-cream">{stat.value}</p>
-                <p className="text-xs text-cream-muted">{stat.label}</p>
+                <p className="mt-3 text-xl font-bold text-cream sm:text-2xl">{stat.value}</p>
+                <p className="text-[11px] text-cream-muted sm:text-xs">{stat.label}</p>
               </motion.div>
             );
           })}
@@ -160,62 +150,76 @@ export function Dashboard() {
 
         {/* Revenue chart */}
         {analytics?.revenue_by_day && analytics.revenue_by_day.length > 0 && (
-          <div className="mb-8 card p-6">
+          <div className="mb-6 card p-4 sm:mb-8 sm:p-6">
             <div className="mb-4 flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-gold-400" />
-              <h2 className="font-display text-lg font-bold text-cream">
-                Revenue Trend ({analytics.revenue_by_day.length} day{analytics.revenue_by_day.length !== 1 ? 's' : ''} with activity)
+              <h2 className="font-display text-base font-bold text-cream sm:text-lg">
+                Revenue Trend
+                <span className="ml-1 text-xs font-normal text-cream-muted sm:text-sm">
+                  ({analytics.revenue_by_day.length} day{analytics.revenue_by_day.length !== 1 ? 's' : ''})
+                </span>
               </h2>
             </div>
-            <div className="flex h-56 items-stretch gap-2">
-              {analytics.revenue_by_day.map((day) => {
-                const maxRev = Math.max(...analytics.revenue_by_day.map((d) => d.revenue), 1);
-                const heightPct = (day.revenue / maxRev) * 100;
-                return (
-                  <div key={day.date} className="flex flex-1 flex-col items-center gap-1.5">
-                    {/* ✅ Visible amount, not just a hover-only title tooltip */}
-                    <span className="text-[10px] font-semibold text-gold-300 whitespace-nowrap">
-                      {day.revenue > 0 ? formatCurrency(day.revenue) : '—'}
-                    </span>
-                    <div className="flex w-full flex-1 items-end">
-                      <div
-                        className="w-full rounded-t-lg bg-gradient-to-t from-gold-600 to-gold-400 transition-all hover:from-gold-500 hover:to-gold-300"
-                        style={{ height: `${Math.max(heightPct, 2)}%` }}
-                        title={formatCurrency(day.revenue)}
-                      />
+
+            {/* Horizontal scroll on mobile so bars stay readable */}
+            <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+              <div className="flex h-48 items-stretch gap-2 sm:h-56">
+                {analytics.revenue_by_day.map((day) => {
+                  const maxRev = Math.max(...analytics.revenue_by_day.map((d) => d.revenue), 1);
+                  const heightPct = (day.revenue / maxRev) * 100;
+                  return (
+                    <div
+                      key={day.date}
+                      className="flex min-w-[48px] flex-1 flex-col items-center gap-1.5"
+                    >
+                      {/* Amount label — hidden on mobile to prevent overlap */}
+                      <span className="hidden text-[10px] font-semibold text-gold-300 whitespace-nowrap sm:block">
+                        {day.revenue > 0 ? formatCurrency(day.revenue) : '—'}
+                      </span>
+                      <div className="flex w-full flex-1 items-end">
+                        <div
+                          className="w-full rounded-t-lg bg-gradient-to-t from-gold-600 to-gold-400 transition-all hover:from-gold-500 hover:to-gold-300"
+                          style={{ height: `${Math.max(heightPct, 2)}%` }}
+                          title={formatCurrency(day.revenue)}
+                        />
+                      </div>
+                      <span className="text-[9px] text-cream-muted whitespace-nowrap sm:text-[10px]">
+                        {new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </span>
                     </div>
-                    {/* ✅ Full date (e.g. "Sep 5"), not just weekday — avoids
-                        duplicate "Sat"/"Sun" labels when dates aren't
-                        consecutive (gaps in activity across weeks) */}
-                    <span className="text-[10px] text-cream-muted whitespace-nowrap">
-                      {new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
 
         {/* Calendar / List View */}
-        <div className="card p-6">
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="font-display text-lg font-bold text-cream">Bookings Calendar</h2>
+        <div className="card p-4 sm:p-6">
+          <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="font-display text-base font-bold text-cream sm:text-lg">
+              Bookings Calendar
+            </h2>
             <div className="flex items-center gap-2">
               {view === 'calendar' && (
-                <div className="flex items-center gap-1 mr-2">
+                <div className="mr-1 flex items-center gap-1 sm:mr-2">
                   <button
                     onClick={() => setCalendarDate(new Date(year, month - 1, 1))}
                     className="rounded-lg border border-forest-500 p-1.5 text-cream-muted hover:text-gold-300 transition"
+                    aria-label="Previous month"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  <span className="text-sm font-medium text-cream min-w-32 text-center">
+                  <span className="min-w-[100px] text-center text-xs font-medium text-cream sm:min-w-32 sm:text-sm">
                     {monthNames[month]} {year}
                   </span>
                   <button
                     onClick={() => setCalendarDate(new Date(year, month + 1, 1))}
                     className="rounded-lg border border-forest-500 p-1.5 text-cream-muted hover:text-gold-300 transition"
+                    aria-label="Next month"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
@@ -224,21 +228,21 @@ export function Dashboard() {
               <div className="flex rounded-lg border border-forest-500 p-0.5">
                 <button
                   onClick={() => setView('calendar')}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition sm:px-3 ${
                     view === 'calendar' ? 'bg-gold-400 text-forest-950' : 'text-cream-muted'
                   }`}
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
-                  Calendar
+                  <span className="hidden sm:inline">Calendar</span>
                 </button>
                 <button
                   onClick={() => setView('list')}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition sm:px-3 ${
                     view === 'list' ? 'bg-gold-400 text-forest-950' : 'text-cream-muted'
                   }`}
                 >
                   <List className="h-3.5 w-3.5" />
-                  List
+                  <span className="hidden sm:inline">List</span>
                 </button>
               </div>
             </div>
@@ -249,14 +253,18 @@ export function Dashboard() {
           ) : view === 'calendar' ? (
             <div>
               {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
+              <div className="mb-2 grid grid-cols-7 gap-0.5 sm:gap-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-                  <div key={d} className="text-center text-xs font-semibold text-cream-muted py-2">
-                    {d}
+                  <div
+                    key={d}
+                    className="py-1 text-center text-[10px] font-semibold text-cream-muted sm:py-2 sm:text-xs"
+                  >
+                    <span className="hidden sm:inline">{d}</span>
+                    <span className="sm:hidden">{d[0]}</span>
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
                 {weeks.flat().map((day) => {
                   const iso = toISODate(day);
                   const dayBookings = bookingsByDate.get(iso) ?? [];
@@ -267,7 +275,7 @@ export function Dashboard() {
                     <button
                       key={iso}
                       onClick={() => setSelectedDate(iso)}
-                      className={`min-h-20 sm:min-h-24 rounded-lg border p-1.5 text-left transition ${
+                      className={`min-h-[52px] rounded-lg border p-1 text-left transition sm:min-h-24 sm:p-1.5 ${
                         isSelected
                           ? 'border-gold-400 bg-gold-400/10'
                           : isCurrentMonth
@@ -277,28 +285,27 @@ export function Dashboard() {
                     >
                       <div className="flex items-center justify-between">
                         <span
-                          className={`text-xs font-medium ${
+                          className={`text-[10px] font-medium sm:text-xs ${
                             isToday
-                              ? 'flex h-5 w-5 items-center justify-center rounded-full bg-gold-400 text-forest-950'
+                              ? 'flex h-4 w-4 items-center justify-center rounded-full bg-gold-400 text-forest-950 sm:h-5 sm:w-5'
                               : 'text-cream'
                           }`}
                         >
                           {day.getDate()}
                         </span>
                         {dayBookings.length > 0 && (
-                          <span className="text-[9px] font-bold text-gold-400">
+                          <span className="text-[8px] font-bold text-gold-400 sm:text-[9px]">
                             {dayBookings.length}
                           </span>
                         )}
                       </div>
-                      <div className="mt-1 space-y-0.5">
+
+                      {/* Booking chips — desktop only */}
+                      <div className="mt-1 hidden space-y-0.5 sm:block">
                         {dayBookings.slice(0, 2).map((b) => {
-                          // ✅ Skip if booking is undefined
                           if (!b) return null;
-                          
                           const firstName = getCustomerFirstName(b);
                           const startTime = b.slots?.[0]?.start_time || '';
-                          
                           return (
                             <div
                               key={b.id || Math.random()}
@@ -329,12 +336,15 @@ export function Dashboard() {
 
               {/* Selected date bookings */}
               {selectedDate && (
-                <div className="mt-6 border-t border-forest-500 pt-4">
-                  <h3 className="mb-3 text-sm font-semibold text-cream">
-                    {formatDate(selectedDate)} — {selectedDateBookings.length} booking{selectedDateBookings.length !== 1 ? 's' : ''}
+                <div className="mt-4 border-t border-forest-500 pt-4 sm:mt-6">
+                  <h3 className="mb-3 text-xs font-semibold text-cream sm:text-sm">
+                    {formatDate(selectedDate)} — {selectedDateBookings.length} booking
+                    {selectedDateBookings.length !== 1 ? 's' : ''}
                   </h3>
                   {selectedDateBookings.length === 0 ? (
-                    <p className="text-sm text-cream-muted py-4 text-center">No bookings for this date.</p>
+                    <p className="py-4 text-center text-sm text-cream-muted">
+                      No bookings for this date.
+                    </p>
                   ) : (
                     <div className="space-y-2">
                       {selectedDateBookings.map((b) => {
@@ -342,23 +352,29 @@ export function Dashboard() {
                         const customerName = getCustomerName(b);
                         const courtName = b.court_name || 'Unknown Court';
                         const totalAmount = b.total_amount || 0;
-                        const slotDisplay = b.slots?.map((s) => formatSlotTime(s)).join(', ') || 'No slots';
+                        const slotDisplay =
+                          b.slots?.map((s) => formatSlotTime(s)).join(', ') || 'No slots';
                         const startTime = b.slots?.[0]?.start_time || 'N/A';
-                        
+
                         return (
-                          <div key={b.id || Math.random()} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
+                          <div
+                            key={b.id || Math.random()}
+                            className="flex flex-col gap-2 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gold-400/10 text-[10px] font-bold text-gold-400 sm:text-xs">
                                 {startTime}
                               </div>
-                              <div>
-                                <p className="text-sm font-medium text-cream">{customerName}</p>
-                                <p className="text-xs text-cream-muted">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-cream">
+                                  {customerName}
+                                </p>
+                                <p className="truncate text-xs text-cream-muted">
                                   {courtName} — {slotDisplay}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-between gap-3 sm:justify-end">
                               <span className="text-sm font-semibold text-gold-400">
                                 {formatCurrency(totalAmount)}
                               </span>
@@ -384,21 +400,26 @@ export function Dashboard() {
                   const totalAmount = b.total_amount || 0;
                   const referenceCode = b.reference_code || 'No ref';
                   const startTime = b.slots?.[0]?.start_time || 'N/A';
-                  
+
                   return (
-                    <div key={b.id || Math.random()} className="flex flex-col gap-3 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10 text-xs font-bold text-gold-400">
+                    <div
+                      key={b.id || Math.random()}
+                      className="flex flex-col gap-2 rounded-xl bg-forest-800 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gold-400/10 text-[10px] font-bold text-gold-400 sm:text-xs">
                           {startTime}
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-cream">{customerName}</p>
-                          <p className="text-xs text-cream-muted">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-cream">
+                            {customerName}
+                          </p>
+                          <p className="truncate text-xs text-cream-muted">
                             {referenceCode} — {courtName} — {formatDate(b.date)}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between gap-3 sm:justify-end">
                         <span className="text-sm font-semibold text-gold-400">
                           {formatCurrency(totalAmount)}
                         </span>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Edit3, Save, X, Plus } from 'lucide-react';
+import { Building2, Edit3, Save, X } from 'lucide-react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
@@ -11,7 +11,6 @@ import { formatCurrency } from '@/utils/format';
 import { AMENITIES_LIST } from '@/utils/constants';
 import type { Court } from '@/types';
 import { ImageUpload } from '@/components/ui/ImageUpload';
-
 
 export function Courts() {
   const courts = useAdminStore((state) => state.courts);
@@ -48,17 +47,24 @@ export function Courts() {
     });
   };
 
-  // ✅ Helper to get image URL with fallback
   const getImageUrl = (court: Court): string => {
-    return court?.image || court?.image_url || 'https://images.pexels.com/photos/17299530/pexels-photo-17299530.jpeg?auto=compress&cs=tinysrgb&w=1200';
+    return (
+      court?.image ||
+      court?.image_url ||
+      'https://images.pexels.com/photos/17299530/pexels-photo-17299530.jpeg?auto=compress&cs=tinysrgb&w=1200'
+    );
   };
 
   return (
     <AdminLayout>
-      <div className="container-page py-8">
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-cream">Courts Management</h1>
-          <p className="mt-1 text-sm text-cream-muted">Manage court details, pricing, and amenities</p>
+      <div className="container-page py-6 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="font-display text-2xl font-bold text-cream sm:text-3xl">
+            Courts Management
+          </h1>
+          <p className="mt-1 text-xs text-cream-muted sm:text-sm">
+            Manage court details, pricing, and amenities
+          </p>
         </div>
 
         {loadingCourts ? (
@@ -70,11 +76,10 @@ export function Courts() {
             <p className="text-xs text-cream-muted/60">Add a court to get started.</p>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
             {courts.map((court, i) => {
-              // ✅ Skip if court is undefined or null
               if (!court) return null;
-              
+
               return (
                 <motion.div
                   key={court.id || `court-${i}`}
@@ -83,13 +88,14 @@ export function Courts() {
                   transition={{ delay: i * 0.05 }}
                   className="card overflow-hidden"
                 >
-                  <div className="relative h-40 overflow-hidden">
-                    <img 
-                      src={getImageUrl(court)} 
-                      alt={court?.name || 'Court'} 
+                  <div className="relative h-36 overflow-hidden sm:h-40">
+                    <img
+                      src={getImageUrl(court)}
+                      alt={court?.name || 'Court'}
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://images.pexels.com/photos/17299530/pexels-photo-17299530.jpeg?auto=compress&cs=tinysrgb&w=1200';
+                        (e.target as HTMLImageElement).src =
+                          'https://images.pexels.com/photos/17299530/pexels-photo-17299530.jpeg?auto=compress&cs=tinysrgb&w=1200';
                       }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-forest-900 to-transparent" />
@@ -104,8 +110,12 @@ export function Courts() {
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-display text-lg font-bold text-cream">{court?.name || 'Unnamed Court'}</h3>
-                    <p className="mt-1 line-clamp-2 text-xs text-cream-muted">{court?.description || 'No description'}</p>
+                    <h3 className="font-display text-base font-bold text-cream sm:text-lg">
+                      {court?.name || 'Unnamed Court'}
+                    </h3>
+                    <p className="mt-1 line-clamp-2 text-xs text-cream-muted">
+                      {court?.description || 'No description'}
+                    </p>
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {(court?.amenities || []).slice(0, 4).map((a) => (
                         <span
@@ -131,7 +141,7 @@ export function Courts() {
                       <div>
                         <p className="text-[10px] text-cream-muted">Peak</p>
                         <p className="text-sm font-bold text-gold-400">
-                          {formatCurrency(court?.peak_price_per_hour || 0)}/hr  
+                          {formatCurrency(court?.peak_price_per_hour || 0)}/hr
                         </p>
                       </div>
                     </div>
@@ -236,7 +246,7 @@ export function Courts() {
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <label className="flex items-center gap-2 text-sm text-cream">
                 <input
                   type="checkbox"
@@ -256,19 +266,30 @@ export function Courts() {
                 Active (bookable)
               </label>
             </div>
-            <div className="flex gap-3 border-t border-forest-500 pt-4">
-              <Button
-                size="md"
-                fullWidth
-                isLoading={saving}
-                leftIcon={<Save className="h-4 w-4" />}
-                onClick={handleSave}
-              >
-                Save Changes
-              </Button>
-              <Button size="md" variant="ghost" onClick={() => setEditing(null)}>
-                <X className="h-4 w-4" />
-              </Button>
+
+            {/* Sticky modal footer on mobile */}
+            <div className="sticky bottom-0 -mx-4 -mb-4 mt-4 border-t border-forest-500 bg-forest-900/95 p-4 backdrop-blur sm:static sm:mx-0 sm:mb-0 sm:bg-transparent sm:p-0 sm:pt-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                <Button
+                  size="md"
+                  fullWidth
+                  isLoading={saving}
+                  leftIcon={<Save className="h-4 w-4" />}
+                  onClick={handleSave}
+                >
+                  Save Changes
+                </Button>
+                <Button
+                  size="md"
+                  variant="ghost"
+                  fullWidth
+                  className="sm:w-auto"
+                  onClick={() => setEditing(null)}
+                >
+                  <X className="h-4 w-4" />
+                  <span className="ml-2 sm:hidden">Cancel</span>
+                </Button>
+              </div>
             </div>
           </div>
         </Modal>

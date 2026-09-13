@@ -252,19 +252,12 @@ export function Settings() {
     try {
       const settings = await adminService.getSettings();
 
-      console.log('📡 Loaded settings:', settings);
-      console.log(
-        '📡 Payment methods from API:',
-        settings.payment_methods
-      );
-
       if (
         settings.payment_methods &&
         settings.payment_methods.length > 0
       ) {
         setPaymentMethods(settings.payment_methods);
       } else {
-        // Default payment methods
         setPaymentMethods([
           {
             id: '1',
@@ -307,12 +300,6 @@ export function Settings() {
       });
 
       setPaymentMethods(methods);
-
-      console.log(
-        '✅ Payment methods saved successfully:',
-        methods
-      );
-
       return true;
     } catch (error) {
       console.error(
@@ -692,7 +679,6 @@ export function Settings() {
 
     await addBlockedDate(payload);
 
-    // Reload blocked dates for selected court
     if (selectedCourtId) {
       await loadBlockedDates(
         selectedCourtId
@@ -830,13 +816,13 @@ export function Settings() {
 
   return (
     <Layout>
-      <div className="container-page py-8">
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-cream">
+      <div className="container-page py-6 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="font-display text-2xl font-bold text-cream sm:text-3xl">
             Settings
           </h1>
 
-          <p className="mt-1 text-sm text-cream-muted">
+          <p className="mt-1 text-xs text-cream-muted sm:text-sm">
             Manage your account, payment methods, and
             blocked dates
           </p>
@@ -845,12 +831,12 @@ export function Settings() {
         {loadingCourts ? (
           <LoadingSpinner className="py-12" />
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
 
             {/* ───────────────── Account Info ───────────────── */}
 
-            <div className="card p-6">
-              <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
+            <div className="card p-4 sm:p-6">
+              <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
                 <SettingsIcon className="h-5 w-5 text-gold-400" />
                 Account
               </h2>
@@ -901,7 +887,7 @@ export function Settings() {
               )}
 
               <Button
-                className="mt-4"
+                className="mt-4 w-full sm:w-auto"
                 leftIcon={
                   <Save className="h-4 w-4" />
                 }
@@ -914,8 +900,8 @@ export function Settings() {
 
             {/* ───────────────── Change Password ───────────────── */}
 
-            <div className="card p-6">
-              <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
+            <div className="card p-4 sm:p-6">
+              <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
                 <Lock className="h-5 w-5 text-gold-400" />
                 Change Password
               </h2>
@@ -969,7 +955,7 @@ export function Settings() {
               )}
 
               <Button
-                className="mt-4"
+                className="mt-4 w-full sm:w-auto"
                 variant="secondary"
                 leftIcon={
                   <Save className="h-4 w-4" />
@@ -984,15 +970,15 @@ export function Settings() {
             {/* ───────────────── Payment Methods ───────────────── */}
 
             {isAdmin && (
-              <div className="card p-6">
-                <div className="mb-4 flex items-center justify-between">
+              <div className="card p-4 sm:p-6">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="flex items-center gap-2 font-display text-lg font-bold text-cream">
+                    <h2 className="flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
                       <Wallet className="h-5 w-5 text-gold-400" />
                       Payment Methods
                     </h2>
 
-                    <p className="text-sm text-cream-muted">
+                    <p className="text-xs text-cream-muted sm:text-sm">
                       Add, edit, or remove payment methods
                       available at checkout.
                     </p>
@@ -1000,6 +986,7 @@ export function Settings() {
 
                   <Button
                     size="sm"
+                    className="w-full sm:w-auto"
                     leftIcon={
                       <Plus className="h-4 w-4" />
                     }
@@ -1047,16 +1034,16 @@ export function Settings() {
                         return (
                           <div
                             key={method.id}
-                            className="flex items-center justify-between rounded-xl border border-forest-500 bg-forest-800/50 p-4"
+                            className="flex flex-col gap-3 rounded-xl border border-forest-500 bg-forest-800/50 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold-400/10">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gold-400/10">
                                 <IconComponent className="h-5 w-5 text-gold-400" />
                               </div>
 
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium text-cream">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="truncate font-medium text-cream">
                                     {method.name}
                                   </p>
 
@@ -1073,7 +1060,7 @@ export function Settings() {
                                   </span>
                                 </div>
 
-                                <p className="text-xs text-cream-muted">
+                                <p className="truncate text-xs text-cream-muted">
                                   {method.type
                                     .replace(
                                       '_',
@@ -1096,7 +1083,7 @@ export function Settings() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-end gap-2 sm:justify-start">
                               <label className="relative inline-flex cursor-pointer items-center">
                                 <input
                                   type="checkbox"
@@ -1147,20 +1134,20 @@ export function Settings() {
             {/* ───────────────── Blocked Dates ───────────────── */}
 
             {isAdmin && (
-              <div className="card p-6">
-                <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-cream">
+              <div className="card p-4 sm:p-6">
+                <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
                   <CalendarOff className="h-5 w-5 text-gold-400" />
                   Blocked Dates
                 </h2>
 
-                <p className="mb-4 text-sm text-cream-muted">
+                <p className="mb-4 text-xs text-cream-muted sm:text-sm">
                   Block courts for maintenance, holidays,
                   or events. You can block full days or
                   specific time ranges.
                 </p>
 
                 <div className="mb-4">
-                  <label className="mb-1.5 block text-sm font-medium text-cream">
+                  <label className="mb-1.5 block text-xs font-medium text-cream sm:text-sm">
                     Select Court
                   </label>
 
@@ -1180,7 +1167,7 @@ export function Settings() {
                               court.id
                             );
                           }}
-                          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition sm:text-sm ${
                             selectedCourtId ===
                             court.id
                               ? 'border-gold-400 bg-gold-400/10 text-gold-300'
@@ -1197,7 +1184,7 @@ export function Settings() {
                   </div>
                 </div>
 
-                <div className="mb-6 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                <div className="mb-4 grid gap-3 sm:grid-cols-2 md:mb-6 md:grid-cols-4">
                   <Input
                     label="Date to Block"
                     type="date"
@@ -1209,7 +1196,7 @@ export function Settings() {
                   />
 
                   <div className="flex items-end">
-                    <label className="flex items-center gap-2 pb-1 text-sm text-cream">
+                    <label className="flex w-full items-center gap-2 rounded-lg border border-forest-500 bg-forest-800 px-3 py-2.5 text-sm text-cream">
                       <input
                         type="checkbox"
                         checked={isFullDay}
@@ -1278,6 +1265,7 @@ export function Settings() {
 
                 <div className="mb-6">
                   <Button
+                    className="w-full sm:w-auto"
                     leftIcon={
                       <Plus className="h-4 w-4" />
                     }
@@ -1326,9 +1314,9 @@ export function Settings() {
                               opacity: 0,
                               x: 10,
                             }}
-                            className="flex items-center justify-between rounded-xl bg-forest-800 p-3"
+                            className="flex items-center justify-between gap-2 rounded-xl bg-forest-800 p-3"
                           >
-                            <div>
+                            <div className="min-w-0">
                               <p className="text-sm font-medium text-cream">
                                 {formatDateLong(
                                   block.date
@@ -1356,7 +1344,7 @@ export function Settings() {
                                   )}
                               </p>
 
-                              <p className="text-xs text-cream-muted">
+                              <p className="truncate text-xs text-cream-muted">
                                 {block.reason}
                               </p>
                             </div>
@@ -1367,7 +1355,7 @@ export function Settings() {
                                   block.id
                                 )
                               }
-                              className="rounded-lg border border-forest-500 p-2 text-cream-muted transition hover:border-error hover:text-error"
+                              className="flex-shrink-0 rounded-lg border border-forest-500 p-2 text-cream-muted transition hover:border-error hover:text-error"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -1383,15 +1371,15 @@ export function Settings() {
             {/* ───────────────── Staff Management ───────────────── */}
 
             {isAdmin && (
-              <div className="card p-6">
+              <div className="card p-4 sm:p-6">
                 <StaffManagement />
               </div>
             )}
 
             {/* ───────────────── App Info ───────────────── */}
 
-            <div className="card p-6">
-              <h2 className="mb-4 font-display text-lg font-bold text-cream">
+            <div className="card p-4 sm:p-6">
+              <h2 className="mb-4 font-display text-base font-bold text-cream sm:text-lg">
                 App Information
               </h2>
 
@@ -1450,7 +1438,6 @@ export function Settings() {
         size="lg"
       >
         <div className="space-y-4">
-
           <Input
             label="Payment Method Name"
             placeholder="e.g. GCash, BPI, Maya, RCBC QR Pay"
@@ -1590,7 +1577,7 @@ export function Settings() {
                 {formData.config
                   ?.qr_image_url ? (
                   <div className="relative rounded-xl border border-forest-500 bg-forest-800/50 p-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4">
                       <img
                         src={
                           formData.config
@@ -1600,12 +1587,12 @@ export function Settings() {
                         className="h-24 w-24 rounded-lg border border-forest-500 object-contain"
                       />
 
-                      <div>
+                      <div className="min-w-0 text-center sm:text-left">
                         <p className="text-sm text-cream">
                           QR code uploaded
                         </p>
 
-                        <p className="text-xs text-cream-muted">
+                        <p className="truncate text-xs text-cream-muted">
                           {formData.config.qr_image_url
                             .split('/')
                             .pop()
@@ -1753,36 +1740,40 @@ export function Settings() {
             </div>
           )}
 
-          {/* Modal Buttons */}
+          {/* Modal Buttons — sticky on mobile */}
 
-          <div className="flex gap-3 border-t border-forest-500 pt-4">
-            <Button
-              fullWidth
-              isLoading={savingMethod}
-              leftIcon={
-                <Save className="h-4 w-4" />
-              }
-              onClick={
-                editingMethod
-                  ? handleEditMethod
-                  : handleAddMethod
-              }
-            >
-              {editingMethod
-                ? 'Update Payment Method'
-                : 'Add Payment Method'}
-            </Button>
+          <div className="sticky bottom-0 -mx-4 -mb-4 mt-4 border-t border-forest-500 bg-forest-900/95 p-4 backdrop-blur sm:static sm:mx-0 sm:mb-0 sm:bg-transparent sm:p-0 sm:pt-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+              <Button
+                fullWidth
+                isLoading={savingMethod}
+                leftIcon={
+                  <Save className="h-4 w-4" />
+                }
+                onClick={
+                  editingMethod
+                    ? handleEditMethod
+                    : handleAddMethod
+                }
+              >
+                {editingMethod
+                  ? 'Update Payment Method'
+                  : 'Add Payment Method'}
+              </Button>
 
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setShowAddModal(false);
-                setEditingMethod(null);
-                resetForm();
-              }}
-            >
-              Cancel
-            </Button>
+              <Button
+                variant="ghost"
+                fullWidth
+                className="sm:w-auto"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setEditingMethod(null);
+                  resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       </Modal>
