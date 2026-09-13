@@ -5,7 +5,8 @@ export type BookingStatus =
   | 'completed'
   | 'cancelled'
   | 'rejected'
-  | 'expired';
+  | 'expired'
+  | 'refunded';
 
 export type SlotType = 'standard' | 'fixed_2hr';
 

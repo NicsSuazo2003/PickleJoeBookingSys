@@ -78,6 +78,13 @@ export const BOOKING_STATUS_META: Record<
     border: 'border-forest-500/50',
     dot: 'bg-forest-400',
   },
+  refunded: {
+  label: 'Refunded',
+  color: 'text-purple-300',
+  bg: 'bg-purple-500/15',
+  border: 'border-purple-500/40',
+  dot: 'bg-purple-400',
+},
 };
 
 export const COURT_IMAGES = {

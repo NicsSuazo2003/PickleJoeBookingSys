@@ -1,3 +1,4 @@
+// src/pages/admin/Bookings.tsx
 import { useEffect, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import {
@@ -7,6 +8,7 @@ import {
   XCircle,
   Eye,
   Plus,
+  RotateCcw,
 } from 'lucide-react';
 import { StaffCreateBookingModal } from './StaffCreateBookingModal';
 import { AdminLayout } from '@/components/layout/AdminLayout';
@@ -34,7 +36,8 @@ const statusOptions: { value: BookingStatus | 'all'; label: string }[] = [
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'rejected', label: 'Rejected' },
-  { value: 'expired', label: 'Expired' },   // ✅ ADD THIS
+  { value: 'expired', label: 'Expired' },
+  { value: 'refunded', label: 'Refunded' },   // ✅ NEW
 ];
 
 export function Bookings() {
@@ -45,20 +48,17 @@ export function Bookings() {
   const loadBookings = useAdminStore((state) => state.loadBookings);
   const loadCourts = useAdminStore((state) => state.loadCourts);
   const updateBookingStatus = useAdminStore((state) => state.updateBookingStatus);
-  // ✅ Needed to refresh Dashboard's stat cards after a status change
   const loadAnalytics = useAdminStore((state) => state.loadAnalytics);
-const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all');
   const [courtFilter, setCourtFilter] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  // ✅ Track which status action is in flight, not just a shared boolean
   const [updatingStatus, setUpdatingStatus] = useState<BookingStatus | null>(null);
 
   useEffect(() => {
     loadBookings();
-    // ✅ /api/admin/courts is admin-only — staff would get a 403 and an
-    // empty court filter every time, so only fetch it for admins.
     if (user?.role === 'admin') {
       loadCourts();
     }
@@ -84,8 +84,6 @@ const [showCreateModal, setShowCreateModal] = useState(false);
     try {
       await updateBookingStatus(bookingId, status);
       setSelectedBooking((prev) => (prev && prev.id === bookingId ? { ...prev, status } : prev));
-      // ✅ /api/admin/analytics is admin-only — staff would get a 403,
-      // so only refresh analytics when the current user is an admin.
       if (user?.role === 'admin') {
         await loadAnalytics();
       }
@@ -94,25 +92,24 @@ const [showCreateModal, setShowCreateModal] = useState(false);
     }
   };
 
-  // ✅ Choose layout based on role
   const Layout = user?.role === 'staff' ? StaffLayout : AdminLayout;
 
   return (
     <Layout>
       <div className="container-page py-8">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
-  <div>
-    <h1 className="font-display text-3xl font-bold text-cream">Bookings</h1>
-    <p className="mt-1 text-sm text-cream-muted">Manage and update all court bookings</p>
-  </div>
-  <Button
-    size="md"
-    leftIcon={<Plus className="h-4 w-4" />}
-    onClick={() => setShowCreateModal(true)}
-  >
-    New Booking
-  </Button>
-</div>
+          <div>
+            <h1 className="font-display text-3xl font-bold text-cream">Bookings</h1>
+            <p className="mt-1 text-sm text-cream-muted">Manage and update all court bookings</p>
+          </div>
+          <Button
+            size="md"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => setShowCreateModal(true)}
+          >
+            New Booking
+          </Button>
+        </div>
 
         <div className="mb-6 card p-4">
           <div className="grid gap-3 sm:grid-cols-3">
@@ -140,10 +137,9 @@ const [showCreateModal, setShowCreateModal] = useState(false);
             >
               <option value="all" className="bg-forest-800">All Courts</option>
               {courts.map((c) => {
-                // ✅ Skip if court is undefined
                 if (!c) return null;
                 return (
-                  <option key={c.id || `court-${Math.random()}`} value={c.id} className="bg-forest-800">
+                  <option key={c.id} value={c.id} className="bg-forest-800">
                     {c?.name || 'Unnamed Court'}
                   </option>
                 );
@@ -292,54 +288,114 @@ const [showCreateModal, setShowCreateModal] = useState(false);
                 </div>
               )}
 
+              {/* ✅ Context-aware action buttons */}
               <div className="border-t border-forest-500 pt-4">
-                <p className="mb-3 text-sm font-semibold text-cream">Update Status</p>
+                <p className="mb-3 text-sm font-semibold text-cream">Actions</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedBooking.status !== 'confirmed' && (
-                    <Button
-                      size="sm"
-                      variant="success"
-                      isLoading={updatingStatus === 'confirmed'}
-                      disabled={updatingStatus !== null}
-                      leftIcon={<CheckCircle2 className="h-4 w-4" />}
-                      onClick={() => handleStatusUpdate(selectedBooking.id, 'confirmed')}
-                    >
-                      Confirm
-                    </Button>
-                  )}
-                  {selectedBooking.status !== 'completed' && (
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      isLoading={updatingStatus === 'completed'}
-                      disabled={updatingStatus !== null}
-                      onClick={() => handleStatusUpdate(selectedBooking.id, 'completed')}
-                    >
-                      Mark Completed
-                    </Button>
-                  )}
-                  {selectedBooking.status !== 'cancelled' && (
+                  {/* Pending Payment → allow cancel (mark as expired) */}
+                  {selectedBooking.status === 'pending_payment' && (
                     <Button
                       size="sm"
                       variant="danger"
-                      isLoading={updatingStatus === 'cancelled'}
+                      isLoading={updatingStatus === 'expired'}
                       disabled={updatingStatus !== null}
                       leftIcon={<XCircle className="h-4 w-4" />}
-                      onClick={() => handleStatusUpdate(selectedBooking.id, 'cancelled')}
+                      onClick={() => handleStatusUpdate(selectedBooking.id, 'expired')}
                     >
-                      Cancel
+                      Mark Expired
                     </Button>
                   )}
-                  {selectedBooking.status !== 'rejected' && (
+
+                  {/* Payment Submitted → Confirm, Reject, Refund */}
+                  {selectedBooking.status === 'payment_submitted' && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="success"
+                        isLoading={updatingStatus === 'confirmed'}
+                        disabled={updatingStatus !== null}
+                        leftIcon={<CheckCircle2 className="h-4 w-4" />}
+                        onClick={() => handleStatusUpdate(selectedBooking.id, 'confirmed')}
+                      >
+                        Confirm
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        isLoading={updatingStatus === 'rejected'}
+                        disabled={updatingStatus !== null}
+                        leftIcon={<XCircle className="h-4 w-4" />}
+                        onClick={() => handleStatusUpdate(selectedBooking.id, 'rejected')}
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        isLoading={updatingStatus === 'refunded'}
+                        disabled={updatingStatus !== null}
+                        leftIcon={<RotateCcw className="h-4 w-4" />}
+                        onClick={() => handleStatusUpdate(selectedBooking.id, 'refunded')}
+                      >
+                        Refund
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Confirmed → Complete, Cancel, Refund */}
+                  {selectedBooking.status === 'confirmed' && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        isLoading={updatingStatus === 'completed'}
+                        disabled={updatingStatus !== null}
+                        onClick={() => handleStatusUpdate(selectedBooking.id, 'completed')}
+                      >
+                        Mark Completed
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        isLoading={updatingStatus === 'cancelled'}
+                        disabled={updatingStatus !== null}
+                        leftIcon={<XCircle className="h-4 w-4" />}
+                        onClick={() => handleStatusUpdate(selectedBooking.id, 'cancelled')}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        isLoading={updatingStatus === 'refunded'}
+                        disabled={updatingStatus !== null}
+                        leftIcon={<RotateCcw className="h-4 w-4" />}
+                        onClick={() => handleStatusUpdate(selectedBooking.id, 'refunded')}
+                      >
+                        Refund
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Completed → Refund only */}
+                  {selectedBooking.status === 'completed' && (
                     <Button
                       size="sm"
-                      variant="danger"
-                      isLoading={updatingStatus === 'rejected'}
+                      variant="secondary"
+                      isLoading={updatingStatus === 'refunded'}
                       disabled={updatingStatus !== null}
-                      onClick={() => handleStatusUpdate(selectedBooking.id, 'rejected')}
+                      leftIcon={<RotateCcw className="h-4 w-4" />}
+                      onClick={() => handleStatusUpdate(selectedBooking.id, 'refunded')}
                     >
-                      Reject
+                      Refund
                     </Button>
+                  )}
+
+                  {/* Terminal statuses — no actions */}
+                  {['cancelled', 'rejected', 'expired', 'refunded'].includes(selectedBooking.status) && (
+                    <p className="text-xs text-cream-muted">
+                      No actions available for {selectedBooking.status} bookings.
+                    </p>
                   )}
                 </div>
               </div>
@@ -347,11 +403,12 @@ const [showCreateModal, setShowCreateModal] = useState(false);
           </Modal>
         )}
       </AnimatePresence>
+
       <StaffCreateBookingModal
-  isOpen={showCreateModal}
-  onClose={() => setShowCreateModal(false)}
-  onCreated={() => loadBookings()}
-/>
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreated={() => loadBookings()}
+      />
     </Layout>
   );
 }
