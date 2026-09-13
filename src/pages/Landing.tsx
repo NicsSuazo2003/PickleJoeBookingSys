@@ -34,7 +34,6 @@ import {
   formatDateLong,
   toISODate,
   addDays,
-  formatTimeRange,
 } from '@/utils/format';
 import type { TimeSlot, Court, OpenPlaySession } from '@/types';
 
@@ -407,7 +406,7 @@ export function Landing() {
                       <div className="mt-2 space-y-1.5 text-xs text-cream-muted">
                         <div className="flex items-center gap-2">
                           <Clock className="h-3.5 w-3.5 text-cyan-400" />
-                          {formatTimeRange(session.start_time, session.end_time)}
+                          {formatTimeRangeShort(session.start_time, session.end_time)}
                         </div>
                         <div className="flex items-center gap-2">
                           <Users className="h-3.5 w-3.5 text-cyan-400" />
