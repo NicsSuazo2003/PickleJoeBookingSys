@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   CalendarDays,
-  DollarSign,
+  PhilippinePeso,
   Clock,
   CheckCircle2,
   TrendingUp,
@@ -103,7 +103,7 @@ export function Dashboard() {
     {
       label: 'Total Revenue',
       value: formatCurrency(analytics?.total_revenue ?? 0),
-      icon: DollarSign,
+      icon: PhilippinePeso,
       color: 'text-success',
       bg: 'bg-success/10',
     },
