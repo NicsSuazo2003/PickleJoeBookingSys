@@ -25,11 +25,38 @@ import { formatTimeRange, formatCurrency, formatDateLong } from '@/utils/format'
 import { FIXED_SLOT } from '@/utils/constants';
 import type { CustomerDetails, TimeSlot } from '@/types';
 
+// Normalize PH mobile: strip spaces/dashes/parens, convert +63/63 → 0
+const normalizePhone = (value: string) =>
+  value
+    .replace(/[\s\-()]/g, '')
+    .replace(/^\+?63/, '0');
+
 const customerSchema = z.object({
-  name: z.string().min(2, 'Name is required'),
-  email: z.string().email('Valid email is required'),
-  phone: z.string().min(10, 'Valid phone number is required'),
-  notes: z.string().optional(),
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Name is required')
+    .max(80, 'Name is too long')
+    .regex(/^[A-Za-zÀ-ÿ.'\-\s]+$/, 'Name can only contain letters, spaces, and . \' -'),
+
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, 'Email is required')
+    .email('Enter a valid email address')
+    .max(120, 'Email is too long'),
+
+  phone: z
+    .string()
+    .trim()
+    .min(1, 'Mobile number is required')
+    .transform(normalizePhone)
+    .refine((v) => /^09\d{9}$/.test(v), {
+      message: 'Enter a valid PH mobile number (e.g. 0917 123 4567)',
+    }),
+
+  notes: z.string().max(500, 'Notes are too long').optional(),
 });
 
 type CustomerForm = z.infer<typeof customerSchema>;
@@ -47,7 +74,7 @@ export function Booking() {
     loadCourts,
     setCustomer,
     createBooking,
-    slots, // We need this to get court_id from TimeSlot
+    slots,
   } = useBookingStore();
 
   const [submitting, setSubmitting] = useState(false);
@@ -59,6 +86,7 @@ export function Booking() {
     formState: { errors },
   } = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
+    mode: 'onBlur',
     defaultValues: useBookingStore.getState().customer,
   });
 
@@ -68,8 +96,6 @@ export function Booking() {
     }
   }, [courts.length, loadCourts]);
 
-  // Auto-scroll to the form on mount — the person is coming straight from
-  // picking their slots on the landing page, so jump them to what's new here.
   useEffect(() => {
     if (formRef.current) {
       setTimeout(() => {
@@ -82,42 +108,33 @@ export function Booking() {
   const selectedSlots = getSelectedSlotItems(storeState);
   const total = getSelectedTotal(storeState);
 
-  // Helper function to get unique courts from selected slots
   const getSelectedCourts = () => {
     const courtMap = new Map();
-    
-    // Get the selected TimeSlot objects that have court_id
     const selectedTimeSlots = slots.filter(s => storeState.selectedSlotIds.includes(s.id));
-    
     selectedTimeSlots.forEach(slot => {
       const court = courts.find(c => c.id === slot.court_id);
       if (court && !courtMap.has(court.id)) {
         courtMap.set(court.id, court);
       }
     });
-    
     return Array.from(courtMap.values());
   };
 
   const selectedCourts = getSelectedCourts();
 
-  // Helper to get court for a slot
   const getCourtForSlot = (slotId: string) => {
     const timeSlot = slots.find(s => s.id === slotId);
     if (!timeSlot) return null;
     return courts.find(c => c.id === timeSlot.court_id);
   };
 
-    const onSubmit = async (data: CustomerForm) => {
+  const onSubmit = async (data: CustomerForm) => {
     setSubmitting(true);
     setSubmitError(null);
     try {
       setCustomer(data);
       await createBooking();
 
-      // Save the reference immediately after the booking exists, so the
-      // recovery path works even if the user never reaches/finishes Checkout
-      // (e.g. bounced by an in-app browser before payment).
       const created = useBookingStore.getState().currentBooking;
       if (created?.reference_code) {
         localStorage.setItem('pendingBookingRef', created.reference_code);
@@ -130,6 +147,7 @@ export function Booking() {
       setSubmitting(false);
     }
   };
+
   const handleSummaryButtonClick = () => {
     handleSubmit(onSubmit)();
   };
@@ -144,29 +162,26 @@ export function Booking() {
     );
   }
 
-  // Nothing selected (direct link, refresh, or back navigation that cleared
-// state) — send them back to the picker instead of showing an empty form.
-// ✅ Check selectedSlots instead of selectedCourt
-if (selectedSlots.length === 0) {
-  return (
-    <div className="min-h-screen bg-charcoal">
-      <Navbar />
-      <div className="container-page flex flex-col items-center justify-center gap-4 pt-32 pb-24 text-center">
-        <CalendarDays className="h-10 w-10 text-cream-muted/40" />
-        <div>
-          <h1 className="text-lg font-bold text-cream">No court or time selected yet</h1>
-          <p className="mt-1 text-sm text-cream-muted">
-            Head back to the homepage to pick a court and a time slot first.
-          </p>
+  if (selectedSlots.length === 0) {
+    return (
+      <div className="min-h-screen bg-charcoal">
+        <Navbar />
+        <div className="container-page flex flex-col items-center justify-center gap-4 pt-32 pb-24 text-center">
+          <CalendarDays className="h-10 w-10 text-cream-muted/40" />
+          <div>
+            <h1 className="text-lg font-bold text-cream">No court or time selected yet</h1>
+            <p className="mt-1 text-sm text-cream-muted">
+              Head back to the homepage to pick a court and a time slot first.
+            </p>
+          </div>
+          <Button size="md" to="/" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Choose Court & Time
+          </Button>
         </div>
-        <Button size="md" to="/" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-          Choose Court & Time
-        </Button>
+        <Footer />
       </div>
-      <Footer />
-    </div>
-  );
-}
+    );
+  }
 
   return (
     <div className="min-h-screen bg-charcoal">
@@ -187,9 +202,8 @@ if (selectedSlots.length === 0) {
         )}
 
         <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
-          {/* Left: Selection summary + form */}
           <div className="space-y-4 lg:col-span-2">
-            {/* Selection Summary — read-only, editable via link back to landing */}
+            {/* Selection Summary */}
             <div className="card p-3 sm:p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
@@ -209,7 +223,6 @@ if (selectedSlots.length === 0) {
                 {formatDateLong(selectedDate)}
               </p>
 
-              {/* Display all courts with selected slots */}
               <div className="space-y-2">
                 {selectedCourts.map((court) => {
                   const courtSlots = selectedSlots.filter(s => {
@@ -246,7 +259,6 @@ if (selectedSlots.length === 0) {
                 })}
               </div>
 
-              {/* Time slots details */}
               <div className="mt-3 space-y-1.5">
                 {selectedSlots.map((slot) => {
                   const court = getCourtForSlot(slot.slot_id);
@@ -302,6 +314,8 @@ if (selectedSlots.length === 0) {
                   <Input
                     id="phone"
                     label="Phone Number"
+                    type="tel"
+                    inputMode="numeric"
                     placeholder="0917 123 4567"
                     leftIcon={<Phone className="h-4 w-4" />}
                     error={errors.phone?.message}
@@ -312,6 +326,7 @@ if (selectedSlots.length === 0) {
                   id="email"
                   label="Email Address"
                   type="email"
+                  inputMode="email"
                   placeholder="juan@email.com"
                   leftIcon={<Mail className="h-4 w-4" />}
                   error={errors.email?.message}
@@ -324,8 +339,6 @@ if (selectedSlots.length === 0) {
                   {...register('notes')}
                 />
 
-              
-
                 {submitError && (
                   <p className="rounded-lg bg-error/10 p-2 text-xs text-error">{submitError}</p>
                 )}
@@ -333,14 +346,12 @@ if (selectedSlots.length === 0) {
             </div>
           </div>
 
-          {/* Right: Booking Summary — desktop only, sticky (mirrors the left
-              summary, kept visible while filling the form) */}
+          {/* Right: Booking Summary */}
           <div className="hidden lg:col-span-1 lg:block">
             <div className="sticky top-24">
               <div className="card p-4">
                 <h2 className="mb-3 font-display text-base font-bold text-cream">Booking Summary</h2>
 
-                {/* Display all courts with selected slots */}
                 <div className="space-y-2 mb-3">
                   {selectedCourts.map((court) => {
                     const courtSlots = selectedSlots.filter(s => {
