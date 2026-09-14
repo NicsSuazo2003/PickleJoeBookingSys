@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Clock,
   ArrowRight,
-  Star,
   MapPin,
   CalendarDays,
   ChevronLeft,
@@ -43,7 +42,7 @@ const COURT_ACCENTS = [
   { header: 'text-purple-400', dot: 'bg-purple-400', border: 'border-purple-500/40', bg: 'bg-purple-500/10', text: 'text-purple-200', hoverBorder: 'hover:border-purple-400/70', hoverBg: 'hover:bg-purple-500/20' },
   { header: 'text-teal-400', dot: 'bg-teal-400', border: 'border-teal-500/40', bg: 'bg-teal-500/10', text: 'text-teal-200', hoverBorder: 'hover:border-teal-400/70', hoverBg: 'hover:bg-teal-500/20' },
   { header: 'text-pink-400', dot: 'bg-pink-400', border: 'border-pink-500/40', bg: 'bg-pink-500/10', text: 'text-pink-200', hoverBorder: 'hover:border-pink-400/70', hoverBg: 'hover:bg-pink-500/20' },
-  { header: 'text-cyan-400', dot: 'bg-cyan-400', border: 'border-cyan-500/40', bg: 'bg-cyan-500/10', text: 'text-cyan-200', hoverBorder: 'hover:border-cyan-400/70', hoverBg: 'hover:bg-cyan-500/20' },
+  { header: 'text-sky-400', dot: 'bg-sky-400', border: 'border-sky-500/40', bg: 'bg-sky-500/10', text: 'text-sky-200', hoverBorder: 'hover:border-sky-400/70', hoverBg: 'hover:bg-sky-500/20' },   // ← was cyan
   { header: 'text-indigo-400', dot: 'bg-indigo-400', border: 'border-indigo-500/40', bg: 'bg-indigo-500/10', text: 'text-indigo-200', hoverBorder: 'hover:border-indigo-400/70', hoverBg: 'hover:bg-indigo-500/20' },
 ];
 
@@ -320,22 +319,15 @@ export function Landing() {
             </div>
 
             <div className="mt-8 flex flex-wrap items-center gap-4 text-xs text-cream-muted sm:mt-10 sm:gap-6 sm:text-sm">
-              <div className="flex items-center gap-1.5">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-gold-400 text-gold-400" />
-                  ))}
-                </div>
-              </div>
-              <div className="hidden items-center gap-2 sm:flex">
-                <MapPin className="h-4 w-4 text-gold-400" />
-                <span>San Agustin Sur Dawis, Tandag City</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-gold-400" />
-                <span>Open 5AM - 12AM</span>
-              </div>
-            </div>
+  <div className="flex items-center gap-2">
+    <MapPin className="h-4 w-4 text-gold-400" />
+    <span>San Agustin Sur Dawis, Tandag City</span>
+  </div>
+  <div className="flex items-center gap-1.5">
+    <Clock className="h-4 w-4 text-gold-400" />
+    <span>Open 5AM - 12AM</span>
+  </div>
+</div>
           </motion.div>
         </div>
       </section>
@@ -722,31 +714,26 @@ gridTemplateColumns: `repeat(${courts.length}, minmax(56px, 1fr))`,             
       </div>
 
       {/* Sticky Mobile Reservation Bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-500 bg-charcoal/95 p-3.5 backdrop-blur-md sm:hidden">
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            {selectedSlotIds.length > 0 ? (
-              <>
-                <p className="text-xs text-cream-muted">
-                  {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
-                </p>
-                <p className="text-lg font-bold text-gold-400">{formatCurrency(totalSelected)}</p>
-              </>
-            ) : (
-              <p className="text-xs font-medium text-cream-muted">Select court & time slot</p>
-            )}
-          </div>
-          <Button
-            size="md"
-            onClick={() => navigate('/booking')}
-            disabled={selectedSlotIds.length === 0}
-            rightIcon={<ArrowRight className="h-4 w-4" />}
-            className="shrink-0"
-          >
-            Proceed
-          </Button>
-        </div>
+{selectedSlotIds.length > 0 && (
+  <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-500 bg-charcoal/95 p-3.5 backdrop-blur-md sm:hidden">
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-cream-muted">
+          {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
+        </p>
+        <p className="text-lg font-bold text-gold-400">{formatCurrency(totalSelected)}</p>
       </div>
+      <Button
+        size="md"
+        onClick={() => navigate('/booking')}
+        rightIcon={<ArrowRight className="h-4 w-4" />}
+        className="shrink-0"
+      >
+        Proceed
+      </Button>
+    </div>
+  </div>
+)}
 
       {/* Features Section */}
       <section className="border-b border-forest-500 bg-forest-900 py-14 sm:py-20">
@@ -835,7 +822,7 @@ gridTemplateColumns: `repeat(${courts.length}, minmax(56px, 1fr))`,             
           </div>
         </div>
       </section>
-
+<div className="h-20 sm:hidden" />
       <Footer />
     </div>
   );
