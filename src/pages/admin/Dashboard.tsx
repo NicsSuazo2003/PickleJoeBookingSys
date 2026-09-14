@@ -29,6 +29,15 @@ const monthNames = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+function formatTimeShort(time: string): string {
+  if (!time || time === '?' || time === 'N/A') return time || '?';
+  const [hour, minute] = time.split(':').map(Number);
+  if (Number.isNaN(hour)) return time;
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return minute === 0 ? `${hour12}${ampm}` : `${hour12}:${String(minute).padStart(2, '0')}${ampm}`;
+}
+
 export function Dashboard() {
   const analytics = useAdminStore((state) => state.analytics);
   const bookings = useAdminStore((state) => state.bookings || []);
@@ -65,8 +74,8 @@ export function Dashboard() {
 
   const formatSlotTime = (slot: any): string => {
     if (!slot) return '?';
-    const start = slot.start_time || '?';
-    const end = slot.end_time || '?';
+    const start = slot.start_time ? formatTimeShort(slot.start_time) : '?';
+    const end = slot.end_time ? formatTimeShort(slot.end_time) : '?';
     return `${start}-${end}`;
   };
 
@@ -305,7 +314,9 @@ export function Dashboard() {
                         {dayBookings.slice(0, 2).map((b) => {
                           if (!b) return null;
                           const firstName = getCustomerFirstName(b);
-                          const startTime = b.slots?.[0]?.start_time || '';
+                          const startTime = b.slots?.[0]?.start_time
+                            ? formatTimeShort(b.slots[0].start_time)
+                            : '';
                           return (
                             <div
                               key={b.id || Math.random()}
@@ -354,7 +365,9 @@ export function Dashboard() {
                         const totalAmount = b.total_amount || 0;
                         const slotDisplay =
                           b.slots?.map((s) => formatSlotTime(s)).join(', ') || 'No slots';
-                        const startTime = b.slots?.[0]?.start_time || 'N/A';
+                        const startTime = b.slots?.[0]?.start_time
+                          ? formatTimeShort(b.slots[0].start_time)
+                          : 'N/A';
 
                         return (
                           <div
@@ -399,7 +412,9 @@ export function Dashboard() {
                   const courtName = b.court_name || 'Unknown Court';
                   const totalAmount = b.total_amount || 0;
                   const referenceCode = b.reference_code || 'No ref';
-                  const startTime = b.slots?.[0]?.start_time || 'N/A';
+                  const startTime = b.slots?.[0]?.start_time
+                    ? formatTimeShort(b.slots[0].start_time)
+                    : 'N/A';
 
                   return (
                     <div
