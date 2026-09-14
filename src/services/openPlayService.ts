@@ -103,6 +103,11 @@ export const openPlayService = {
     return normalizeSession(res);
   },
 
+  async getSessionPlayers(id: string): Promise<OpenPlayPlayer[]> {
+    const res = await apiRequest<any[]>(`/api/open-play/${id}/players`);
+    return (res ?? []).map(normalizePlayer);
+  },
+
   async joinSession(id: string, customer: CustomerDetails): Promise<Booking> {
     if (!customer.name?.trim()) throw new Error('Name is required');
     if (!customer.email?.trim()) throw new Error('Email is required');

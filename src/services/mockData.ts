@@ -413,13 +413,15 @@ export const mockBlockedDates: BlockedDate[] = [
 export function generateMockAnalytics(): Analytics {
   const bookings = mockBookings;
   const statusBreakdown: Record<BookingStatus, number> = {
-    pending_payment: 0,
-    payment_submitted: 0,
-    confirmed: 0,
-    completed: 0,
-    cancelled: 0,
-    rejected: 0,
-  };
+  pending_payment: 0,
+  payment_submitted: 0,
+  confirmed: 0,
+  completed: 0,
+  cancelled: 0,
+  rejected: 0,
+  expired: 0,   // ✅ added
+  refunded: 0,  // ✅ added
+};
   bookings.forEach((b) => {
     statusBreakdown[b.status]++;
   });
