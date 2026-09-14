@@ -19,8 +19,9 @@ import { Input } from '@/components/ui/Input';
 import { useOpenPlayStore } from '@/stores/openPlayStore';
 import { useBookingStore } from '@/stores/bookingStore';
 import { formatDateLong, formatTimeRange, formatCurrency } from '@/utils/format';
-import type { OpenPlaySession, OpenPlayPlayer, CustomerDetails } from '@/types';
+import type { OpenPlaySession, CustomerDetails } from '@/types';
 import { openPlayService } from '@/services/openPlayService';
+import type { PublicOpenPlayPlayer } from '@/services/openPlayService';
 
 const SKILL_BADGE: Record<string, string> = {
   Beginner: 'bg-green-500/15 text-green-400',
@@ -36,14 +37,6 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   past: { label: 'Past', className: 'bg-forest-700 text-cream-muted/60' },
   cancelled: { label: 'Cancelled', className: 'bg-forest-700 text-cream-muted/60' },
 };
-
-/** "Juan Dela Cruz" → "Juan D." — privacy-safe display for public roster */
-function toPublicName(full: string): string {
-  if (!full) return 'Player';
-  const parts = full.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0];
-  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
-}
 
 export function OpenPlay() {
   const navigate = useNavigate();
@@ -65,7 +58,7 @@ export function OpenPlay() {
   // ── Details modal state ──────────────────────────────────
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsSession, setDetailsSession] = useState<OpenPlaySession | null>(null);
-  const [detailsPlayers, setDetailsPlayers] = useState<OpenPlayPlayer[]>([]);
+  const [detailsPlayers, setDetailsPlayers] = useState<PublicOpenPlayPlayer[]>([]);
   const [loadingDetailsPlayers, setLoadingDetailsPlayers] = useState(false);
   const [rosterUnavailable, setRosterUnavailable] = useState(false);
 
@@ -421,7 +414,7 @@ export function OpenPlay() {
                       key={player.booking_id}
                       className="rounded-full bg-forest-700 px-2.5 py-1 text-[11px] text-cream"
                     >
-                      {toPublicName(player.customer_name)}
+                      {player.display_name}
                     </span>
                   ))}
                   {detailsSession.spots_left > 0 && (

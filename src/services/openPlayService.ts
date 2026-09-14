@@ -10,6 +10,14 @@ import type {
 } from '@/types';
 import { apiRequest } from './api';
 
+/** PII-safe player info returned by the public roster endpoint */
+export interface PublicOpenPlayPlayer {
+  booking_id: string;
+  display_name: string;
+  status: string;
+  joined_at: string;
+}
+
 function normalizeSession(raw: any): OpenPlaySession {
   return {
     id: raw.id,
@@ -79,6 +87,15 @@ function normalizePlayer(raw: any): OpenPlayPlayer {
   };
 }
 
+function normalizePublicPlayer(raw: any): PublicOpenPlayPlayer {
+  return {
+    booking_id: raw.bookingId ?? raw.booking_id,
+    display_name: raw.displayName ?? raw.display_name,
+    status: raw.status,
+    joined_at: raw.joinedAt ?? raw.joined_at,
+  };
+}
+
 function normalizeStats(raw: any): OpenPlaySessionStats {
   return {
     id: raw.id,
@@ -103,9 +120,10 @@ export const openPlayService = {
     return normalizeSession(res);
   },
 
-  async getSessionPlayers(id: string): Promise<OpenPlayPlayer[]> {
-    const res = await apiRequest<any[]>(`/api/open-play/${id}/players`);
-    return (res ?? []).map(normalizePlayer);
+  // ✅ PII-safe public roster — returns only display_name, status, joined_at
+  async getSessionPlayers(id: string): Promise<PublicOpenPlayPlayer[]> {
+    const res = await apiRequest<any[]>(`/api/open-play/${id}/players/public`);
+    return (res ?? []).map(normalizePublicPlayer);
   },
 
   async joinSession(id: string, customer: CustomerDetails): Promise<Booking> {
@@ -171,8 +189,9 @@ export const openPlayService = {
     await apiRequest<void>(`/api/admin/open-play/${id}`, { method: 'DELETE' });
   },
 
+  // ✅ Admin roster — full PII. Uses the admin-only route.
   async adminGetPlayers(id: string): Promise<OpenPlayPlayer[]> {
-    const res = await apiRequest<any[]>(`/api/open-play/${id}/players`);
+    const res = await apiRequest<any[]>(`/api/admin/open-play/${id}/players`);
     return (res ?? []).map(normalizePlayer);
   },
 
