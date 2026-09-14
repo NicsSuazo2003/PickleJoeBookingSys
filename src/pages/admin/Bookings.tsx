@@ -37,7 +37,7 @@ const statusOptions: { value: BookingStatus | 'all'; label: string }[] = [
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'expired', label: 'Expired' },
-  { value: 'refunded', label: 'Refunded' },   // ✅ NEW
+  { value: 'refunded', label: 'Refunded' },
 ];
 
 export function Bookings() {
@@ -96,11 +96,15 @@ export function Bookings() {
 
   return (
     <Layout>
-      <div className="container-page py-8">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+      <div className="container-page py-6 sm:py-8 text-cream">
+        <div className="mb-6 sm:mb-8 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-display text-3xl font-bold text-cream">Bookings</h1>
-            <p className="mt-1 text-sm text-cream-muted">Manage and update all court bookings</p>
+            <h1 className="font-display text-2xl font-bold tracking-tight text-cream sm:text-3xl">
+              Bookings
+            </h1>
+            <p className="mt-1 text-xs text-cream-muted sm:text-sm">
+              Manage and update all court reservations and payments
+            </p>
           </div>
           <Button
             size="md"
@@ -111,21 +115,22 @@ export function Bookings() {
           </Button>
         </div>
 
-        <div className="mb-6 card p-4">
+        {/* Filter controls */}
+        <div className="mb-6 card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 sm:p-5 shadow-xl backdrop-blur-sm">
           <div className="grid gap-3 sm:grid-cols-3">
             <Input
               placeholder="Search by name, email, ref code..."
-              leftIcon={<Search className="h-4 w-4" />}
+              leftIcon={<Search className="h-4 w-4 text-cream-muted" />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as BookingStatus | 'all')}
-              className="input-field"
+              className="w-full rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5 text-sm text-cream transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
             >
               {statusOptions.map((opt) => (
-                <option key={opt.value} value={opt.value} className="bg-forest-800">
+                <option key={opt.value} value={opt.value} className="bg-forest-900">
                   {opt.label}
                 </option>
               ))}
@@ -133,37 +138,38 @@ export function Bookings() {
             <select
               value={courtFilter}
               onChange={(e) => setCourtFilter(e.target.value)}
-              className="input-field"
+              className="w-full rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5 text-sm text-cream transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
             >
-              <option value="all" className="bg-forest-800">All Courts</option>
+              <option value="all" className="bg-forest-900">All Courts</option>
               {courts.map((c) => {
                 if (!c) return null;
                 return (
-                  <option key={c.id} value={c.id} className="bg-forest-800">
+                  <option key={c.id} value={c.id} className="bg-forest-900">
                     {c?.name || 'Unnamed Court'}
                   </option>
                 );
               })}
             </select>
           </div>
-          <div className="mt-3 flex items-center gap-2 text-xs text-cream-muted">
-            <Filter className="h-3.5 w-3.5" />
+          <div className="mt-3 flex items-center gap-2 text-xs text-cream-muted font-medium">
+            <Filter className="h-3.5 w-3.5 text-brand-blue-300" />
             Showing {filtered.length} of {bookings.length} bookings
           </div>
         </div>
 
         {loadingBookings ? (
-          <LoadingSpinner className="py-12" />
+          <LoadingSpinner className="py-16" />
         ) : filtered.length === 0 ? (
-          <div className="card py-12 text-center">
-            <p className="text-sm text-cream-muted">No bookings match your filters.</p>
+          <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/60 py-12 text-center shadow-xl">
+            <p className="text-sm font-medium text-cream-muted">No bookings match your filters.</p>
           </div>
         ) : (
-          <div className="card overflow-hidden">
+          <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 overflow-hidden shadow-xl">
+            {/* Desktop table view */}
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full text-sm">
+              <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-forest-500 text-left text-xs uppercase text-cream-muted">
+                  <tr className="border-b border-forest-700/80 bg-forest-950/70 text-[11px] uppercase tracking-wider text-cream-muted">
                     <th className="px-4 py-3 font-semibold">Reference</th>
                     <th className="px-4 py-3 font-semibold">Customer</th>
                     <th className="px-4 py-3 font-semibold">Court</th>
@@ -171,34 +177,37 @@ export function Bookings() {
                     <th className="px-4 py-3 font-semibold">Slots</th>
                     <th className="px-4 py-3 font-semibold">Total</th>
                     <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold">Actions</th>
+                    <th className="px-4 py-3 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-forest-800/80">
                   {filtered.map((b) => (
-                    <tr key={b.id} className="border-b border-forest-600 transition hover:bg-forest-600/30">
-                      <td className="px-4 py-3">
-                        <span className="font-mono font-bold text-gold-400">{b.reference_code || 'N/A'}</span>
+                    <tr key={b.id} className="transition hover:bg-forest-800/40">
+                      <td className="px-4 py-3.5">
+                        <span className="font-mono font-bold text-brand-blue-300 tracking-wide">
+                          {b.reference_code || 'N/A'}
+                        </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <p className="font-medium text-cream">{b.customer?.name || 'Unknown'}</p>
                         <p className="text-xs text-cream-muted">{b.customer?.email || 'No email'}</p>
                       </td>
-                      <td className="px-4 py-3 text-cream">{b.court_name || 'Unknown Court'}</td>
-                      <td className="px-4 py-3 text-cream-muted">{formatDateLong(b.date)}</td>
-                      <td className="px-4 py-3 text-cream-muted">
+                      <td className="px-4 py-3.5 font-medium text-cream">{b.court_name || 'Unknown Court'}</td>
+                      <td className="px-4 py-3.5 text-xs text-cream-muted">{formatDateLong(b.date)}</td>
+                      <td className="px-4 py-3.5 text-xs text-cream-muted">
                         {b.slots?.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ') || 'No slots'}
                       </td>
-                      <td className="px-4 py-3 font-semibold text-gold-400">
+                      <td className="px-4 py-3.5 font-bold text-brand-blue-300">
                         {formatCurrency(b.total_amount || 0)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <StatusBadge status={b.status} size="sm" />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5 text-right">
                         <button
                           onClick={() => setSelectedBooking(b)}
-                          className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
+                          className="rounded-lg border border-forest-600 bg-forest-800/60 p-1.5 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
+                          title="View Details"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
@@ -209,22 +218,29 @@ export function Bookings() {
               </table>
             </div>
 
+            {/* Mobile list view */}
             <div className="space-y-3 p-4 md:hidden">
               {filtered.map((b) => (
-                <div key={b.id} className="rounded-xl bg-forest-800 p-4">
+                <div key={b.id} className="rounded-xl border border-forest-700/70 bg-forest-950/70 p-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-gold-400">{b.reference_code || 'N/A'}</span>
+                    <span className="font-mono font-bold text-brand-blue-300 tracking-wide">
+                      {b.reference_code || 'N/A'}
+                    </span>
                     <StatusBadge status={b.status} size="sm" />
                   </div>
-                  <p className="mt-2 font-medium text-cream">{b.customer?.name || 'Unknown'}</p>
-                  <p className="text-xs text-cream-muted">{b.court_name || 'Unknown Court'} — {formatDateLong(b.date)}</p>
-                  <p className="mt-1 text-xs text-cream-muted">
-                    {b.slots?.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ') || 'No slots'}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between border-t border-forest-600 pt-3">
-                    <span className="font-semibold text-gold-400">{formatCurrency(b.total_amount || 0)}</span>
+                  <div>
+                    <p className="text-sm font-bold text-cream">{b.customer?.name || 'Unknown'}</p>
+                    <p className="text-xs text-cream-muted">{b.court_name || 'Unknown Court'} — {formatDateLong(b.date)}</p>
+                    <p className="mt-1 text-xs text-cream-muted/90">
+                      {b.slots?.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ') || 'No slots'}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-forest-800 pt-3">
+                    <span className="text-sm font-extrabold text-brand-blue-300">
+                      {formatCurrency(b.total_amount || 0)}
+                    </span>
                     <Button size="sm" variant="secondary" onClick={() => setSelectedBooking(b)}>
-                      View
+                      View Details
                     </Button>
                   </div>
                 </div>
@@ -234,6 +250,7 @@ export function Bookings() {
         )}
       </div>
 
+      {/* ─────────────────────── Booking Details Modal ─────────────────────── */}
       <AnimatePresence>
         {selectedBooking && (
           <Modal
@@ -243,56 +260,63 @@ export function Bookings() {
             size="lg"
           >
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-b border-forest-700/80 pb-3">
                 <StatusBadge status={selectedBooking.status} />
-                <span className="text-xs text-cream-muted">
+                <span className="text-xs text-cream-muted font-medium">
                   Created {formatDateTime(selectedBooking.created_at)}
                 </span>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl bg-forest-800 p-4">
-                  <p className="text-xs font-semibold text-gold-300">Customer</p>
-                  <p className="mt-1 text-sm text-cream">{selectedBooking.customer?.name || 'Unknown'}</p>
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">Customer</p>
+                  <p className="mt-1 text-sm font-bold text-cream">{selectedBooking.customer?.name || 'Unknown'}</p>
                   <p className="text-xs text-cream-muted">{selectedBooking.customer?.email || 'No email'}</p>
                   <p className="text-xs text-cream-muted">{selectedBooking.customer?.phone || 'No phone'}</p>
                   {selectedBooking.customer?.notes && (
-                    <p className="mt-2 text-xs italic text-cream-muted">"{selectedBooking.customer.notes}"</p>
+                    <p className="mt-2.5 rounded-lg border border-forest-800 bg-forest-900/60 p-2 text-xs italic text-cream-muted">
+                      "{selectedBooking.customer.notes}"
+                    </p>
                   )}
                 </div>
-                <div className="rounded-xl bg-forest-800 p-4">
-                  <p className="text-xs font-semibold text-gold-300">Booking</p>
-                  <p className="mt-1 text-sm text-cream">{selectedBooking.court_name || 'Unknown Court'}</p>
+
+                <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">Court Booking</p>
+                  <p className="mt-1 text-sm font-bold text-cream">{selectedBooking.court_name || 'Unknown Court'}</p>
                   <p className="text-xs text-cream-muted">{formatDateLong(selectedBooking.date)}</p>
-                  <p className="mt-1 text-xs text-cream-muted">
+                  <p className="mt-1.5 text-xs text-cream-muted">
                     {selectedBooking.slots?.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ') || 'No slots'}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between rounded-xl bg-gold-400/10 p-4">
-                <span className="text-sm text-cream-muted">Total Amount</span>
-                <span className="font-display text-xl font-bold text-gold-400">
+              {/* Total Summary */}
+              <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 p-4">
+                <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">Total Amount</span>
+                <span className="font-display text-2xl font-extrabold text-brand-blue-300">
                   {formatCurrency(selectedBooking.total_amount || 0)}
                 </span>
               </div>
 
+              {/* Payment Screenshot */}
               {selectedBooking.payment_screenshot_url && (
-                <div className="rounded-xl bg-forest-800 p-4">
-                  <p className="mb-2 text-xs font-semibold text-gold-300">Payment Screenshot</p>
+                <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
+                  <p className="mb-2.5 text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">
+                    Payment Screenshot
+                  </p>
                   <img
                     src={selectedBooking.payment_screenshot_url}
                     alt="Payment screenshot"
-                    className="max-h-64 w-full rounded-lg object-contain bg-forest-900"
+                    className="max-h-72 w-full rounded-lg object-contain bg-forest-950 border border-forest-800"
                   />
                 </div>
               )}
 
-              {/* ✅ Context-aware action buttons */}
-              <div className="border-t border-forest-500 pt-4">
-                <p className="mb-3 text-sm font-semibold text-cream">Actions</p>
+              {/* Context-aware action buttons */}
+              <div className="border-t border-forest-700/80 pt-4">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream-muted">Actions</p>
                 <div className="flex flex-wrap gap-2">
-                  {/* Pending Payment → allow cancel (mark as expired) */}
+                  {/* Pending Payment → mark expired */}
                   {selectedBooking.status === 'pending_payment' && (
                     <Button
                       size="sm"
@@ -317,7 +341,7 @@ export function Bookings() {
                         leftIcon={<CheckCircle2 className="h-4 w-4" />}
                         onClick={() => handleStatusUpdate(selectedBooking.id, 'confirmed')}
                       >
-                        Confirm
+                        Confirm Booking
                       </Button>
                       <Button
                         size="sm"
@@ -394,7 +418,7 @@ export function Bookings() {
                   {/* Terminal statuses — no actions */}
                   {['cancelled', 'rejected', 'expired', 'refunded'].includes(selectedBooking.status) && (
                     <p className="text-xs text-cream-muted">
-                      No actions available for {selectedBooking.status} bookings.
+                      No actions available for <span className="font-semibold text-cream">{selectedBooking.status}</span> bookings.
                     </p>
                   )}
                 </div>

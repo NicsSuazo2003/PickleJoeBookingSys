@@ -15,27 +15,29 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="mb-1.5 block text-sm font-medium text-cream"
+            className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-cream-muted"
           >
             {label}
-            {props.required && <span className="ml-0.5 text-gold-400">*</span>}
+            {props.required && <span className="ml-1 text-brand-blue-300">*</span>}
           </label>
         )}
-        <div className="relative">
+        <div className="relative flex items-center">
           {leftIcon && (
-            <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-cream-muted">
+            <div className="pointer-events-none absolute left-3.5 flex items-center text-cream-muted/70">
               {leftIcon}
             </div>
           )}
           <input
             ref={ref}
             id={inputId}
-            className={`input-field ${leftIcon ? 'pl-11' : ''} ${error ? 'border-error focus:border-error focus:ring-error/30' : ''} ${className}`}
+            className={`w-full rounded-xl border border-forest-700/80 bg-forest-950/60 px-4 py-2.5 text-sm text-cream placeholder-cream-muted/40 transition-all focus:border-brand-blue-400 focus:bg-forest-900/60 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 ${
+              leftIcon ? 'pl-10' : ''
+            } ${error ? 'border-error/80 focus:border-error focus:ring-error/20' : ''} ${className}`}
             {...props}
           />
         </div>
-        {error && <p className="mt-1.5 text-xs text-error">{error}</p>}
-        {hint && !error && <p className="mt-1.5 text-xs text-cream-muted">{hint}</p>}
+        {error && <p className="mt-1.5 text-xs font-medium text-error">{error}</p>}
+        {hint && !error && <p className="mt-1.5 text-xs text-cream-muted/70">{hint}</p>}
       </div>
     );
   }
@@ -57,20 +59,22 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="mb-1.5 block text-sm font-medium text-cream"
+            className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-cream-muted"
           >
             {label}
-            {props.required && <span className="ml-0.5 text-gold-400">*</span>}
+            {props.required && <span className="ml-1 text-brand-blue-300">*</span>}
           </label>
         )}
         <textarea
           ref={ref}
           id={inputId}
-          className={`input-field resize-none ${error ? 'border-error focus:border-error focus:ring-error/30' : ''} ${className}`}
+          className={`w-full rounded-xl border border-forest-700/80 bg-forest-950/60 p-4 text-sm text-cream placeholder-cream-muted/40 transition-all resize-none focus:border-brand-blue-400 focus:bg-forest-900/60 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50 ${
+            error ? 'border-error/80 focus:border-error focus:ring-error/20' : ''
+          } ${className}`}
           {...props}
         />
-        {error && <p className="mt-1.5 text-xs text-error">{error}</p>}
-        {hint && !error && <p className="mt-1.5 text-xs text-cream-muted">{hint}</p>}
+        {error && <p className="mt-1.5 text-xs font-medium text-error">{error}</p>}
+        {hint && !error && <p className="mt-1.5 text-xs text-cream-muted/70">{hint}</p>}
       </div>
     );
   }

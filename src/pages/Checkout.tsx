@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Wallet,
@@ -21,7 +20,6 @@ import {
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
 import { useClientStore } from '@/stores/clientStore';
 import { bookingService } from '@/services/bookingService';
@@ -52,7 +50,6 @@ export function Checkout() {
   const loadSettings = useClientStore((state) => state.loadSettings);
   const paymentMethods = settings?.payment_methods ?? [];
 
-  // ✅ Timer now derives from the actual backend expiry time, not a hardcoded 15 min
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     if (!currentBooking?.payment_expires_at) {
       return APP_CONFIG.paymentTimerSeconds;
@@ -82,17 +79,14 @@ export function Checkout() {
     }
   }, [currentBooking, navigate]);
 
-  // ✅ If the backend already marked this booking expired, kick them back to booking
   useEffect(() => {
     if (currentBooking?.status === 'expired') {
       navigate('/booking');
     }
   }, [currentBooking?.status, navigate]);
 
-  // ✅ Countdown derived from the real expiry timestamp every second
   useEffect(() => {
     if (!currentBooking?.payment_expires_at) {
-      // No expiry set — fall back to local countdown
       if (timeLeft <= 0) return;
       const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
       return () => clearInterval(timer);
@@ -104,12 +98,11 @@ export function Checkout() {
       setTimeLeft(Math.max(0, secondsLeft));
     };
 
-    tick(); // run immediately so it doesn't briefly show a stale value
+    tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, [currentBooking?.payment_expires_at]);
 
-  // Set default payment method when methods load
   useEffect(() => {
     if (paymentMethods.length > 0 && !selectedMethod) {
       const enabled = paymentMethods.filter((m: PaymentMethod) => m.enabled);
@@ -175,7 +168,6 @@ export function Checkout() {
 
   const isExpired = timeLeft <= 0;
 
-  // Display values from selected method or fallback
   const displayNumber = selectedMethod?.config?.account_number || '';
   const displayAccountName =
     selectedMethod?.config?.account_name ||
@@ -189,52 +181,70 @@ export function Checkout() {
   const enabledMethods = paymentMethods.filter((m: PaymentMethod) => m.enabled);
 
   return (
-    <div className="min-h-screen bg-charcoal">
+    <div className="min-h-screen bg-charcoal text-cream">
       <Navbar />
 
-      <div className="container-page pt-20 pb-8">
+      <div className="container-page pt-24 pb-12">
         <Link
           to="/booking"
-          className="mb-4 inline-flex items-center gap-1.5 text-xs text-cream-muted hover:text-gold-300 transition"
+          className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-cream-muted transition hover:text-brand-blue-300"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back
+          Back to Booking
         </Link>
 
-        <div className="mb-4">
-          <h1 className="text-xl font-bold text-cream sm:text-2xl">Checkout</h1>
-          <p className="text-xs text-cream-muted">Complete your payment to confirm your booking</p>
+        <div className="mb-5">
+          <h1 className="text-2xl font-bold tracking-tight text-cream sm:text-3xl">Checkout</h1>
+          <p className="text-xs text-cream-muted sm:text-sm">
+            Complete your payment to verify and secure your court slot
+          </p>
         </div>
 
-        <div className="grid gap-4 md:gap-6 lg:grid-cols-5">
+        <div className="grid gap-5 md:gap-6 lg:grid-cols-5">
           {/* Left: Payment Instructions */}
-          <div className="space-y-3 lg:col-span-3">
+          <div className="space-y-4 lg:col-span-3">
             {isInAppBrowser() && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-amber-400" />
+              <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
                 <span>
-                  You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. For a
-                  smoother payment experience, tap <strong>⋯</strong> (top right) and choose{' '}
-                  <strong>"Open in Browser"</strong> before continuing.
+                  You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. Tap{' '}
+                  <strong>⋯</strong> (top right) and choose <strong>"Open in Browser"</strong> for
+                  easier banking and receipt upload.
                 </span>
               </div>
             )}
 
             {/* Payment Timer */}
-            <div className={`card p-3 sm:p-4 ${isExpired ? 'border-error' : ''}`}>
+            <div
+              className={`card rounded-2xl border bg-forest-900/80 p-4 shadow-xl backdrop-blur-sm ${
+                isExpired ? 'border-error/80' : 'border-forest-700/80'
+              }`}
+            >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${isExpired ? 'bg-error/20' : 'bg-warning/20'}`}>
-                    <Clock className={`h-4 w-4 ${isExpired ? 'text-error' : 'text-warning'}`} />
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                      isExpired ? 'bg-error/20 text-error' : 'bg-amber-500/20 text-amber-300'
+                    }`}
+                  >
+                    <Clock className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-cream">
-                      {isExpired ? 'Payment Expired' : 'Complete in'}
+                    <p className="text-xs font-bold text-cream">
+                      {isExpired ? 'Payment Window Expired' : 'Complete Payment In'}
                     </p>
-                    <p className="text-[10px] text-cream-muted">Hold time: 15 min</p>
+                    <p className="text-[10px] text-cream-muted">Hold reservation duration: 15 mins</p>
                   </div>
                 </div>
-                <div className={`font-display text-2xl font-bold tabular-nums ${isExpired ? 'text-error' : timeLeft < 60 ? 'text-warning' : 'text-gold-400'}`}>
+                <div
+                  className={`font-display text-2xl font-extrabold tabular-nums sm:text-3xl ${
+                    isExpired
+                      ? 'text-error'
+                      : timeLeft < 120
+                        ? 'text-amber-400 animate-pulse'
+                        : 'text-brand-blue-300'
+                  }`}
+                >
                   {formatCountdown(Math.max(timeLeft, 0))}
                 </div>
               </div>
@@ -242,8 +252,8 @@ export function Checkout() {
 
             {/* Payment Method Selector */}
             {enabledMethods.length > 1 && (
-              <div className="card p-3">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+              <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 shadow-xl backdrop-blur-sm">
+                <p className="mb-2.5 text-[10px] font-bold uppercase tracking-wider text-cream-muted">
                   Select Payment Method
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -254,10 +264,10 @@ export function Checkout() {
                       <button
                         key={method.id}
                         onClick={() => setSelectedMethod(method)}
-                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                        className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
                           isSelected
-                            ? 'border-gold-400 bg-gold-400/10 text-gold-300'
-                            : 'border-forest-500 text-cream-muted hover:border-gold-400/40'
+                            ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue'
+                            : 'border-forest-700/90 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/50 hover:text-cream'
                         }`}
                       >
                         <Icon className="h-3.5 w-3.5" />
@@ -269,100 +279,129 @@ export function Checkout() {
               </div>
             )}
 
-            {/* Payment Instructions - Dynamic */}
+            {/* Dynamic Payment Instructions */}
             {selectedMethod && (
-              <div className="card p-4">
-                <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
-                  <IconComponent className="h-3.5 w-3.5" />
-                  {methodName} Payment
+              <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 sm:p-5 shadow-xl backdrop-blur-sm space-y-3.5">
+                <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
+                  <IconComponent className="h-4 w-4" />
+                  {methodName} Payment Details
                 </h2>
 
                 {displayNumber && (
-                  <div className="flex items-center justify-between rounded-lg border border-forest-500 bg-forest-800 p-2.5">
+                  <div className="flex items-center justify-between rounded-xl border border-forest-700/80 bg-forest-950/70 p-3">
                     <div>
-                      <p className="text-[10px] text-cream-muted">Send to</p>
-                      <p className="font-display text-sm font-bold text-cream">{displayNumber}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                        Send to account
+                      </p>
+                      <p className="font-display text-base font-bold text-cream tracking-wide">
+                        {displayNumber}
+                      </p>
                       {displayAccountName && (
-                        <p className="text-[10px] text-cream-muted">{displayAccountName}</p>
+                        <p className="text-xs font-medium text-brand-blue-200">
+                          {displayAccountName}
+                        </p>
                       )}
                     </div>
                     <button
                       onClick={copyGcash}
-                      className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
+                      className="rounded-lg border border-forest-600 bg-forest-800 p-2 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
+                      title="Copy Account Number"
                     >
-                      {copiedGcash ? <CheckCircle2 className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copiedGcash ? (
+                        <CheckCircle2 className="h-4 w-4 text-accentGreen-300" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 )}
 
                 {!displayNumber && displayAccountName && (
-                  <div className="rounded-lg border border-forest-500 bg-forest-800 p-2.5">
-                    <p className="text-[10px] text-cream-muted">Account Name</p>
-                    <p className="font-display text-sm font-bold text-cream">{displayAccountName}</p>
+                  <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                      Account Name
+                    </p>
+                    <p className="font-display text-base font-bold text-cream">
+                      {displayAccountName}
+                    </p>
                   </div>
                 )}
 
-                {/* Show QR Code if available */}
+                {/* QR Code Container */}
                 {selectedMethod.config?.qr_image_url && (
-                  <div className="mt-3 flex justify-center">
-                    <div className="rounded-lg border border-forest-500 bg-forest-800 p-3">
+                  <div className="flex justify-center pt-1 pb-1">
+                    <div className="rounded-2xl border border-forest-700/80 bg-forest-950/90 p-4 text-center shadow-lg">
                       <img
                         src={selectedMethod.config.qr_image_url}
                         alt={`${methodName} QR Code`}
-                        className="h-32 w-32 object-contain"
+                        className="h-36 w-36 object-contain mx-auto rounded-lg"
                       />
-                      <p className="mt-1 text-center text-[10px] text-cream-muted">
-                        Scan to pay
+                      <p className="mt-2 text-[11px] font-medium text-cream-muted">
+                        Scan with your banking or e-wallet app
                       </p>
                     </div>
                   </div>
                 )}
 
-                <div className="mt-2 flex items-center justify-between rounded-lg border border-gold-400/30 bg-gold-400/10 px-3 py-2">
-                  <span className="text-[10px] text-cream-muted">Amount</span>
-                  <span className="font-display text-lg font-bold text-gold-400">
+                {/* Amount to Pay */}
+                <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 px-4 py-3">
+                  <span className="text-xs font-medium text-cream-muted">Exact Amount</span>
+                  <span className="font-display text-xl font-extrabold text-brand-blue-300">
                     {formatCurrency(currentBooking.total_amount)}
                   </span>
                 </div>
 
-                <div className="mt-2 flex items-center gap-2 rounded-lg bg-forest-800 p-2">
-                  <span className="text-[10px] text-cream-muted">Ref:</span>
-                  <span className="font-mono text-xs font-bold text-gold-400">
-                    {currentBooking.reference_code}
-                  </span>
+                {/* Booking Reference Display */}
+                <div className="flex items-center justify-between rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-cream-muted">Booking Ref:</span>
+                    <span className="font-mono text-sm font-bold text-brand-blue-300">
+                      {currentBooking.reference_code}
+                    </span>
+                  </div>
                   <button
                     onClick={copyReference}
-                    className="ml-auto rounded-lg border border-forest-500 p-1 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
+                    className="rounded-lg border border-forest-600 bg-forest-800 p-1.5 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
+                    title="Copy Reference"
                   >
-                    {copiedRef ? <CheckCircle2 className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+                    {copiedRef ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-accentGreen-300" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
                   </button>
                 </div>
 
-                <div className="mt-2 rounded-lg border border-gold-400/20 bg-gold-400/5 p-2.5 text-[10px] text-cream-muted">
-                  <strong className="text-gold-300">Save your reference number.</strong> After
-                  sending payment, come back here to submit it. If this page ever closes before
-                  you finish, go to{' '}
-                  <Link to="/track" className="underline text-gold-300 hover:text-gold-200">
+                {/* Track Booking Notice */}
+                <div className="rounded-xl border border-brand-blue-500/30 bg-brand-blue-500/10 p-3 text-xs text-cream-muted leading-relaxed">
+                  <strong className="font-semibold text-brand-blue-200">
+                    Keep your reference code safe.
+                  </strong>{' '}
+                  If this tab reloads or closes, retrieve your progress anytime at{' '}
+                  <Link
+                    to="/track"
+                    className="font-semibold text-brand-blue-300 underline hover:text-brand-blue-200"
+                  >
                     Track My Booking
-                  </Link>{' '}
-                  and enter your reference code to pick up where you left off.
+                  </Link>
+                  .
                 </div>
 
-                {/* Instructions if available */}
                 {selectedMethod.config?.instructions && (
-                  <div className="mt-2 rounded-lg bg-forest-800/50 p-2 text-[10px] text-cream-muted">
-                    <p className="font-semibold text-cream">Instructions:</p>
-                    <p className="whitespace-pre-wrap">{selectedMethod.config.instructions}</p>
+                  <div className="rounded-xl border border-forest-800 bg-forest-950/50 p-3 text-xs text-cream-muted">
+                    <p className="font-semibold text-cream mb-1">Instructions:</p>
+                    <p className="whitespace-pre-wrap leading-relaxed">
+                      {selectedMethod.config.instructions}
+                    </p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Reference Number Input - Now Required */}
-            <div className="card p-4">
-              <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
-                <span className="text-red-400">*</span>
-                Reference Number
+            {/* Reference Number Input */}
+            <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 sm:p-5 shadow-xl backdrop-blur-sm">
+              <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
+                Payment Reference Number <span className="text-error">*</span>
               </h2>
 
               <div className="mt-2">
@@ -370,27 +409,27 @@ export function Checkout() {
                   type="text"
                   value={paymentRef}
                   onChange={(e) => setPaymentRef(e.target.value)}
-                  placeholder="Enter your reference number from the banking app you used to pay"
-                  className="input-field text-sm py-2"
+                  placeholder="e.g. GCash Ref No. 1002 9384 1928"
+                  className="w-full rounded-xl border border-forest-700/80 bg-forest-950/60 px-4 py-2.5 text-sm text-cream placeholder-cream-muted/40 transition-all focus:border-brand-blue-400 focus:bg-forest-900/60 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
                 />
-                <p className="mt-1 text-[10px] text-cream-muted">
-                  Required - Enter the reference number from your payment
+                <p className="mt-1.5 text-[11px] text-cream-muted">
+                  Required: Copy the reference or transaction number from your payment receipt
                 </p>
               </div>
 
               {uploadError && uploadError.includes('Reference number') && (
-                <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-error/10 p-2 text-xs text-error">
-                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                <div className="mt-2.5 flex items-center gap-1.5 rounded-xl border border-error/30 bg-error/10 p-2.5 text-xs text-error font-medium">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   {uploadError}
                 </div>
               )}
             </div>
 
-            {/* Screenshot Upload - Now Optional */}
-            <div className="card p-4">
-              <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gold-400">
+            {/* Screenshot Upload */}
+            <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 sm:p-5 shadow-xl backdrop-blur-sm">
+              <h2 className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
                 <Upload className="h-3.5 w-3.5" />
-                Upload Screenshot (Optional)
+                Upload Receipt Screenshot (Optional)
               </h2>
 
               <div
@@ -405,38 +444,38 @@ export function Checkout() {
                   const file = e.dataTransfer.files[0];
                   if (file) handleFile(file);
                 }}
-                className={`rounded-lg border-2 border-dashed p-4 text-center transition-all ${
+                className={`rounded-xl border-2 border-dashed p-4 text-center transition-all ${
                   dragOver
-                    ? 'border-gold-400 bg-gold-400/10'
+                    ? 'border-brand-blue-400 bg-brand-blue-500/10'
                     : screenshot
-                      ? 'border-success bg-success/5'
-                      : 'border-forest-500 hover:border-gold-400/50'
+                      ? 'border-accentGreen-500/60 bg-accentGreen-500/10'
+                      : 'border-forest-700 hover:border-brand-blue-400/50 hover:bg-forest-950/40'
                 }`}
               >
                 {screenshot ? (
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3.5">
                     <img
                       src={screenshot}
                       alt="Payment screenshot"
-                      className="h-14 w-14 rounded-lg object-contain"
+                      className="h-16 w-16 rounded-lg object-contain border border-forest-700 bg-forest-950"
                     />
                     <div className="flex-1 text-left">
-                      <p className="text-xs text-success">Uploaded ✓</p>
+                      <p className="text-xs font-bold text-accentGreen-300">Receipt Attached ✓</p>
                       <button
                         onClick={() => setScreenshot(null)}
-                        className="text-[10px] text-cream-muted underline hover:text-gold-300"
+                        className="mt-1 text-[11px] text-cream-muted underline hover:text-error transition"
                       >
-                        Remove
+                        Remove file
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center">
+                  <div className="flex flex-col items-center py-2">
                     <ImageIcon className="h-8 w-8 text-cream-muted/40" />
-                    <p className="mt-1 text-xs text-cream-muted">Optional - tap to upload</p>
-                    <label className="mt-1 inline-block cursor-pointer">
-                      <span className="rounded-lg border border-gold-400 px-3 py-1 text-xs font-medium text-gold-300 transition hover:bg-gold-400/10">
-                        Browse
+                    <p className="mt-1 text-xs text-cream-muted">Drag receipt here or browse</p>
+                    <label className="mt-2.5 inline-block cursor-pointer">
+                      <span className="rounded-xl border border-brand-blue-400/40 bg-brand-blue-500/20 px-3.5 py-1.5 text-xs font-semibold text-brand-blue-300 transition hover:bg-brand-blue-500 hover:text-white">
+                        Browse Files
                       </span>
                       <input
                         type="file"
@@ -453,88 +492,102 @@ export function Checkout() {
               </div>
 
               {uploadError && !uploadError.includes('Reference number') && (
-                <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-error/10 p-2 text-xs text-error">
-                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                <div className="mt-2.5 flex items-center gap-1.5 rounded-xl border border-error/30 bg-error/10 p-2.5 text-xs text-error font-medium">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   {uploadError}
                 </div>
               )}
 
               <Button
-                size="md"
+                size="lg"
                 fullWidth
-                className="mt-3"
+                className="mt-4"
                 isLoading={uploading}
                 disabled={!paymentRef.trim() || isExpired}
                 onClick={handleUpload}
                 leftIcon={<CheckCircle2 className="h-4 w-4" />}
               >
-                Submit Payment
+                Submit Payment Verification
               </Button>
 
               {isExpired && (
-                <p className="mt-2 text-center text-xs text-error">
-                  Expired. Please start a new booking.
+                <p className="mt-2.5 text-center text-xs font-semibold text-error">
+                  Time expired. Return to court selection to restart booking.
                 </p>
               )}
             </div>
           </div>
 
-          {/* Right: Order Summary */}
+          {/* Right: Order Summary Sidebar */}
           <div className="lg:col-span-2">
-            <div className="card p-4">
-              {/* Mobile toggle */}
+            <div className="sticky top-24 card rounded-2xl border border-forest-700/80 bg-forest-900/90 p-4 sm:p-5 shadow-xl">
+              {/* Mobile collapse button */}
               <button
                 onClick={() => setShowDetails(!showDetails)}
                 className="flex w-full items-center justify-between lg:hidden"
               >
-                <h2 className="font-display text-sm font-bold text-cream">Order Summary</h2>
-                <div className="flex items-center gap-1.5 text-cream-muted">
-                  <span className="text-xs font-bold text-gold-400">
+                <h2 className="font-display text-base font-bold text-cream">Order Summary</h2>
+                <div className="flex items-center gap-2 text-cream-muted">
+                  <span className="text-sm font-bold text-brand-blue-300">
                     {formatCurrency(currentBooking.total_amount)}
                   </span>
-                  {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  {showDetails ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
                 </div>
               </button>
 
-              <h2 className="hidden font-display text-base font-bold text-cream lg:block">Order Summary</h2>
+              <h2 className="hidden font-display text-base font-bold text-cream lg:block">
+                Order Summary
+              </h2>
 
-              <div className={`mt-3 space-y-2 ${showDetails ? 'block' : 'hidden lg:block'}`}>
-                <div className="rounded-lg bg-forest-800 p-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-cream-muted">Court</span>
-                    <span className="text-xs font-medium text-cream">{currentBooking.court_name}</span>
+              <div className={`mt-3.5 space-y-3 ${showDetails ? 'block' : 'hidden lg:block'}`}>
+                <div className="rounded-xl border border-forest-700/60 bg-forest-950/60 p-3 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-cream-muted">Court</span>
+                    <span className="font-semibold text-cream">{currentBooking.court_name}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-cream-muted">Date</span>
-                    <span className="text-xs font-medium text-cream">{formatDateLong(currentBooking.date)}</span>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-cream-muted">Date</span>
+                    <span className="font-semibold text-cream">
+                      {formatDateLong(currentBooking.date)}
+                    </span>
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <p className="text-[10px] font-semibold text-cream-muted">Slots</p>
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">
+                    Time Slots
+                  </p>
                   {currentBooking.slots.map((slot) => (
                     <div
                       key={slot.id}
-                      className="flex items-center justify-between rounded-lg bg-forest-800 px-2.5 py-1.5"
+                      className="flex items-center justify-between rounded-lg bg-forest-800/70 px-3 py-2 text-xs"
                     >
-                      <span className="text-xs text-cream">{formatTimeRange(slot.start_time, slot.end_time)}</span>
+                      <span className="text-cream">
+                        {formatTimeRange(slot.start_time, slot.end_time)}
+                      </span>
                     </div>
                   ))}
                 </div>
 
-                <div className="border-t border-forest-500 pt-2">
+                <div className="border-t border-forest-700/80 pt-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-cream-muted">Total</span>
-                    <span className="font-display text-lg font-bold text-gold-400">
+                    <span className="text-xs text-cream-muted">Total Due</span>
+                    <span className="font-display text-2xl font-extrabold text-brand-blue-300">
                       {formatCurrency(currentBooking.total_amount)}
                     </span>
                   </div>
                 </div>
 
-                <div className="rounded-lg bg-forest-800 p-2">
-                  <p className="text-[10px] font-semibold text-cream">Customer</p>
-                  <p className="text-xs text-cream">{currentBooking.customer.name}</p>
-                  <p className="text-[10px] text-cream-muted">{currentBooking.customer.email}</p>
+                <div className="rounded-xl border border-forest-800 bg-forest-950/40 p-3 text-xs">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted mb-1">
+                    Booker
+                  </p>
+                  <p className="font-semibold text-cream">{currentBooking.customer.name}</p>
+                  <p className="text-cream-muted text-[11px]">{currentBooking.customer.email}</p>
                 </div>
 
                 <button
@@ -542,9 +595,9 @@ export function Checkout() {
                     reset();
                     navigate('/booking');
                   }}
-                  className="mt-2 w-full text-center text-[10px] text-cream-muted underline hover:text-gold-300"
+                  className="mt-2 w-full text-center text-[11px] text-cream-muted underline transition hover:text-error"
                 >
-                  Cancel booking
+                  Cancel booking & release slots
                 </button>
               </div>
             </div>

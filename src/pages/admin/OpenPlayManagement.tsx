@@ -46,21 +46,21 @@ import type {
 const SKILL_LEVELS: OpenPlaySkillLevel[] = ['Beginner', 'Intermediate', 'Advanced', 'All Levels'];
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  upcoming: { label: 'Upcoming', className: 'bg-forest-600 text-cream-muted' },
-  active: { label: 'Active Now', className: 'bg-green-500/15 text-green-400' },
-  full: { label: 'Full', className: 'bg-red-500/15 text-red-400' },
-  past: { label: 'Past', className: 'bg-forest-700 text-cream-muted/60' },
-  cancelled: { label: 'Cancelled', className: 'bg-forest-700 text-cream-muted/60' },
+  upcoming: { label: 'Upcoming', className: 'bg-forest-800 text-cream-muted border border-forest-600' },
+  active: { label: 'Active Now', className: 'bg-accentGreen-500/20 text-accentGreen-300 border border-accentGreen-400/40' },
+  full: { label: 'Full', className: 'bg-red-500/15 text-red-400 border border-red-500/30' },
+  past: { label: 'Past', className: 'bg-forest-900/60 text-cream-muted/50 border border-forest-800' },
+  cancelled: { label: 'Cancelled', className: 'bg-forest-900/60 text-cream-muted/50 border border-forest-800' },
 };
 
 const PAYMENT_STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  pending_payment: { label: 'Pending', className: 'bg-yellow-500/15 text-yellow-400' },
-  payment_submitted: { label: 'Submitted', className: 'bg-blue-500/15 text-blue-400' },
-  confirmed: { label: 'Confirmed', className: 'bg-green-500/15 text-green-400' },
-  completed: { label: 'Completed', className: 'bg-green-500/15 text-green-400' },
-  cancelled: { label: 'Cancelled', className: 'bg-red-500/15 text-red-400' },
-  expired: { label: 'Expired', className: 'bg-gray-500/15 text-gray-400' },
-  rejected: { label: 'Rejected', className: 'bg-red-500/15 text-red-400' },
+  pending_payment: { label: 'Pending', className: 'bg-amber-500/15 text-amber-300 border border-amber-500/30' },
+  payment_submitted: { label: 'Submitted', className: 'bg-brand-blue-500/20 text-brand-blue-300 border border-brand-blue-400/30' },
+  confirmed: { label: 'Confirmed', className: 'bg-accentGreen-500/20 text-accentGreen-300 border border-accentGreen-400/30' },
+  completed: { label: 'Completed', className: 'bg-accentGreen-500/20 text-accentGreen-300 border border-accentGreen-400/30' },
+  cancelled: { label: 'Cancelled', className: 'bg-red-500/15 text-red-400 border border-red-500/30' },
+  expired: { label: 'Expired', className: 'bg-forest-800 text-cream-muted/60 border border-forest-700' },
+  rejected: { label: 'Rejected', className: 'bg-red-500/15 text-red-400 border border-red-500/30' },
 };
 
 export function OpenPlayManagement() {
@@ -91,7 +91,6 @@ export function OpenPlayManagement() {
 
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  // ✅ Changed to array for multi-select
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<CreateOpenPlaySessionPayload>({
@@ -108,13 +107,11 @@ export function OpenPlayManagement() {
 
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Load courts + sessions once on mount
   useEffect(() => {
     loadCourts();
     adminLoadSessions();
   }, []);
 
-  // Load players and stats when viewingPlayers changes
   useEffect(() => {
     if (viewingPlayers) {
       adminLoadPlayers(viewingPlayers);
@@ -122,7 +119,6 @@ export function OpenPlayManagement() {
     }
   }, [viewingPlayers, adminLoadPlayers, adminLoadStats]);
 
-  // Fetch slots with explicit values
   const fetchAndSetSlots = async (
     courtId: string,
     date: string,
@@ -187,28 +183,23 @@ export function OpenPlayManagement() {
     fetchAndSetSlots(formData.court_id, date);
   };
 
-  // ✅ Updated to handle multiple slot selection
   const handleSlotSelect = (slotId: string) => {
     const slot = availableSlots.find((s) => s.id === slotId);
     if (!slot) return;
 
     setSelectedSlotIds((prev) => {
-      // If already selected, deselect it
       if (prev.includes(slotId)) {
         return prev.filter((id) => id !== slotId);
       }
-      
-      // Otherwise, add it to the selection
       return [...prev, slotId];
     });
 
-    // Update form data with the selected slots
-    const updatedSlots = availableSlots.filter((s) => 
+    const updatedSlots = availableSlots.filter((s) =>
       selectedSlotIds.includes(s.id) || s.id === slotId
     );
-    
+
     if (updatedSlots.length > 0) {
-      const sortedSlots = updatedSlots.sort((a, b) => 
+      const sortedSlots = updatedSlots.sort((a, b) =>
         a.start_time.localeCompare(b.start_time)
       );
       setFormData((prev) => ({
@@ -391,7 +382,6 @@ export function OpenPlayManagement() {
     setUpdatingStatus(status);
     try {
       await updateBookingStatus(bookingId, status);
-      // Refresh players list after status update
       if (viewingPlayers) {
         adminLoadPlayers(viewingPlayers);
         adminLoadStats(viewingPlayers);
@@ -402,9 +392,7 @@ export function OpenPlayManagement() {
     }
   };
 
-  // ✅ Fixed: Proper date handling for player details
   const openPlayerDetails = (player: OpenPlayPlayer) => {
-    // Extract date from joined_at (format: YYYY-MM-DD)
     let dateStr = new Date().toISOString().split('T')[0];
     if (player.joined_at) {
       try {
@@ -413,7 +401,7 @@ export function OpenPlayManagement() {
           dateStr = d.toISOString().split('T')[0];
         }
       } catch {
-        // Use default date if parsing fails
+        // Fallback
       }
     }
 
@@ -448,23 +436,23 @@ export function OpenPlayManagement() {
 
   if (loadingAdminSessions) {
     return (
-      <div className="py-10 text-center sm:py-12">
-        <LoadingSpinner size="lg" />
+      <div className="py-14 text-center">
+        <LoadingSpinner />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6 text-cream">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="flex items-center gap-2 text-base font-bold text-cream sm:text-lg">
-            <Users className="h-4 w-4 text-gold-400 sm:h-5 sm:w-5" />
+          <h2 className="flex items-center gap-2 text-base font-bold tracking-tight text-cream sm:text-lg">
+            <Users className="h-5 w-5 text-brand-blue-300" />
             Open Play Sessions
           </h2>
-          <p className="text-xs text-cream-muted sm:text-sm">
-            Create and manage social group play sessions
+          <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
+            Create and organize social group play sessions
           </p>
         </div>
         <div className="flex gap-2">
@@ -487,8 +475,8 @@ export function OpenPlayManagement() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg bg-error/10 p-2.5 text-xs text-error sm:p-3 sm:text-sm">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+        <div className="flex items-center gap-2 rounded-xl border border-error/30 bg-error/10 p-3 text-xs text-error font-medium">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
           <button onClick={clearError} className="ml-auto text-error/70 hover:text-error">
             <X className="h-4 w-4" />
@@ -498,13 +486,13 @@ export function OpenPlayManagement() {
 
       {/* Sessions List */}
       {adminSessions.length === 0 ? (
-        <div className="rounded-xl border border-forest-500 bg-forest-800/50 p-6 text-center sm:p-8">
-          <Users className="mx-auto h-8 w-8 text-cream-muted/40 sm:h-10 sm:w-10" />
-          <p className="mt-2 text-xs text-cream-muted sm:text-sm">No Open Play sessions created yet.</p>
-          <p className="text-[11px] text-cream-muted/60 sm:text-xs">Create your first session to get started.</p>
+        <div className="rounded-2xl border border-forest-700/80 bg-forest-900/60 p-8 text-center shadow-xl backdrop-blur-sm">
+          <Users className="mx-auto h-10 w-10 text-cream-muted/30" />
+          <p className="mt-2 text-sm font-semibold text-cream-muted">No Open Play sessions created yet.</p>
+          <p className="text-xs text-cream-muted/60">Create your first session to get players joining.</p>
         </div>
       ) : (
-        <div className="space-y-2.5 sm:space-y-3">
+        <div className="space-y-3">
           {adminSessions.map((session) => {
             const status = STATUS_BADGE[session.status] ?? STATUS_BADGE.upcoming;
             return (
@@ -512,87 +500,87 @@ export function OpenPlayManagement() {
                 key={session.id}
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-forest-500 bg-forest-800/50 p-3 sm:gap-3 sm:p-4"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 shadow-xl backdrop-blur-sm transition-all hover:border-brand-blue-400/50"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <h3 className="text-sm font-medium text-cream sm:text-base">{session.court_name}</h3>
-                    <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold sm:px-2 sm:text-[10px] ${status.className}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-bold text-cream sm:text-base">{session.court_name}</h3>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${status.className}`}>
                       {status.label}
                     </span>
-                    <span className="rounded-full bg-gold-400/10 px-1.5 py-0.5 text-[9px] font-bold text-gold-300 sm:px-2 sm:text-[10px]">
+                    <span className="rounded-full border border-brand-blue-400/30 bg-brand-blue-500/20 px-2.5 py-0.5 text-[10px] font-bold text-brand-blue-200">
                       {session.skill_level}
                     </span>
                     {!session.is_active && (
-                      <span className="rounded-full bg-red-500/15 px-1.5 py-0.5 text-[9px] font-bold text-red-400 sm:px-2 sm:text-[10px]">
+                      <span className="rounded-full border border-red-500/40 bg-red-500/20 px-2.5 py-0.5 text-[10px] font-bold text-red-400">
                         Inactive
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-cream-muted sm:gap-x-4 sm:text-xs">
-                    <span className="flex items-center gap-1">
-                      <CalendarDays className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-cream-muted">
+                    <span className="flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5 text-brand-blue-300" />
                       {formatDateLong(session.date)}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-brand-blue-300" />
                       {formatTimeRange(session.start_time, session.end_time)}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <span className="flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-brand-blue-300" />
                       {session.current_players}/{session.max_players} players
                     </span>
-                    <span className="font-medium text-gold-400">
+                    <span className="font-extrabold text-brand-blue-300">
                       {formatCurrency(session.price_per_player)}/player
                     </span>
                     {session.host_name && (
-                      <span className="flex items-center gap-1">
-                        <UserCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                        {session.host_name}
+                      <span className="flex items-center gap-1.5">
+                        <UserCircle2 className="h-3.5 w-3.5 text-brand-blue-300" />
+                        Host: {session.host_name}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => handleViewPlayers(session.id)}
-                    className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
+                    className="rounded-lg border border-forest-600 bg-forest-800/60 p-2 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
                     title="View players"
                   >
-                    <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <Eye className="h-4 w-4" />
                   </button>
 
                   <button
                     onClick={() => toggleActive(session)}
-                    className={`rounded-lg border p-1.5 transition ${
+                    className={`rounded-lg border p-2 transition active:scale-95 ${
                       session.is_active
-                        ? 'border-green-500/30 text-green-400 hover:border-green-400'
-                        : 'border-forest-500 text-cream-muted hover:border-gold-400'
+                        ? 'border-accentGreen-500/40 bg-accentGreen-500/15 text-accentGreen-300 hover:border-accentGreen-400'
+                        : 'border-forest-600 bg-forest-800/60 text-cream-muted hover:border-brand-blue-400 hover:text-brand-blue-300'
                     }`}
                     title={session.is_active ? 'Deactivate' : 'Activate'}
                   >
                     {session.is_active ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <CheckCircle2 className="h-4 w-4" />
                     ) : (
-                      <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <RefreshCw className="h-4 w-4" />
                     )}
                   </button>
 
                   <button
                     onClick={() => openEditModal(session)}
-                    className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
-                    title="Edit"
+                    className="rounded-lg border border-forest-600 bg-forest-800/60 p-2 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
+                    title="Edit session"
                   >
-                    <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <Edit3 className="h-4 w-4" />
                   </button>
 
                   <button
                     onClick={() => handleDelete(session.id, session)}
-                    className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-red-500 hover:text-red-400"
-                    title="Delete"
+                    className="rounded-lg border border-forest-600 bg-forest-800/60 p-2 text-cream-muted transition hover:border-error hover:text-error active:scale-95"
+                    title="Delete session"
                   >
-                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </motion.div>
@@ -601,7 +589,7 @@ export function OpenPlayManagement() {
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* ─────────────────────── Create/Edit Modal ─────────────────────── */}
       <Modal
         isOpen={showCreateModal || !!editingSession}
         onClose={() => {
@@ -612,18 +600,20 @@ export function OpenPlayManagement() {
         title={editingSession ? 'Edit Session' : 'Create Open Play Session'}
         size="lg"
       >
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-4">
           {/* Court Selection */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-cream sm:text-sm">Court *</label>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-cream-muted">
+              Court *
+            </label>
             <select
               value={formData.court_id}
               onChange={(e) => handleCourtChange(e.target.value)}
-              className="input-field text-sm"
+              className="w-full rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5 text-sm text-cream transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
             >
               <option value="">Select a court</option>
               {courts.map((court) => (
-                <option key={court.id} value={court.id}>
+                <option key={court.id} value={court.id} className="bg-forest-900">
                   {court.name}
                 </option>
               ))}
@@ -631,7 +621,7 @@ export function OpenPlayManagement() {
           </div>
 
           {/* Date and Skill Level */}
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <Input
               label="Date *"
               type="date"
@@ -641,16 +631,18 @@ export function OpenPlayManagement() {
             />
 
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-cream sm:text-sm">Skill Level *</label>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                Skill Level *
+              </label>
               <select
                 value={formData.skill_level}
                 onChange={(e) =>
                   setFormData({ ...formData, skill_level: e.target.value as OpenPlaySkillLevel })
                 }
-                className="input-field text-sm"
+                className="w-full rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5 text-sm text-cream transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
               >
                 {SKILL_LEVELS.map((level) => (
-                  <option key={level} value={level}>
+                  <option key={level} value={level} className="bg-forest-900">
                     {level}
                   </option>
                 ))}
@@ -658,30 +650,31 @@ export function OpenPlayManagement() {
             </div>
           </div>
 
-          {/* Time Slot Selection - Multi-select */}
+          {/* Time Slot Selection */}
           <div>
-            <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-cream sm:text-sm">
-              Time Slots *
-              {loadingSlots && <span className="text-[11px] text-cream-muted">Loading...</span>}
+            <label className="mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-cream-muted">
+              <span>Time Slots *</span>
               {selectedSlotIds.length > 0 && (
-                <span className="text-[11px] text-gold-400">
-                  ({selectedSlotIds.length} selected)
+                <span className="text-brand-blue-300">
+                  ({selectedSlotIds.length} slot{selectedSlotIds.length > 1 ? 's' : ''} selected)
                 </span>
               )}
             </label>
 
             {!formData.court_id || !formData.date ? (
-              <p className="text-[11px] text-cream-muted sm:text-xs">Please select a court and date first</p>
+              <p className="text-xs text-cream-muted">Please select a court and date first</p>
             ) : loadingSlots ? (
-              <div className="flex items-center gap-2 py-2">
-                <LoadingSpinner size="sm" />
-                <span className="text-[11px] text-cream-muted sm:text-xs">Loading available slots...</span>
+              <div className="flex items-center gap-2 py-3">
+                <LoadingSpinner />
+                <span className="text-xs text-cream-muted">Loading court availability...</span>
               </div>
             ) : availableSlots.length === 0 ? (
-              <p className="text-[11px] text-yellow-400 sm:text-xs">No available slots for this court on this date</p>
+              <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-300">
+                No available slots for this court on this date.
+              </p>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {availableSlots.map((slot) => {
                     const isSelected = selectedSlotIds.includes(slot.id);
                     return (
@@ -689,17 +682,21 @@ export function OpenPlayManagement() {
                         key={slot.id}
                         type="button"
                         onClick={() => handleSlotSelect(slot.id)}
-                        className={`rounded-lg border p-2 text-center text-[11px] transition-all sm:text-xs ${
+                        className={`rounded-xl border p-2.5 text-center text-xs transition ${
                           isSelected
-                            ? 'border-gold-400 bg-gold-400/10 text-gold-300'
-                            : 'border-forest-500 text-cream-muted hover:border-gold-400/50 hover:text-cream'
+                            ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue font-bold'
+                            : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/50 hover:text-cream'
                         }`}
                       >
-                        <span className="font-mono">{formatTimeRange(slot.start_time, slot.end_time)}</span>
+                        <span className="font-mono block font-bold">
+                          {formatTimeRange(slot.start_time, slot.end_time)}
+                        </span>
                         {slot.is_peak && (
-                          <span className="ml-1 text-[8px] uppercase text-gold-400">Peak</span>
+                          <span className="mt-0.5 inline-block text-[8px] uppercase tracking-wider font-extrabold text-amber-400">
+                            Peak
+                          </span>
                         )}
-                        <span className="block text-[8px] text-cream-muted/60">
+                        <span className="block text-[10px] opacity-75 mt-0.5">
                           {formatCurrency(slot.price)}
                         </span>
                       </button>
@@ -707,15 +704,14 @@ export function OpenPlayManagement() {
                   })}
                 </div>
 
-                {/* Show selected slots info */}
                 {selectedSlotIds.length > 0 && !loadingSlots && (
-                  <div className="mt-2 rounded-lg bg-gold-400/10 p-2">
-                    <p className="text-[11px] text-gold-300 sm:text-xs">
+                  <div className="mt-2.5 rounded-xl border border-brand-blue-500/30 bg-brand-blue-500/10 p-2.5 text-xs text-cream">
+                    <p className="font-semibold text-brand-blue-200">
                       Selected: {selectedSlotIds.length} slot{selectedSlotIds.length > 1 ? 's' : ''}
                     </p>
                     {selectedSlotIds.length > 1 && (
-                      <p className="text-[10px] text-cream-muted">
-                        Range: {formatTimeRange(formData.start_time, formData.end_time)}
+                      <p className="text-[11px] text-cream-muted mt-0.5">
+                        Duration Range: {formatTimeRange(formData.start_time, formData.end_time)}
                       </p>
                     )}
                   </div>
@@ -724,8 +720,8 @@ export function OpenPlayManagement() {
             )}
           </div>
 
-          {/* Max Players and Price */}
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+          {/* Max Players & Price */}
+          <div className="grid gap-3.5 sm:grid-cols-2">
             <Input
               label="Max Players *"
               type="number"
@@ -750,30 +746,28 @@ export function OpenPlayManagement() {
             />
           </div>
 
-          {/* Host Name and Description */}
           <Input
             label="Host Name (optional)"
-            placeholder="e.g. John Doe"
+            placeholder="e.g. Coach Nicole"
             value={formData.host_name || ''}
             onChange={(e) => setFormData({ ...formData, host_name: e.target.value })}
           />
 
           <Input
             label="Description (optional)"
-            placeholder="e.g. Casual games for all skill levels"
+            placeholder="e.g. Social open play games for all levels"
             value={formData.description || ''}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           />
 
           {formError && (
-            <div className="flex items-center gap-2 rounded-lg bg-error/10 p-2 text-xs text-error">
-              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+            <div className="flex items-center gap-2 rounded-xl border border-error/30 bg-error/10 p-3 text-xs text-error font-medium">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               {formError}
             </div>
           )}
 
-          {/* Buttons */}
-          <div className="flex flex-col gap-2.5 border-t border-forest-500 pt-3 sm:flex-row sm:gap-3 sm:pt-4">
+          <div className="flex flex-col gap-2.5 border-t border-forest-700/80 pt-4 sm:flex-row sm:gap-3">
             <Button
               fullWidth
               isLoading={loadingAction}
@@ -797,102 +791,102 @@ export function OpenPlayManagement() {
         </div>
       </Modal>
 
-      {/* Players Modal */}
+      {/* ─────────────────────── Players List Modal ─────────────────────── */}
       <Modal
         isOpen={!!viewingPlayers}
-        onClose={() => {
-          setViewingPlayers(null);
-        }}
-        title="Players"
+        onClose={() => setViewingPlayers(null)}
+        title="Session Roster"
         size="lg"
       >
         {loadingPlayers ? (
-          <div className="py-6 text-center sm:py-8">
+          <div className="py-10 text-center">
             <LoadingSpinner />
           </div>
         ) : (
           <>
-          {stats && (
-            <div className="mb-3 grid grid-cols-4 gap-2 sm:mb-4 sm:gap-3">
-              <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-                <p className="text-[10px] text-cream-muted sm:text-xs">Players</p>
-                <p className="text-lg font-bold text-cream sm:text-xl">
-                  {stats.total_players}/{stats.max_players}
-                </p>
+            {stats && (
+              <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">Players</p>
+                  <p className="mt-1 text-xl font-extrabold text-cream">
+                    {stats.total_players}/{stats.max_players}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">Confirmed</p>
+                  <p className="mt-1 text-xl font-extrabold text-accentGreen-300">
+                    {stats.confirmed_count}
+                  </p>
+                  {stats.total_revenue > 0 && (
+                    <p className="text-[10px] text-brand-blue-300 font-semibold">{formatCurrency(stats.total_revenue)}</p>
+                  )}
+                </div>
+                <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">Pending</p>
+                  <p className="mt-1 text-xl font-extrabold text-amber-300">
+                    {stats.pending_count}
+                  </p>
+                  {stats.pending_revenue > 0 && (
+                    <p className="text-[10px] text-amber-300 font-semibold">{formatCurrency(stats.pending_revenue)}</p>
+                  )}
+                </div>
+                <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">Est. Revenue</p>
+                  <p className="mt-1 text-xl font-extrabold text-brand-blue-300">
+                    {formatCurrency((stats.total_revenue || 0) + (stats.pending_revenue || 0))}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-                <p className="text-[10px] text-cream-muted sm:text-xs">Confirmed</p>
-                <p className="text-lg font-bold text-green-400 sm:text-xl">
-                  {stats.confirmed_count}
-                </p>
-                {stats.total_revenue > 0 && (
-                  <p className="text-[10px] text-gold-400">{formatCurrency(stats.total_revenue)}</p>
-                )}
-              </div>
-              <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-                <p className="text-[10px] text-cream-muted sm:text-xs">Pending</p>
-                <p className="text-lg font-bold text-yellow-400 sm:text-xl">
-                  {stats.pending_count}
-                </p>
-                {stats.pending_revenue > 0 && (
-                  <p className="text-[10px] text-yellow-400">{formatCurrency(stats.pending_revenue)}</p>
-                )}
-              </div>
-              <div className="rounded-lg bg-forest-800 p-2 text-center sm:p-3">
-                <p className="text-[10px] text-cream-muted sm:text-xs">Total Revenue</p>
-                <p className="text-lg font-bold text-gold-400 sm:text-xl">
-                  {formatCurrency((stats.total_revenue || 0) + (stats.pending_revenue || 0))}
-                </p>
-              </div>
-            </div>
-          )}
+            )}
 
             {players.length === 0 ? (
-              <div className="py-6 text-center text-xs text-cream-muted sm:py-8 sm:text-sm">
-                No players have joined this session yet.
+              <div className="py-8 text-center text-xs text-cream-muted">
+                No players have registered for this session yet.
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
                 {players.map((player) => {
                   const status = PAYMENT_STATUS_BADGE[player.status] ?? PAYMENT_STATUS_BADGE.pending_payment;
                   return (
                     <div
                       key={player.booking_id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-forest-800 p-2.5 sm:p-3"
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-cream">{player.customer_name}</p>
-                        <p className="truncate text-[11px] text-cream-muted sm:text-xs">{player.customer_email}</p>
+                        <p className="truncate text-sm font-bold text-cream">{player.customer_name}</p>
+                        <p className="truncate text-xs text-cream-muted">{player.customer_email}</p>
                         {player.customer_phone && (
-                          <p className="text-[11px] text-cream-muted/60 sm:text-xs">{player.customer_phone}</p>
+                          <p className="text-xs text-cream-muted/70">{player.customer_phone}</p>
                         )}
-                        <p className="font-mono text-[11px] text-gold-400/60 sm:text-xs">
+                        <p className="font-mono text-xs font-semibold text-brand-blue-300 mt-1">
                           {player.reference_code}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <div className="text-right">
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[9px] font-bold sm:text-[10px] ${status.className}`}
+                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${status.className}`}
                           >
                             {status.label}
                           </span>
-                          <p className="mt-1 text-[11px] text-cream-muted sm:text-xs">
-                            {formatCurrency(player.amount_paid)} 
-                            {player.status === 'confirmed' || player.status === 'completed' 
-                              ? ' paid' 
-                              : ' (pending)'}
+                          <p className="mt-1 text-xs font-semibold text-cream">
+                            {formatCurrency(player.amount_paid)}{' '}
+                            <span className="text-[10px] text-cream-muted font-normal">
+                              {player.status === 'confirmed' || player.status === 'completed'
+                                ? 'paid'
+                                : '(pending)'}
+                            </span>
                           </p>
-                          <p className="text-[9px] text-cream-muted/60 sm:text-[10px]">
+                          <p className="text-[10px] text-cream-muted">
                             Joined {new Date(player.joined_at).toLocaleDateString()}
                           </p>
                         </div>
                         <button
                           onClick={() => openPlayerDetails(player)}
-                          className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
-                          title="Manage payment"
+                          className="rounded-lg border border-forest-600 bg-forest-800/60 p-2 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
+                          title="Manage player payment"
                         >
-                          <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                          <CreditCard className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -904,7 +898,7 @@ export function OpenPlayManagement() {
         )}
       </Modal>
 
-      {/* Player Booking Details Modal */}
+      {/* ─────────────────────── Player Booking Details Modal ─────────────────────── */}
       <Modal
         isOpen={!!selectedPlayerBooking}
         onClose={() => setSelectedPlayerBooking(null)}
@@ -912,43 +906,43 @@ export function OpenPlayManagement() {
         size="lg"
       >
         {selectedPlayerBooking && (
-          <div className="space-y-3 sm:space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-forest-700/80 pb-3">
               <StatusBadge status={selectedPlayerBooking.status} />
-              <span className="text-[11px] text-cream-muted sm:text-xs">
-                Created {formatDateTime(selectedPlayerBooking.created_at)}
+              <span className="text-xs text-cream-muted font-medium">
+                Joined {formatDateTime(selectedPlayerBooking.created_at)}
               </span>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-              <div className="rounded-xl bg-forest-800 p-3 sm:p-4">
-                <p className="text-[11px] font-semibold text-gold-300 sm:text-xs">Customer</p>
-                <p className="mt-1 text-sm text-cream">{selectedPlayerBooking.customer?.name || 'Unknown'}</p>
-                <p className="text-[11px] text-cream-muted sm:text-xs">{selectedPlayerBooking.customer?.email || 'No email'}</p>
-                <p className="text-[11px] text-cream-muted sm:text-xs">{selectedPlayerBooking.customer?.phone || 'No phone'}</p>
+            <div className="grid gap-3.5 sm:grid-cols-2">
+              <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">Customer</p>
+                <p className="mt-1 text-sm font-bold text-cream">{selectedPlayerBooking.customer?.name || 'Unknown'}</p>
+                <p className="text-xs text-cream-muted">{selectedPlayerBooking.customer?.email || 'No email'}</p>
+                <p className="text-xs text-cream-muted">{selectedPlayerBooking.customer?.phone || 'No phone'}</p>
                 {selectedPlayerBooking.customer?.notes && (
-                  <p className="mt-2 text-[11px] italic text-cream-muted sm:text-xs">"{selectedPlayerBooking.customer.notes}"</p>
+                  <p className="mt-2 text-xs italic text-cream-muted">"{selectedPlayerBooking.customer.notes}"</p>
                 )}
               </div>
-              <div className="rounded-xl bg-forest-800 p-3 sm:p-4">
-                <p className="text-[11px] font-semibold text-gold-300 sm:text-xs">Booking</p>
-                <p className="mt-1 text-sm text-cream">Open Play Session</p>
-                <p className="text-[11px] text-cream-muted sm:text-xs">{formatDateLong(selectedPlayerBooking.date)}</p>
-                <p className="text-[11px] text-cream-muted sm:text-xs">
+              <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">Session Information</p>
+                <p className="mt-1 text-sm font-bold text-cream">Social Open Play</p>
+                <p className="text-xs text-cream-muted">{formatDateLong(selectedPlayerBooking.date)}</p>
+                <p className="mt-1 font-mono text-xs text-brand-blue-300">
                   Ref: {selectedPlayerBooking.reference_code}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between rounded-xl bg-gold-400/10 p-3 sm:p-4">
-              <span className="text-xs text-cream-muted sm:text-sm">Total Amount</span>
-              <span className="text-lg font-bold text-gold-400 sm:text-xl">
+            <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 p-4">
+              <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">Total Amount</span>
+              <span className="font-display text-2xl font-extrabold text-brand-blue-300">
                 {formatCurrency(selectedPlayerBooking.total_amount || 0)}
               </span>
             </div>
 
-            <div className="border-t border-forest-500 pt-3 sm:pt-4">
-              <p className="mb-2.5 text-xs font-semibold text-cream sm:mb-3 sm:text-sm">Update Payment Status</p>
+            <div className="border-t border-forest-700/80 pt-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream-muted">Update Payment Status</p>
               <div className="flex flex-wrap gap-2">
                 {selectedPlayerBooking.status !== 'confirmed' && (
                   <Button
@@ -982,7 +976,7 @@ export function OpenPlayManagement() {
                     leftIcon={<XCircle className="h-4 w-4" />}
                     onClick={() => handlePlayerStatusUpdate(selectedPlayerBooking.id, 'cancelled')}
                   >
-                    Cancel Booking
+                    Cancel Registration
                   </Button>
                 )}
                 {selectedPlayerBooking.status !== 'rejected' && (

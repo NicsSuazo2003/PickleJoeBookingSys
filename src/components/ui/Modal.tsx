@@ -81,36 +81,36 @@ export function Modal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-forest-950/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-charcoal/85 backdrop-blur-md"
           />
 
           {/* Panel */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 20 }}
+            initial={{ opacity: 0, scale: 0.97, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            exit={{ opacity: 0, scale: 0.97, y: 15 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
             className={`
-              relative flex w-full flex-col bg-forest-900
+              relative flex w-full flex-col bg-forest-900/95
               ${sizes[size]}
               ${fullScreenOnMobile
                 ? 'h-full max-h-none rounded-none sm:h-auto sm:max-h-[90vh] sm:rounded-2xl'
                 : 'max-h-[90vh] rounded-2xl'}
-              border border-forest-500 shadow-2xl
+              border border-forest-700/80 shadow-2xl backdrop-blur-sm
               ${className || ''}
             `}
             role="dialog"
             aria-modal="true"
           >
-            {/* Header — fixed at top, doesn't scroll */}
+            {/* Header */}
             {title && (
-              <div className="flex flex-shrink-0 items-center justify-between border-b border-forest-500 px-4 py-3 sm:px-6 sm:py-4">
+              <div className="flex shrink-0 items-center justify-between border-b border-forest-700/80 px-4 py-3.5 sm:px-6 sm:py-4">
                 <h3 className="pr-2 font-display text-base font-bold text-cream sm:text-lg">
                   {title}
                 </h3>
                 <button
                   onClick={onClose}
-                  className="flex-shrink-0 rounded-lg p-1.5 text-cream-muted transition hover:bg-forest-600 hover:text-cream"
+                  className="shrink-0 rounded-xl border border-transparent p-1.5 text-cream-muted transition hover:border-forest-600 hover:bg-forest-800/80 hover:text-brand-blue-300 active:scale-95"
                   aria-label="Close"
                 >
                   <X className="h-5 w-5" />
@@ -118,18 +118,18 @@ export function Modal({
               </div>
             )}
 
-            {/* Body — scrolls */}
+            {/* Body */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               {children}
             </div>
 
-            {/* Footer — sticky bottom on mobile */}
+            {/* Footer */}
             {footer && (
               <div
                 className="
-                  flex-shrink-0 border-t border-forest-500
-                  bg-forest-900/95 backdrop-blur
-                  p-4 sm:p-4
+                  shrink-0 border-t border-forest-700/80
+                  bg-forest-950/90 backdrop-blur-sm
+                  p-4 sm:p-5
                 "
               >
                 {footer}

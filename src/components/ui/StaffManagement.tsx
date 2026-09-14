@@ -1,10 +1,8 @@
-// src/components/ui/StaffManagement.tsx
 import { useState, useEffect } from 'react';
 import {
   Users,
-  Plus,
-  Trash2,
   UserPlus,
+  Trash2,
   Mail,
   Phone,
   User,
@@ -32,7 +30,7 @@ interface StaffMember {
 }
 
 export function StaffManagement() {
-  const { user } = useAuthStore(); // ✅ Get current user
+  const { user } = useAuthStore();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -48,16 +46,14 @@ export function StaffManagement() {
     confirmPassword: '',
   });
 
-  // ✅ Only load staff if user is admin
   const isAdmin = user?.role === 'admin';
 
   const loadStaff = async () => {
-    // ✅ Don't load if not admin
     if (!isAdmin) {
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     try {
@@ -65,7 +61,6 @@ export function StaffManagement() {
       const data = Array.isArray(res) ? res : res?.data || [];
       setStaff(data);
     } catch (err) {
-      // ✅ Silently fail for non-admin users
       if (isAdmin) {
         setError(err instanceof Error ? err.message : 'Failed to load staff');
       }
@@ -78,7 +73,6 @@ export function StaffManagement() {
     loadStaff();
   }, [isAdmin]);
 
-  // ✅ If not admin, show nothing
   if (!isAdmin) {
     return null;
   }
@@ -146,15 +140,15 @@ export function StaffManagement() {
   };
 
   return (
-    <div className="card p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="card rounded-2xl border border-forest-700/80 bg-forest-900 p-6 shadow-xl">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 font-display text-lg font-bold text-cream">
-            <Users className="h-5 w-5 text-gold-400" />
+            <Users className="h-5 w-5 text-brand-blue-400" />
             Staff Management
           </h2>
-          <p className="text-sm text-cream-muted">
-            Add and manage staff members who can confirm bookings
+          <p className="mt-0.5 text-xs text-cream-muted">
+            Add and manage staff members who can verify payments and manage bookings
           </p>
         </div>
         <Button
@@ -167,79 +161,77 @@ export function StaffManagement() {
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg bg-error/10 p-3 text-sm text-error">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-error/20 bg-error/10 p-3 text-xs text-error font-medium">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
       )}
 
       {success && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg bg-success/10 p-3 text-sm text-success">
-          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-success/20 bg-success/10 p-3 text-xs text-success font-medium">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
           {success}
         </div>
       )}
 
       {loading ? (
-        <LoadingSpinner className="py-8" />
+        <LoadingSpinner className="py-12" />
       ) : staff.length === 0 ? (
-        <div className="rounded-xl bg-forest-800 py-12 text-center">
-          <Users className="mx-auto h-10 w-10 text-cream-muted/40" />
-          <p className="mt-3 text-sm text-cream-muted">No staff members added yet.</p>
-          <p className="text-xs text-cream-muted/60">Add staff to help manage bookings.</p>
+        <div className="rounded-xl border border-forest-800 bg-forest-950/50 py-12 text-center">
+          <Users className="mx-auto h-10 w-10 text-cream-muted/30" />
+          <p className="mt-3 text-sm font-medium text-cream-muted">No staff members registered.</p>
+          <p className="text-xs text-cream-muted/60">Click "Add Staff" to create an account.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-forest-700/70">
+          <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-forest-500 text-left text-xs uppercase text-cream-muted">
+              <tr className="border-b border-forest-700/80 bg-forest-950/60 text-[11px] uppercase tracking-wider text-cream-muted">
                 <th className="px-4 py-3 font-semibold">Name</th>
                 <th className="px-4 py-3 font-semibold">Email</th>
                 <th className="px-4 py-3 font-semibold">Phone</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Joined</th>
-                <th className="px-4 py-3 font-semibold">Actions</th>
+                <th className="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-forest-800/80 bg-forest-900/50">
               {staff.map((member) => (
-                <tr
-                  key={member.id}
-                  className="border-b border-forest-600 transition hover:bg-forest-600/30"
-                >
+                <tr key={member.id} className="transition hover:bg-forest-800/40">
                   <td className="px-4 py-3 font-medium text-cream">{member.name}</td>
-                  <td className="px-4 py-3 text-cream-muted">{member.email}</td>
-                  <td className="px-4 py-3 text-cream-muted">{member.phone || '—'}</td>
+                  <td className="px-4 py-3 text-xs text-cream-muted">{member.email}</td>
+                  <td className="px-4 py-3 text-xs text-cream-muted">{member.phone || '—'}</td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
                         member.status === 'active'
-                          ? 'bg-success/20 text-success'
-                          : 'bg-error/20 text-error'
+                          ? 'border border-accentGreen-500/40 bg-accentGreen-500/10 text-accentGreen-300'
+                          : 'border border-error/40 bg-error/10 text-error'
                       }`}
                     >
-                      {member.status === 'active' ? (
-                        <CheckCircle2 className="h-3 w-3" />
-                      ) : (
-                        <XCircle className="h-3 w-3" />
-                      )}
-                      {member.status}
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          member.status === 'active' ? 'bg-accentGreen-400' : 'bg-error'
+                        }`}
+                      />
+                      {member.status === 'active' ? 'Active' : 'Suspended'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-cream-muted">
                     {new Date(member.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleUpdateStatus(member.id, member.status)}
-                        className="rounded-lg border border-forest-500 px-2 py-1 text-xs text-cream-muted transition hover:border-gold-400 hover:text-gold-300"
+                        className="rounded-lg border border-forest-600 bg-forest-800/60 px-2.5 py-1 text-xs text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300"
                       >
                         {member.status === 'active' ? 'Suspend' : 'Activate'}
                       </button>
                       <button
                         onClick={() => handleDeleteStaff(member.id, member.name)}
-                        className="rounded-lg border border-forest-500 p-1.5 text-cream-muted transition hover:border-error hover:text-error"
+                        className="rounded-lg border border-forest-600 bg-forest-800/60 p-1.5 text-cream-muted transition hover:border-error hover:text-error"
+                        aria-label={`Remove ${member.name}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -270,7 +262,7 @@ export function StaffManagement() {
           <Input
             label="Email Address"
             type="email"
-            placeholder="staff@picklejoe.com"
+            placeholder="staff@pickleball.com"
             leftIcon={<Mail className="h-4 w-4" />}
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -300,13 +292,13 @@ export function StaffManagement() {
           />
 
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-error/10 p-3 text-sm text-error">
-              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <div className="flex items-center gap-2 rounded-xl border border-error/20 bg-error/10 p-3 text-xs text-error font-medium">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
 
-          <div className="flex gap-3 border-t border-forest-500 pt-4">
+          <div className="flex gap-3 border-t border-forest-700/80 pt-4">
             <Button
               fullWidth
               isLoading={saving}

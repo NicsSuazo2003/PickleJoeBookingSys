@@ -153,21 +153,23 @@ export function StaffCreateBookingModal({ isOpen, onClose, onCreated }: Props) {
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="New Booking"
+      title="Create Manual Booking"
       size="lg"
     >
-      <div className="space-y-4">
+      <div className="space-y-4 text-cream">
         {/* ─── Court + Date ─── */}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3.5 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-cream">Court *</label>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-cream-muted">
+              Court *
+            </label>
             <select
               value={courtId}
               onChange={(e) => setCourtId(e.target.value)}
-              className="input-field text-sm"
+              className="w-full rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5 text-sm text-cream transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
             >
               {courts.map((c) => (
-                <option key={c.id} value={c.id}>
+                <option key={c.id} value={c.id} className="bg-forest-900">
                   {c.name}
                 </option>
               ))}
@@ -183,17 +185,28 @@ export function StaffCreateBookingModal({ isOpen, onClose, onCreated }: Props) {
 
         {/* ─── Slots ─── */}
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-cream">
-            Available Slots *{' '}
-            {loadingSlots && <Loader2 className="ml-1 inline h-3 w-3 animate-spin" />}
+          <label className="mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-cream-muted">
+            <span>
+              Available Slots *{' '}
+              {loadingSlots && <Loader2 className="ml-1.5 inline h-3.5 w-3.5 animate-spin text-brand-blue-300" />}
+            </span>
+            {selectedSlotIds.length > 0 && (
+              <span className="font-bold text-brand-blue-300">
+                {selectedSlotIds.length} chosen (Auto: {formatCurrency(autoAmount)})
+              </span>
+            )}
           </label>
 
           {loadingSlots ? (
-            <p className="text-xs text-cream-muted">Loading availability…</p>
+            <div className="rounded-xl border border-forest-700/60 bg-forest-950/40 p-4 text-center text-xs text-cream-muted">
+              Checking court schedule availability…
+            </div>
           ) : slots.length === 0 ? (
-            <p className="text-xs text-yellow-400">No slots available for this date.</p>
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-300">
+              No available slots for this court on the selected date.
+            </div>
           ) : (
-            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {slots.map((slot) => {
                 const selected = selectedSlotIds.includes(slot.id);
                 return (
@@ -201,35 +214,36 @@ export function StaffCreateBookingModal({ isOpen, onClose, onCreated }: Props) {
                     key={slot.id}
                     type="button"
                     onClick={() => toggleSlot(slot.id)}
-                    className={`rounded-lg border px-2 py-1.5 text-[11px] font-medium transition ${
+                    className={`rounded-xl border p-2.5 text-center text-xs transition ${
                       selected
-                        ? 'border-gold-400 bg-gold-400/15 text-gold-300'
-                        : 'border-forest-500 text-cream-muted hover:border-gold-400/40'
+                        ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue font-bold'
+                        : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/50 hover:text-cream'
                     }`}
                   >
-                    {formatTimeRange(slot.start_time, slot.end_time)}
+                    <span className="font-mono block">
+                      {formatTimeRange(slot.start_time, slot.end_time)}
+                    </span>
+                    <span className="block text-[10px] opacity-75 mt-0.5">
+                      {formatCurrency(slot.price)}
+                    </span>
                   </button>
                 );
               })}
             </div>
           )}
-
-          {selectedSlotIds.length > 0 && (
-            <p className="mt-2 text-xs text-success">
-              {selectedSlotIds.length} slot(s) selected — auto total {formatCurrency(autoAmount)}
-            </p>
-          )}
         </div>
 
         {/* ─── Customer ─── */}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3.5 sm:grid-cols-2">
           <Input
             label="Customer Name *"
+            placeholder="Juan Dela Cruz"
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
           />
           <Input
-            label="Phone *"
+            label="Phone Number *"
+            placeholder="0917 123 4567"
             value={customerPhone}
             onChange={(e) => setCustomerPhone(e.target.value)}
           />
@@ -237,6 +251,7 @@ export function StaffCreateBookingModal({ isOpen, onClose, onCreated }: Props) {
             <Input
               label="Email (optional)"
               type="email"
+              placeholder="juan@email.com"
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
             />
@@ -245,8 +260,10 @@ export function StaffCreateBookingModal({ isOpen, onClose, onCreated }: Props) {
 
         {/* ─── Payment Mode ─── */}
         <div>
-          <label className="mb-2 block text-xs font-medium text-cream">Payment *</label>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-cream-muted">
+            Payment Mode *
+          </label>
+          <div className="grid gap-2.5 sm:grid-cols-2">
             {PAYMENT_MODES.map((mode) => {
               const selected = paymentMode === mode.value;
               return (
@@ -254,79 +271,81 @@ export function StaffCreateBookingModal({ isOpen, onClose, onCreated }: Props) {
                   key={mode.value}
                   type="button"
                   onClick={() => setPaymentMode(mode.value)}
-                  className={`rounded-lg border p-2.5 text-left transition ${
+                  className={`rounded-xl border p-3 text-left transition ${
                     selected
-                      ? 'border-gold-400 bg-gold-400/10'
-                      : 'border-forest-500 hover:border-gold-400/40'
+                      ? 'border-brand-blue-400 bg-brand-blue-500/20 shadow-glow-blue'
+                      : 'border-forest-700/80 bg-forest-950/60 hover:border-brand-blue-400/50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-semibold ${selected ? 'text-gold-300' : 'text-cream'}`}>
+                    <span className={`text-xs font-bold ${selected ? 'text-brand-blue-200' : 'text-cream'}`}>
                       {mode.label}
                     </span>
-                    {selected && <Check className="h-3.5 w-3.5 text-gold-400" />}
+                    {selected && <Check className="h-4 w-4 text-brand-blue-300" />}
                   </div>
-                  <p className="mt-0.5 text-[10px] text-cream-muted">{mode.hint}</p>
+                  <p className="mt-0.5 text-[11px] text-cream-muted leading-tight">{mode.hint}</p>
                 </button>
               );
             })}
           </div>
 
           {paymentMode !== 'free' && (
-            <div className="mt-2">
+            <div className="mt-3">
               <Input
-                label="Amount override (optional)"
+                label="Amount Override (optional)"
                 type="number"
                 min={0}
                 step="0.01"
-                placeholder={`Auto: ${formatCurrency(autoAmount)}`}
+                placeholder={`Auto calculated: ${formatCurrency(autoAmount)}`}
                 value={amountOverride}
                 onChange={(e) => setAmountOverride(e.target.value)}
+                hint={`Leave blank to use default total (${formatCurrency(effectiveAmount)})`}
               />
-              <p className="mt-1 text-[10px] text-cream-muted">
-                Leave blank to use the automatic total ({formatCurrency(effectiveAmount)})
-              </p>
             </div>
           )}
         </div>
 
         {/* ─── Notes ─── */}
-        <Textarea
-          label="Customer notes (optional)"
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Requests or preferences the customer mentioned"
-        />
-        <Textarea
-          label="Staff notes (internal)"
-          rows={2}
-          value={staffNotes}
-          onChange={(e) => setStaffNotes(e.target.value)}
-          placeholder="e.g. Called at 3 PM, paid cash on arrival"
-        />
-
-        {/* ─── Confirmation email ─── */}
-        <label className="flex items-center gap-2 text-xs text-cream">
-          <input
-            type="checkbox"
-            checked={sendConfirmation}
-            onChange={(e) => setSendConfirmation(e.target.checked)}
-            className="h-4 w-4 accent-gold-400"
+        <div className="space-y-3">
+          <Textarea
+            label="Customer Notes (optional)"
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Special requests, paddle rentals, etc."
           />
-          Send booking confirmation to the customer's email
-        </label>
+          <Textarea
+            label="Internal Staff Notes (optional)"
+            rows={2}
+            value={staffNotes}
+            onChange={(e) => setStaffNotes(e.target.value)}
+            placeholder="e.g. Paid cash at counter, handled by staff"
+          />
+        </div>
 
-        {/* ─── Error ─── */}
+        {/* ─── Confirmation Email ─── */}
+        <div className="pt-1">
+          <label className="flex items-center gap-2 text-xs font-semibold text-cream cursor-pointer">
+            <input
+              type="checkbox"
+              checked={sendConfirmation}
+              onChange={(e) => setSendConfirmation(e.target.checked)}
+              className="h-4 w-4 rounded border-forest-600 bg-forest-950 accent-brand-blue-500 cursor-pointer"
+            />
+            Send automated booking confirmation to the customer's email
+          </label>
+        </div>
+
+        {/* ─── Error Display ─── */}
         {error && (
-          <div className="flex items-start gap-2 rounded-lg bg-error/10 p-2.5 text-xs text-error">
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <div className="flex items-start gap-2 rounded-xl border border-error/30 bg-error/10 p-3 text-xs font-semibold text-error">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* ─── Buttons ─── */}
-        <div className="flex flex-col gap-2 border-t border-forest-500 pt-4 sm:flex-row sm:gap-3">
+        {/* ─── Modal Actions ─── */}
+        <div className="flex flex-col gap-2.5 border-t border-forest-700/80 pt-4 sm:flex-row sm:gap-3">
           <Button
             fullWidth
             isLoading={submitting}
@@ -334,7 +353,13 @@ export function StaffCreateBookingModal({ isOpen, onClose, onCreated }: Props) {
           >
             Create Booking
           </Button>
-          <Button variant="ghost" fullWidth className="sm:w-auto" onClick={handleClose} disabled={submitting}>
+          <Button
+            variant="ghost"
+            fullWidth
+            className="sm:w-auto"
+            onClick={handleClose}
+            disabled={submitting}
+          >
             Cancel
           </Button>
         </div>

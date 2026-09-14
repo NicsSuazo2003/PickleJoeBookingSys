@@ -27,15 +27,22 @@ export function Logo({ size = 'md', withText = true, to = '/' }: LogoProps) {
         className="object-contain"
       />
       {withText && (
-        <span className={`font-display ${s.text} font-bold tracking-tight text-cream`}>
-          Center<span className="text-gold-400">Court</span>
+        <span className={`font-display ${s.text} font-bold tracking-tight`}>
+          {/* ⭐ "Center" = gold-400 (medium steel blue) */}
+          <span className="text-gold-400">Center</span>
+          {/* ⭐ "Court" = accentGreen-400 (sea/jade green) */}
+          <span className="text-accentGreen-400">Court</span>
         </span>
       )}
     </div>
   );
 
   if (to) {
-    return <Link to={to}>{content}</Link>;
+    return (
+      <Link to={to} aria-label="Center Court home">
+        {content}
+      </Link>
+    );
   }
   return content;
 }

@@ -19,12 +19,12 @@ export function Pricing() {
 
   useEffect(() => {
     loadCourts();
-  }, []);
+  }, [loadCourts]);
 
   useEffect(() => {
     const initial: Record<string, PricingRule> = {};
     courts.forEach((c) => {
-      if (!c) return; // ✅ Skip if court is undefined
+      if (!c) return;
       initial[c.id] = {
         court_id: c.id,
         peak_start: '17:00',
@@ -45,7 +45,7 @@ export function Pricing() {
   };
 
   const handleSave = async (court: Court) => {
-    if (!court) return; // ✅ Skip if court is undefined
+    if (!court) return;
     const rule = rules[court.id];
     if (!rule) return;
     await updateCourt({
@@ -57,20 +57,26 @@ export function Pricing() {
 
   return (
     <AdminLayout>
-      <div className="container-page py-8">
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-cream">Pricing Rules</h1>
-          <p className="mt-1 text-sm text-cream-muted">
+      <div className="container-page py-6 sm:py-8 text-cream">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-cream sm:text-3xl">
+            Pricing Rules
+          </h1>
+          <p className="mt-1 text-xs text-cream-muted sm:text-sm">
             Set dynamic pricing for peak and off-peak hours per court
           </p>
         </div>
 
         {loadingCourts ? (
-          <LoadingSpinner className="py-12" />
+          <LoadingSpinner className="py-16" />
+        ) : courts.length === 0 ? (
+          <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/60 py-12 text-center shadow-xl backdrop-blur-sm">
+            <Tag className="mx-auto h-12 w-12 text-cream-muted/40" />
+            <p className="mt-4 text-sm font-medium text-cream-muted">No courts available to configure.</p>
+          </div>
         ) : (
           <div className="space-y-6">
             {courts.map((court, i) => {
-              // ✅ Skip if court is undefined or null
               if (!court) return null;
               
               const rule = rules[court.id];
@@ -82,22 +88,24 @@ export function Pricing() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  className="card p-6"
+                  className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6"
                 >
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-400/10">
-                      <Tag className="h-5 w-5 text-gold-400" />
+                  <div className="mb-5 flex items-center gap-3.5">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-brand-blue-400/30 bg-brand-blue-500/20 text-brand-blue-300 shadow-inner">
+                      <Tag className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="font-display text-lg font-bold text-cream">{court?.name || 'Unnamed Court'}</h3>
+                      <h3 className="font-display text-lg font-bold text-cream">
+                        {court?.name || 'Unnamed Court'}
+                      </h3>
                       <p className="text-xs text-cream-muted">
-                        Current: {formatCurrency(court?.price_per_hour || 0)}/hr off-peak,{' '}
-                        {formatCurrency(court?.peak_price_per_hour || 0)}/hr peak
+                        Active Rates: <span className="font-semibold text-brand-blue-200">{formatCurrency(court?.price_per_hour || 0)}/hr</span> off-peak ·{' '}
+                        <span className="font-semibold text-brand-blue-200">{formatCurrency(court?.peak_price_per_hour || 0)}/hr</span> peak
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
                     <Input
                       label="Off-Peak Price"
                       type="number"
@@ -105,7 +113,7 @@ export function Pricing() {
                       onChange={(e) =>
                         updateRule(court.id, 'off_peak_price', Number(e.target.value))
                       }
-                      leftIcon={<span className="text-xs">₱</span>}
+                      leftIcon={<span className="text-xs font-bold text-brand-blue-300">₱</span>}
                     />
                     <Input
                       label="Peak Price"
@@ -114,25 +122,25 @@ export function Pricing() {
                       onChange={(e) =>
                         updateRule(court.id, 'peak_price', Number(e.target.value))
                       }
-                      leftIcon={<span className="text-xs">₱</span>}
+                      leftIcon={<span className="text-xs font-bold text-brand-blue-300">₱</span>}
                     />
                     <Input
-                      label="Peak Start"
+                      label="Peak Start Time"
                       type="time"
                       value={rule.peak_start || '17:00'}
                       onChange={(e) => updateRule(court.id, 'peak_start', e.target.value)}
-                      leftIcon={<Clock className="h-4 w-4" />}
+                      leftIcon={<Clock className="h-4 w-4 text-brand-blue-300" />}
                     />
                     <Input
-                      label="Peak End"
+                      label="Peak End Time"
                       type="time"
                       value={rule.peak_end || '21:00'}
                       onChange={(e) => updateRule(court.id, 'peak_end', e.target.value)}
-                      leftIcon={<Clock className="h-4 w-4" />}
+                      leftIcon={<Clock className="h-4 w-4 text-brand-blue-300" />}
                     />
                   </div>
 
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
                     <Input
                       label="Weekend Multiplier"
                       type="number"
@@ -141,23 +149,25 @@ export function Pricing() {
                       onChange={(e) =>
                         updateRule(court.id, 'weekend_multiplier', Number(e.target.value))
                       }
-                      leftIcon={<TrendingUp className="h-4 w-4" />}
+                      leftIcon={<TrendingUp className="h-4 w-4 text-brand-blue-300" />}
                       hint="e.g. 1.2 for 20% weekend surcharge"
                     />
                     <div className="flex items-end">
-                      <div className="w-full rounded-xl bg-forest-800 p-4">
-                        <p className="text-xs text-cream-muted">Weekend Peak Price</p>
-                        <p className="font-display text-xl font-bold text-gold-400">
+                      <div className="w-full rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                          Calculated Weekend Peak Rate
+                        </p>
+                        <p className="font-display text-xl font-extrabold text-brand-blue-300">
                           {formatCurrency(
                             Math.round((rule.peak_price || 0) * (rule.weekend_multiplier || 1.0))
                           )}
-                          <span className="text-xs font-normal text-cream-muted">/hr</span>
+                          <span className="text-xs font-normal text-cream-muted"> / hr</span>
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-4 border-t border-forest-500 pt-4">
+                  <div className="mt-5 border-t border-forest-700/80 pt-4">
                     <Button
                       size="sm"
                       leftIcon={<Save className="h-4 w-4" />}
@@ -173,26 +183,32 @@ export function Pricing() {
         )}
 
         {/* 2hr Fixed Slot Info */}
-        <div className="mt-6 card border-gold-400/30 p-6">
-          <h3 className="mb-2 flex items-center gap-2 font-display text-lg font-bold text-gold-300">
+        <div className="mt-6 card rounded-2xl border border-brand-blue-500/40 bg-forest-900/90 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+          <div className="mb-2 flex items-center gap-2 text-brand-blue-300">
             <Tag className="h-5 w-5" />
-            2hr Fixed Slot (4:00 PM - 6:00 PM)
-          </h3>
-          <p className="text-sm text-cream-muted">
-            This special slot is automatically priced at <strong className="text-gold-400">2x the off-peak hourly rate</strong> for each court.
-            It replaces the individual 4-5 PM and 5-6 PM slots and cannot be combined with standard slots in that time range.
+            <h3 className="font-display text-lg font-bold text-cream">
+              2hr Fixed Slot (4:00 PM – 6:00 PM)
+            </h3>
+          </div>
+          <p className="text-xs leading-relaxed text-cream-muted sm:text-sm">
+            This special block is automatically priced at{' '}
+            <strong className="font-semibold text-brand-blue-200">2x the off-peak hourly rate</strong> for each court.
+            It replaces individual 4–5 PM and 5–6 PM slots and cannot be split or combined with standard hourly rates.
           </p>
+          
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             {courts.map((c) => {
-              // ✅ Skip if court is undefined
               if (!c) return null;
               return (
-                <div key={c.id} className="rounded-lg bg-forest-800 p-3">
-                  <p className="text-xs text-cream-muted">{c?.name || 'Unnamed Court'}</p>
-                  <p className="font-display text-lg font-bold text-gold-400">
+                <div
+                  key={c.id}
+                  className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5"
+                >
+                  <p className="text-xs font-semibold text-cream-muted">{c?.name || 'Unnamed Court'}</p>
+                  <p className="font-display text-xl font-extrabold text-brand-blue-300 mt-0.5">
                     {formatCurrency((c?.price_per_hour || 0) * 2)}
                   </p>
-                  <p className="text-[10px] text-cream-muted">for 2 hours</p>
+                  <p className="text-[10px] text-cream-muted/70">Fixed 2-hour rate</p>
                 </div>
               );
             })}

@@ -1,5 +1,5 @@
 // src/pages/Track.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -38,7 +38,7 @@ export function Track() {
   const loadSettings = useClientStore((state) => state.loadSettings);
   const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber;
 
-   const [reference, setReference] = useState(
+  const [reference, setReference] = useState(
     () => localStorage.getItem('pendingBookingRef') || ''
   );
   const [email, setEmail] = useState('');
@@ -50,9 +50,9 @@ export function Track() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  useState(() => {
+  useEffect(() => {
     loadSettings();
-  });
+  }, [loadSettings]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +85,7 @@ export function Track() {
     if (!booking || !screenshot || !paymentRef.trim()) return;
     setUploading(true);
     try {
-           const updated = await bookingService.uploadPayment(
+      const updated = await bookingService.uploadPayment(
         booking.id,
         screenshot,
         paymentRef.trim()
@@ -112,17 +112,16 @@ export function Track() {
     return formatTimeRange(start, end);
   };
 
-  // Check if booking has a payment screenshot
   const hasPaymentScreenshot = booking?.payment_screenshot_url;
 
   return (
-    <div className="min-h-screen bg-charcoal">
+    <div className="min-h-screen bg-charcoal text-cream">
       <Navbar />
 
-            <div className="container-page pt-20 pb-10 sm:pt-24 sm:pb-12">
+      <div className="container-page pt-24 pb-14 sm:pt-28 sm:pb-16">
         {isInAppBrowser() && (
-          <div className="mx-auto mb-4 flex max-w-3xl items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-            <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-amber-400" />
+          <div className="mx-auto mb-4 flex max-w-3xl items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
             <span>
               You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. If uploading
               a screenshot doesn't work, tap <strong>⋯</strong> and choose{' '}
@@ -130,22 +129,28 @@ export function Track() {
             </span>
           </div>
         )}
+
         <div className="mx-auto max-w-3xl">
-          <div className="mb-5 text-center sm:mb-8">
-            <h1 className="text-xl font-bold text-cream sm:text-3xl">Track Your Booking</h1>
-            <p className="mt-1.5 text-xs text-cream-muted sm:mt-2 sm:text-base">
-              Enter your reference code to check your booking status.
+          <div className="mb-6 text-center sm:mb-8">
+            <h1 className="font-display text-2xl font-bold text-cream sm:text-3xl lg:text-4xl">
+              Track Your Booking
+            </h1>
+            <p className="mt-1.5 text-xs text-cream-muted sm:mt-2 sm:text-sm">
+              Enter your reference code to check your payment and reservation status.
             </p>
           </div>
 
           {/* Search Form */}
-          <form onSubmit={handleSearch} className="card p-4 sm:p-6">
-            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+          <form
+            onSubmit={handleSearch}
+            className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm"
+          >
+            <div className="grid gap-3.5 sm:grid-cols-2 sm:gap-4">
               <Input
                 label="Reference Code"
                 placeholder="e.g. PJAB12CD"
                 required
-                leftIcon={<Search className="h-4 w-4" />}
+                leftIcon={<Search className="h-4 w-4 text-cream-muted" />}
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
               />
@@ -153,7 +158,7 @@ export function Track() {
                 label="Email (optional)"
                 type="email"
                 placeholder="your@email.com"
-                leftIcon={<Mail className="h-4 w-4" />}
+                leftIcon={<Mail className="h-4 w-4 text-cream-muted" />}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 hint="Adds extra security to your search"
@@ -163,7 +168,7 @@ export function Track() {
               type="submit"
               size="lg"
               fullWidth
-              className="mt-3 sm:mt-4 sm:w-auto"
+              className="mt-4 sm:w-auto"
               isLoading={loading}
               leftIcon={<Search className="h-5 w-5" />}
             >
@@ -172,13 +177,13 @@ export function Track() {
           </form>
 
           {error && (
-            <div className="mt-3 flex items-center gap-2 rounded-xl bg-error/10 p-3 text-sm text-error sm:mt-4 sm:p-4">
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-error/30 bg-error/10 p-3.5 text-xs text-error font-medium">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
 
-          {loading && <LoadingSpinner size="lg" className="py-10 sm:py-12" />}
+          {loading && <LoadingSpinner className="py-12" />}
 
           <AnimatePresence>
             {booking && !loading && (
@@ -186,115 +191,122 @@ export function Track() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="mt-5 space-y-4 sm:mt-6 sm:space-y-6"
+                className="mt-6 space-y-4 sm:mt-8 sm:space-y-6"
               >
                 {/* Booking Card */}
-                <div className="card p-4 sm:p-6">
-                  <div className="flex flex-col gap-3 border-b border-forest-500 pb-3 sm:flex-row sm:items-center sm:justify-between sm:pb-4">
+                <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+                  <div className="flex flex-col gap-3 border-b border-forest-700/80 pb-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-[11px] text-cream-muted sm:text-xs">Reference Code</p>
-                      <p className="text-lg font-bold tracking-wider text-gold-400 sm:text-2xl">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                        Reference Code
+                      </p>
+                      <p className="font-mono text-xl font-extrabold tracking-wider text-brand-blue-300 sm:text-2xl">
                         {booking.reference_code}
                       </p>
                     </div>
                     <StatusBadge status={booking.status} size="md" />
                   </div>
 
-                  <div className="mt-3 grid gap-3 sm:mt-4 sm:grid-cols-2 sm:gap-4">
-                    <div className="flex items-center gap-2.5 sm:gap-3">
-                      <MapPin className="h-4 w-4 flex-shrink-0 text-gold-400 sm:h-5 sm:w-5" />
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 sm:gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-forest-700 bg-forest-950/70 text-brand-blue-300">
+                        <MapPin className="h-4 w-4" />
+                      </div>
                       <div>
-                        <p className="text-[11px] text-cream-muted sm:text-xs">Court</p>
-                        <p className="text-sm font-medium text-cream sm:text-base">{booking.court_name}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Court</p>
+                        <p className="text-sm font-bold text-cream sm:text-base">{booking.court_name}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2.5 sm:gap-3">
-                      <Calendar className="h-4 w-4 flex-shrink-0 text-gold-400 sm:h-5 sm:w-5" />
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-forest-700 bg-forest-950/70 text-brand-blue-300">
+                        <Calendar className="h-4 w-4" />
+                      </div>
                       <div>
-                        <p className="text-[11px] text-cream-muted sm:text-xs">Date</p>
-                        <p className="text-sm font-medium text-cream sm:text-base">{formatDateLong(booking.date)}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Date</p>
+                        <p className="text-sm font-bold text-cream sm:text-base">{formatDateLong(booking.date)}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-3 sm:mt-4">
-                    <p className="mb-1.5 text-xs font-semibold text-cream sm:mb-2 sm:text-sm">Time Slots</p>
+                  <div className="mt-4">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">
+                      Time Slots
+                    </p>
                     <div className="space-y-1.5 sm:space-y-2">
                       {booking.slots.map((slot) => (
                         <div
                           key={slot.slot_id || slot.id}
-                          className="flex items-center justify-between rounded-lg bg-forest-800 p-2.5 sm:p-3"
+                          className="flex items-center justify-between rounded-xl border border-forest-700/60 bg-forest-800/80 p-2.5 sm:p-3"
                         >
                           <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gold-400" />
-                            <span className="text-xs text-cream sm:text-sm">
+                            <Clock className="h-3.5 w-3.5 text-brand-blue-300" />
+                            <span className="text-xs font-medium text-cream sm:text-sm">
                               {formatSlotTime(slot)}
                             </span>
                           </div>
-                          <span className="text-xs text-gold-400">
-                            ₱{slot.price}
+                          <span className="text-xs font-bold text-brand-blue-300 sm:text-sm">
+                            {formatCurrency(slot.price)}
                           </span>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="mt-3 border-t border-forest-500 pt-3 sm:mt-4 sm:pt-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-cream-muted sm:text-sm">Total Amount</span>
-                      <span className="text-lg font-bold text-gold-400 sm:text-xl">
-                        {formatCurrency(booking.total_amount)}
-                      </span>
-                    </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-forest-700/80 pt-4">
+                    <span className="text-xs text-cream-muted sm:text-sm">Total Amount</span>
+                    <span className="font-display text-2xl font-extrabold text-brand-blue-300">
+                      {formatCurrency(booking.total_amount)}
+                    </span>
                   </div>
                 </div>
 
                 {/* Customer Details */}
-                <div className="card p-4 sm:p-6">
-                  <h3 className="mb-3 text-base font-bold text-cream sm:mb-4 sm:text-lg">
+                <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+                  <h3 className="mb-3.5 font-display text-base font-bold text-cream">
                     Customer Details
                   </h3>
-                  <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
-                      <User className="h-4 w-4 flex-shrink-0 text-gold-400" />
+                      <User className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Name:</span>
-                      <span className="truncate text-cream">{booking.customer.name}</span>
+                      <span className="truncate font-medium text-cream">{booking.customer.name}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
-                      <Mail className="h-4 w-4 flex-shrink-0 text-gold-400" />
+                      <Mail className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Email:</span>
-                      <span className="truncate text-cream">{booking.customer.email}</span>
+                      <span className="truncate font-medium text-cream">{booking.customer.email}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
-                      <Phone className="h-4 w-4 flex-shrink-0 text-gold-400" />
+                      <Phone className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Phone:</span>
-                      <span className="text-cream">{booking.customer.phone}</span>
+                      <span className="font-medium text-cream">{booking.customer.phone}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
-                      <Calendar className="h-4 w-4 flex-shrink-0 text-gold-400" />
+                      <Calendar className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Booked:</span>
-                      <span className="text-cream">{formatDateTime(booking.created_at)}</span>
+                      <span className="font-medium text-cream">{formatDateTime(booking.created_at)}</span>
                     </div>
                   </div>
                   {booking.customer.notes && (
-                    <div className="mt-2.5 rounded-lg bg-forest-800 p-2.5 text-xs text-cream-muted sm:mt-3 sm:p-3 sm:text-sm">
-                      <span className="font-medium text-cream">Notes: </span>
+                    <div className="mt-3 rounded-xl border border-forest-700/60 bg-forest-950/60 p-3 text-xs text-cream-muted leading-relaxed">
+                      <span className="font-semibold text-cream">Notes: </span>
                       {booking.customer.notes}
                     </div>
                   )}
                 </div>
 
-                {/* ✅ Show uploaded payment screenshot if exists - FIXED null issue */}
+                {/* Uploaded payment screenshot display */}
                 {hasPaymentScreenshot && (
-                  <div className="card p-4 sm:p-6">
-                    <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-cream sm:text-lg">
-                      <CheckCircle2 className="h-5 w-5 text-green-400" />
+                  <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+                    <h3 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-cream">
+                      <CheckCircle2 className="h-5 w-5 text-accentGreen-300" />
                       Payment Screenshot
                     </h3>
-                    <p className="mb-3 text-xs text-cream-muted sm:text-sm">
-                      Your payment screenshot has been uploaded and is being reviewed.
+                    <p className="mb-3.5 text-xs text-cream-muted">
+                      Your payment screenshot has been submitted and is currently being verified.
                     </p>
-                    <div className="rounded-lg border border-forest-500 bg-forest-800 p-2 sm:p-3">
+                    <div className="rounded-xl border border-forest-700/80 bg-forest-950/80 p-3">
                       <img
                         src={booking.payment_screenshot_url || undefined}
                         alt="Payment Screenshot"
@@ -302,28 +314,28 @@ export function Track() {
                       />
                     </div>
                     {booking.payment_reference && (
-                      <p className="mt-2 text-xs text-cream-muted">
-                        Reference: <span className="font-mono text-gold-400">{booking.payment_reference}</span>
+                      <p className="mt-2.5 text-xs text-cream-muted">
+                        Reference Number: <span className="font-mono font-bold text-brand-blue-300">{booking.payment_reference}</span>
                       </p>
                     )}
                   </div>
                 )}
 
-                {/* Payment Upload (if pending and no screenshot uploaded yet) */}
+                {/* Payment Upload (Pending & No Screenshot) */}
                 {canUploadPayment && !hasPaymentScreenshot && (
-                  <div className="card p-4 sm:p-6">
-                    <h3 className="mb-2 flex items-center gap-2 text-base font-bold text-cream sm:text-lg">
-                      <Wallet className="h-5 w-5 text-gold-400" />
-                      Payment
+                  <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+                    <h3 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-cream">
+                      <Wallet className="h-5 w-5 text-brand-blue-300" />
+                      Complete Payment
                     </h3>
-                    <p className="mb-3 text-xs text-cream-muted sm:mb-4 sm:text-sm">
+                    <p className="mb-3.5 text-xs text-cream-muted sm:text-sm">
                       Send {formatCurrency(booking.total_amount)} to GCash{' '}
-                      <span className="font-semibold text-gold-300">{displayNumber}</span>{' '}
-                      and upload your screenshot.
+                      <span className="font-bold text-brand-blue-300">{displayNumber}</span> and
+                      upload your receipt below.
                     </p>
 
                     {uploadSuccess ? (
-                      <div className="rounded-xl bg-success/10 p-3 text-center text-xs text-success sm:p-4 sm:text-sm">
+                      <div className="rounded-xl border border-accentGreen-500/40 bg-accentGreen-500/10 p-3.5 text-center text-xs font-semibold text-accentGreen-300 sm:text-sm">
                         Payment screenshot uploaded! Your booking is being reviewed.
                       </div>
                     ) : (
@@ -335,28 +347,28 @@ export function Track() {
                             const file = e.dataTransfer.files[0];
                             if (file) handleFile(file);
                           }}
-                          className="rounded-xl border-2 border-dashed border-forest-500 p-4 text-center transition hover:border-gold-400/50 sm:p-6"
+                          className="rounded-xl border-2 border-dashed border-forest-700/80 bg-forest-950/40 p-4 text-center transition-all hover:border-brand-blue-400/60 sm:p-6"
                         >
                           {screenshot ? (
                             <div className="space-y-2">
                               <img
                                 src={screenshot}
                                 alt="Screenshot"
-                                className="mx-auto max-h-36 rounded-lg object-contain sm:max-h-40"
+                                className="mx-auto max-h-36 rounded-lg object-contain border border-forest-700 bg-forest-950 sm:max-h-40"
                               />
                               <button
                                 onClick={() => setScreenshot(null)}
-                                className="text-xs text-cream-muted underline"
+                                className="text-xs text-cream-muted underline hover:text-error transition"
                               >
-                                Change
+                                Change image
                               </button>
                             </div>
                           ) : (
                             <>
-                              <ImageIcon className="mx-auto h-7 w-7 text-cream-muted/40 sm:h-8 sm:w-8" />
-                              <p className="mt-2 text-xs text-cream-muted sm:text-sm">
-                                Drag & drop or{' '}
-                                <label className="cursor-pointer text-gold-300 underline">
+                              <ImageIcon className="mx-auto h-8 w-8 text-cream-muted/40" />
+                              <p className="mt-2 text-xs text-cream-muted">
+                                Drag receipt screenshot or{' '}
+                                <label className="cursor-pointer font-semibold text-brand-blue-300 underline hover:text-brand-blue-200">
                                   browse
                                   <input
                                     type="file"
@@ -375,17 +387,17 @@ export function Track() {
 
                         {screenshot && (
                           <>
-                            <div className="mt-3">
+                            <div className="mt-3.5">
                               <input
                                 type="text"
                                 value={paymentRef}
                                 onChange={(e) => setPaymentRef(e.target.value)}
                                 placeholder="GCash reference number"
-                                className="input-field text-sm"
+                                className="w-full rounded-xl border border-forest-700/80 bg-forest-950/60 px-4 py-2.5 text-sm text-cream placeholder-cream-muted/40 transition-all focus:border-brand-blue-400 focus:bg-forest-900/60 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
                               />
                             </div>
                             <Button
-                              className="mt-3"
+                              className="mt-3.5"
                               fullWidth
                               isLoading={uploading}
                               disabled={!paymentRef.trim()}
@@ -401,24 +413,25 @@ export function Track() {
                   </div>
                 )}
 
+                {/* Status Callouts */}
                 {booking.status === 'confirmed' && (
-                  <div className="rounded-xl border border-success/30 bg-success/10 p-3 text-center text-xs text-success sm:p-4 sm:text-sm">
+                  <div className="rounded-xl border border-accentGreen-500/40 bg-accentGreen-500/10 p-4 text-center text-xs font-semibold text-accentGreen-300 sm:text-sm">
                     Your booking is confirmed! See you on the court.
                   </div>
                 )}
                 {booking.status === 'completed' && (
-                  <div className="rounded-xl border border-gold-400/30 bg-gold-400/10 p-3 text-center text-xs text-gold-300 sm:p-4 sm:text-sm">
+                  <div className="rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/10 p-4 text-center text-xs font-semibold text-brand-blue-300 sm:text-sm">
                     Thanks for playing with us! We hope to see you again soon.
                   </div>
                 )}
                 {booking.status === 'cancelled' && (
-                  <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-center text-xs text-error sm:p-4 sm:text-sm">
+                  <div className="rounded-xl border border-error/30 bg-error/10 p-4 text-center text-xs font-semibold text-error sm:text-sm">
                     This booking has been cancelled.
                   </div>
                 )}
                 {booking.status === 'rejected' && (
-                  <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-center text-xs text-error sm:p-4 sm:text-sm">
-                    Your payment could not be verified. Please contact us.
+                  <div className="rounded-xl border border-error/30 bg-error/10 p-4 text-center text-xs font-semibold text-error sm:text-sm">
+                    Your payment could not be verified. Please contact court administration.
                   </div>
                 )}
               </motion.div>

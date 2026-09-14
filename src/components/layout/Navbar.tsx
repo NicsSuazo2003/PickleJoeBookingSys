@@ -45,12 +45,12 @@ export function Navbar() {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-forest-950/95 backdrop-blur-md shadow-lg'
+          ? 'bg-forest-950/95 backdrop-blur-md shadow-lg border-b border-forest-800/80'
           : 'bg-forest-950/60 backdrop-blur-sm'
       }`}
     >
       <nav className="container-page flex h-16 items-center justify-between md:h-20">
-  <Logo size="nav" />
+        <Logo size="nav" />
 
         <div className="hidden items-center gap-1 md:flex">
           {navLinks.map((link) => (
@@ -59,8 +59,8 @@ export function Navbar() {
               to={link.path}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 isActive(link.path)
-                  ? 'text-gold-400 bg-gold-400/10'
-                  : 'text-cream hover:text-gold-300 hover:bg-forest-600/50'
+                  ? 'text-brand-blue-300 bg-brand-blue-500/15 font-semibold'
+                  : 'text-cream hover:text-brand-blue-300 hover:bg-forest-800/60'
               }`}
             >
               {link.label}
@@ -71,9 +71,9 @@ export function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           <a
             href={`tel:${displayNumber.replace(/\s/g, '')}`}
-            className="flex items-center gap-1.5 text-sm text-cream-muted hover:text-gold-300 transition"
+            className="flex items-center gap-1.5 text-sm text-cream-muted hover:text-brand-blue-300 transition"
           >
-            <Phone className="h-4 w-4" />
+            <Phone className="h-4 w-4 text-brand-green-400" />
             {displayNumber}
           </a>
           <Button size="sm" to="/booking" leftIcon={<CalendarPlus className="h-4 w-4" />}>
@@ -82,7 +82,7 @@ export function Navbar() {
         </div>
 
         <button
-          className="rounded-lg p-2 text-cream md:hidden"
+          className="rounded-lg p-2 text-cream hover:bg-forest-800/60 md:hidden"
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Toggle menu"
         >
@@ -96,7 +96,7 @@ export function Navbar() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t border-forest-500 bg-forest-950 md:hidden"
+            className="overflow-hidden border-t border-forest-800/80 bg-forest-950 md:hidden"
           >
             <div className="container-page flex flex-col gap-1 py-4">
               {navLinks.map((link) => (
@@ -105,21 +105,19 @@ export function Navbar() {
                   to={link.path}
                   className={`rounded-lg px-4 py-3 text-sm font-medium transition ${
                     isActive(link.path)
-                      ? 'text-gold-400 bg-gold-400/10'
-                      : 'text-cream hover:bg-forest-600/50'
+                      ? 'text-brand-blue-300 bg-brand-blue-500/15 font-semibold'
+                      : 'text-cream hover:bg-forest-800/60 hover:text-brand-blue-300'
                   }`}
                 >
                   {link.label}
                 </Link>
               ))}
 
-              {/* Phone number — only place to call from on mobile, since the
-                  desktop tel: link is hidden below md: */}
               <a
                 href={`tel:${displayNumber.replace(/\s/g, '')}`}
-                className="flex items-center gap-2 rounded-lg px-4 py-3 text-sm text-cream-muted hover:bg-forest-600/50 hover:text-gold-300 transition"
+                className="flex items-center gap-2 rounded-lg px-4 py-3 text-sm text-cream-muted hover:bg-forest-800/60 hover:text-brand-blue-300 transition"
               >
-                <Phone className="h-4 w-4" />
+                <Phone className="h-4 w-4 text-brand-green-400" />
                 Call {displayNumber}
               </a>
 
@@ -134,7 +132,7 @@ export function Navbar() {
                 </Button>
                 <Link
                   to="/admin"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-forest-500 px-4 py-2.5 text-sm text-cream-muted hover:text-gold-300 transition"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-forest-700/80 bg-forest-900/40 px-4 py-2.5 text-sm text-cream-muted hover:border-brand-blue-500/50 hover:text-brand-blue-300 transition"
                 >
                   <Shield className="h-4 w-4" />
                   Admin Login

@@ -289,9 +289,10 @@ export function Landing() {
               </motion.button>
             )}
 
-            <h1 className="text-4xl font-bold leading-[1.1] tracking-tight text-cream sm:text-6xl lg:text-7xl">
-              Center<span className="text-gold-400">Court</span>
-            </h1>
+            <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl">
+  <span className="text-gold-400">Center</span>
+  <span className="text-accentGreen-400">Court</span>
+</h1>
             <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
               {APP_CONFIG.tagline}
             </p>
@@ -463,142 +464,142 @@ export function Landing() {
 
               <div className="p-4 pb-24 sm:p-6 sm:pb-24 md:p-8 md:pb-8">
                 {/* STEP 1: Date Selection */}
-                <div className="mb-6 md:mb-10">
-                  <div className="mb-3.5 flex items-center gap-2.5 md:mb-5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-xs font-bold text-forest-950 shadow-sm">
-                      1
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold uppercase tracking-widest text-gold-400 md:text-xs">
-                        STEP 1
-                      </span>
-                      <h3 className="text-sm font-bold text-cream sm:text-base md:text-lg">Choose Date</h3>
-                    </div>
-                  </div>
+<div className="mb-6 md:mb-10">
+  <div className="mb-3 flex items-center gap-2">
+<div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-blue-500 text-xs font-bold text-white shadow-sm border border-brand-blue-400/40">      1
+    </div>
+    <h3 className="text-sm font-bold text-cream sm:text-base">Choose Date</h3>
+  </div>
 
-                  <div className="flex items-center gap-1 sm:gap-2">
-  <button
-    onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
-    disabled={weekOffset === 0}
-    className="flex h-12 w-7 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30 sm:w-12"
-    aria-label="Previous week"
-  >
-    <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-  </button>
+  {/* Date Row: Horizontal swipe on mobile, grid on desktop */}
+<div className="relative -mx-4 overflow-hidden px-4 sm:mx-0 sm:overflow-visible sm:px-0">
+    <div className="flex items-center gap-1.5 sm:gap-2">
+      <button
+        onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
+        disabled={weekOffset === 0}
+        className="hidden h-14 w-10 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 disabled:opacity-30 sm:flex"
+        aria-label="Previous week"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
 
-                    <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-2">
-                      {weekDays.map((day) => {
-                        const iso = toISODate(day);
-                        const isSelected = selectedDate === iso;
-                        const isToday = iso === todayISO();
-                        const dayName = day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-                        const dayNumber = day.getDate();
-                        const monthName = day.toLocaleDateString('en-US', { month: 'short' });
-                        const hasOpenPlay = openPlaySessions.some(
-                          (s) => s.date === iso && s.is_active && s.status !== 'cancelled'
-                        );
+      <div className="flex flex-1 gap-2 overflow-x-auto pb-1.5 pt-2.5 sm:grid sm:grid-cols-7 sm:overflow-visible sm:py-0 no-scrollbar snap-x">
+        {weekDays.map((day) => {
+          const iso = toISODate(day);
+          const isSelected = selectedDate === iso;
+          const isToday = iso === todayISO();
+          const dayName = day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+          const dayNumber = day.getDate();
+          const monthName = day.toLocaleDateString('en-US', { month: 'short' });
+          const hasOpenPlay = openPlaySessions.some(
+            (s) => s.date === iso && s.is_active && s.status !== 'cancelled'
+          );
 
-                        return (
-                          <button
-                            key={iso}
-                            onClick={() => setDate(iso)}
-                            className={`relative flex min-h-[58px] sm:min-h-[66px] flex-col items-center justify-center rounded-xl border py-1.5 transition-all ${
-                              isSelected
-                                ? 'border-gold-400 bg-gold-400 text-forest-950 font-bold shadow-glow-gold'
-                                : 'border-forest-600/70 bg-forest-800 text-cream-muted hover:border-gold-400/50 hover:bg-forest-700/80 hover:text-cream'
-                            }`}
-                          >
-                            {isToday && (
-                              <span
-                                className={`absolute -top-2.5 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
-                                  isSelected
-                                    ? 'bg-forest-950 text-gold-400'
-                                    : 'bg-gold-400 text-forest-950'
-                                }`}
-                              >
-                                TODAY
-                              </span>
-                            )}
-                            {!isToday && hasOpenPlay && (
-                              <span
-                                className={`absolute top-1.5 right-1.5 h-2 w-2 rounded-full ${
-                                  isSelected ? 'bg-forest-950' : 'bg-cyan-400'
-                                }`}
-                              />
-                            )}
-                            <span
-                              className={`text-[10px] font-bold tracking-wider sm:text-xs ${
-                                isSelected ? 'text-forest-950' : 'text-cream-muted'
-                              }`}
-                            >
-                              {dayName}
-                            </span>
-                            <span className="my-0.5 text-base font-extrabold sm:text-lg">
-                              {dayNumber}
-                            </span>
-                            <span
-                              className={`text-[10px] uppercase font-medium ${
-                                isSelected ? 'text-forest-900 font-bold' : 'text-cream-muted/80'
-                              }`}
-                            >
-                              {monthName}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <button
-  onClick={() => setWeekOffset((w) => w + 1)}
-  className="flex h-12 w-7 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 sm:w-12"
-  aria-label="Next week"
+          return (
+            <button
+  key={iso}
+  onClick={() => setDate(iso)}
+  className={`relative flex min-w-[54px] flex-1 snap-center flex-col items-center justify-center rounded-xl border py-2 transition-all ${
+    isSelected
+      ? 'border-brand-blue-400 bg-brand-blue-500 text-white font-bold shadow-glow-blue'
+      : 'border-forest-700/80 bg-forest-800/90 text-cream-muted hover:border-brand-blue-400/50 hover:text-cream'
+  }`}
 >
-  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+  {isToday && (
+    <span
+      className={`absolute -top-2 rounded-full px-1.5 py-[1px] text-[8px] font-black tracking-wider ${
+        isSelected ? 'bg-forest-950 text-brand-blue-300' : 'bg-brand-blue-400 text-white'
+      }`}
+    >
+      TODAY
+    </span>
+  )}
+
+  <span
+    className={`text-[10px] font-semibold tracking-tight ${
+      isSelected ? 'text-white' : 'text-cream-muted'
+    }`}
+  >
+    {dayName}
+  </span>
+
+  <span className="text-base font-extrabold leading-tight text-cream">
+    {dayNumber}
+  </span>
+
+  <span
+    className={`text-[9px] uppercase font-medium ${
+      isSelected ? 'text-brand-blue-200' : 'text-cream-muted/70'
+    }`}
+  >
+    {monthName}
+  </span>
+
+  {hasOpenPlay && (
+    <span
+      className={`mt-1 h-1.5 w-1.5 rounded-full ${
+        isSelected ? 'bg-white' : 'bg-cyan-400'
+      }`}
+    />
+  )}
 </button>
-                  </div>
-                </div>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={() => setWeekOffset((w) => w + 1)}
+        className="hidden h-14 w-10 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-gold-400/60 hover:text-gold-300 sm:flex"
+        aria-label="Next week"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </div>
+  </div>
+</div>
 
                 {/* STEP 2: Choose Court and Time */}
-                <div>
-                  <div className="mb-4 flex items-center justify-between gap-2 md:mb-5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400 text-xs font-bold text-forest-950 shadow-sm">
-                        2
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-bold uppercase tracking-widest text-gold-400 md:text-xs">
-                          STEP 2
-                        </span>
-                        <h3 className="text-sm font-bold text-cream sm:text-base md:text-lg">
-                          Choose Court & Time
-                        </h3>
-                      </div>
-                    </div>
-                    <span className="rounded-full border border-gold-400/30 bg-gold-400/10 px-3 py-1 text-xs font-semibold text-gold-300">
-                      {formatDateLong(selectedDate)}
-                    </span>
-                  </div>
+<div>
+  <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
+    <div className="flex items-center gap-2">
+      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-blue-500 text-xs font-bold text-white shadow-sm border border-brand-blue-400/40">
+        2
+      </div>
+      <h3 className="text-sm font-bold text-cream sm:text-base">Choose Court & Time</h3>
+    </div>
 
-                  {/* Status Legend Bar */}
-                  <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-forest-700/80 pb-3 text-xs font-semibold">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-500 bg-forest-800/80 px-2.5 py-1 text-cream-muted">
-                      <Check className="h-3.5 w-3.5 text-gold-400" />
-                      Available
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-300">
-                      <Clock3 className="h-3.5 w-3.5" />
-                      Pending
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-red-400">
-                      <X className="h-3.5 w-3.5" />
-                      Booked
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1 text-cyan-300">
-                      <Users className="h-3.5 w-3.5" />
-                      Open Play
-                    </span>
-                  </div>
+    {/* Formats concisely on mobile (e.g., Mon, Sep 14) */}
+    <span className="rounded-full border border-brand-blue-400/40 bg-brand-blue-500/20 px-3 py-1 text-xs font-semibold text-brand-blue-200 shadow-sm">
+  <span className="sm:hidden">
+    {new Date(`${selectedDate}T00:00:00`).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    })}
+  </span>
+  <span className="hidden sm:inline">{formatDateLong(selectedDate)}</span>
+</span>
+  </div>
 
+  {/* Compact Dot Legend (Single clean line) */}
+  <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-forest-700/60 pb-3 text-[11px] text-cream-muted">
+    <div className="flex items-center gap-1.5">
+      <span className="h-2 w-2 rounded-full border border-gold-400/80 bg-gold-400/20" />
+      <span>Available</span>
+    </div>
+    <div className="flex items-center gap-1.5">
+      <span className="h-2 w-2 rounded-full bg-amber-400" />
+      <span>Pending</span>
+    </div>
+    <div className="flex items-center gap-1.5">
+      <span className="h-2 w-2 rounded-full bg-red-400" />
+      <span>Booked</span>
+    </div>
+    <div className="flex items-center gap-1.5">
+      <span className="h-2 w-2 rounded-full bg-cyan-400" />
+      <span>Open Play</span>
+    </div>
+  </div>
                   {loadingSlots || loadingCourts || loadingOpenPlay ? (
                     <LoadingSpinner className="py-12 md:py-20" />
                   ) : error ? (
@@ -736,92 +737,99 @@ gridTemplateColumns: `repeat(${courts.length}, minmax(56px, 1fr))`,             
 )}
 
       {/* Features Section */}
-      <section className="border-b border-forest-500 bg-forest-900 py-14 sm:py-20">
-        <div className="container-page">
-          <div className="mb-10 text-center sm:mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider text-gold-400">
-              Why CenterCourt
-            </span>
-            <h2 className="section-title mt-2">Built for Players</h2>
-          </div>
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
-            {[
-              {
-                icon: CalendarPlus,
-                title: 'Instant Booking',
-                desc: 'Select your court, date, and time slots in under a minute. No phone calls, no waiting.',
-              },
-              {
-                icon: Wallet,
-                title: 'GCash Payment',
-                desc: 'Pay securely with GCash. Upload your receipt and get confirmed in minutes.',
-              },
-              {
-                icon: ShieldCheck,
-                title: 'Admin Verified',
-                desc: 'Every booking is reviewed and confirmed by our team. You always get your court.',
-              },
-            ].map((feat, i) => {
-              const Icon = feat.icon;
-              return (
-                <motion.div
-                  key={feat.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="card p-5 sm:p-6"
-                >
-                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gold-400/10">
-                    <Icon className="h-6 w-6 text-gold-400" />
-                  </div>
-                  <h3 className="text-base font-bold text-cream sm:text-lg">{feat.title}</h3>
-                  <p className="mt-2 text-xs leading-relaxed text-cream-muted sm:text-sm">{feat.desc}</p>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+<section className="border-b border-forest-700/80 bg-forest-900/60 py-14 sm:py-20">
+  <div className="container-page">
+    <div className="mb-10 text-center sm:mb-12">
+      <span className="text-xs font-bold uppercase tracking-wider text-brand-blue-300">
+        Why CenterCourt
+      </span>
+      <h2 className="section-title mt-2">Built for Players</h2>
+    </div>
+    
+    <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
+      {[
+        {
+          icon: CalendarPlus,
+          title: 'Instant Booking',
+          desc: 'Select your court, date, and time slots in under a minute. No phone calls, no waiting.',
+        },
+        {
+          icon: Wallet,
+          title: 'GCash Payment',
+          desc: 'Pay securely with GCash. Upload your receipt and get confirmed in minutes.',
+        },
+        {
+          icon: ShieldCheck,
+          title: 'Admin Verified',
+          desc: 'Every booking is reviewed and confirmed by our team. You always get your court.',
+        },
+      ].map((feat, i) => {
+        const Icon = feat.icon;
+        return (
+          <motion.div
+            key={feat.title}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.1 }}
+            className="card rounded-2xl border border-forest-700/70 bg-forest-800/80 p-5 shadow-lg backdrop-blur-sm sm:p-6 hover:border-forest-600 transition"
+          >
+            {/* ⭐ Updated Icon Container: Crisp light blue icon + translucent badge */}
+            <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-brand-blue-400/30 bg-brand-blue-500/20 shadow-inner">
+              <Icon className="h-6 w-6 text-brand-blue-300" />
+            </div>
+            
+            <h3 className="text-base font-bold text-cream sm:text-lg">{feat.title}</h3>
+            <p className="mt-2 text-xs leading-relaxed text-cream-muted sm:text-sm">{feat.desc}</p>
+          </motion.div>
+        );
+      })}
+    </div>
+  </div>
+</section>
 
       {/* How It Works Section */}
-      <section className="py-14 sm:py-20">
-        <div className="container-page">
-          <div className="mb-10 text-center sm:mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider text-gold-400">
-              Simple Process
-            </span>
-            <h2 className="section-title mt-2">How It Works</h2>
-          </div>
+<section className="py-14 sm:py-20 bg-forest-950/40">
+  <div className="container-page">
+    <div className="mb-10 text-center sm:mb-12">
+      <span className="text-xs font-bold uppercase tracking-wider text-brand-blue-300">
+        Simple Process
+      </span>
+      <h2 className="section-title mt-2">How It Works</h2>
+    </div>
 
-          <div className="grid gap-6 sm:gap-8 md:grid-cols-4">
-            {[
-              { step: '01', title: 'Select Court & Time', desc: 'Pick your preferred court, date, and available time slots.' },
-              { step: '02', title: 'Enter Details', desc: 'Fill in your name, contact info, and any special requests.' },
-              { step: '03', title: 'Pay via GCash', desc: 'Send payment to our GCash number and upload your screenshot.' },
-              { step: '04', title: 'Get Confirmed', desc: 'We verify your payment and confirm your booking. Play!' },
-            ].map((item, i) => (
-              <motion.div
-                key={item.step}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="relative"
-              >
-                <div className="mb-3 text-3xl font-bold text-gold-400/30 sm:mb-4 sm:text-4xl">
-                  {item.step}
-                </div>
-                <h3 className="text-base font-bold text-cream sm:text-lg">{item.title}</h3>
-                <p className="mt-2 text-xs text-cream-muted sm:text-sm">{item.desc}</p>
-                {i < 3 && (
-                  <div className="mt-4 hidden h-px bg-gradient-to-r from-gold-400/40 to-transparent md:block" />
-                )}
-              </motion.div>
-            ))}
+    <div className="grid gap-6 sm:gap-8 md:grid-cols-4">
+      {[
+        { step: '01', title: 'Select Court & Time', desc: 'Pick your preferred court, date, and available time slots.' },
+        { step: '02', title: 'Enter Details', desc: 'Fill in your name, contact info, and any special requests.' },
+        { step: '03', title: 'Pay via GCash', desc: 'Send payment to our GCash number and upload your screenshot.' },
+        { step: '04', title: 'Get Confirmed', desc: 'We verify your payment and confirm your booking. Play!' },
+      ].map((item, i) => (
+        <motion.div
+          key={item.step}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: i * 0.1 }}
+          className="relative"
+        >
+          {/* ⭐ Large Step Number: High-contrast light brand blue tint with soft opacity */}
+          <div className="mb-3 font-display text-4xl font-extrabold tracking-tight text-brand-blue-300/40 sm:mb-4 sm:text-5xl">
+            {item.step}
           </div>
-        </div>
-      </section>
+          
+          <h3 className="text-base font-bold text-cream sm:text-lg">{item.title}</h3>
+          <p className="mt-2 text-xs leading-relaxed text-cream-muted sm:text-sm">{item.desc}</p>
+          
+          {/* ⭐ Step Connecting Divider: Brand blue subtle gradient rule */}
+          {i < 3 && (
+            <div className="mt-6 hidden h-px bg-gradient-to-r from-brand-blue-400/40 via-brand-blue-400/10 to-transparent md:block" />
+          )}
+        </motion.div>
+      ))}
+    </div>
+  </div>
+</section>
 <div className="h-20 sm:hidden" />
       <Footer />
     </div>

@@ -4,34 +4,67 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ⚠️ Forest scale unchanged — stays forest green for backgrounds.
+        // ⭐ Exact Court Green Palette (#395838 as core)
         forest: {
-          950: '#0D1A0D',
-          900: '#1A2E1A',
-          800: '#243024',
-          700: '#2A3A2A',
-          600: '#324232',
-          500: '#3A4A3A',
-          400: '#4D5C4D',
-          300: '#6B7A6B',
-          200: '#A3B0A3',
-          100: '#D4DBD4',
+          950: '#0b130b',
+          900: '#142013',
+          800: '#20311f',
+          700: '#2d442c',
+          600: '#344e33',
+          500: '#395838', // ⭐ Exact green
+          400: '#4e734c',
+          300: '#6d936b',
+          200: '#9db89c',
+          100: '#cfe0ce',
+          50:  '#eef4ee',
         },
-        // ⚠️ Class name kept as "gold" for compatibility.
-        // Text tones darkened toward Midnight Blue.
-        // Button color (400) kept readable on the dark forest green background.
+
+        'brand-green': {
+          50:  '#eef4ee',
+          100: '#cfe0ce',
+          200: '#9db89c',
+          300: '#6d936b',
+          400: '#4e734c',
+          500: '#395838', // ⭐ Exact green
+          600: '#344e33',
+          700: '#2d442c',
+          800: '#20311f',
+          900: '#142013',
+          950: '#0b130b',
+        },
+
+        // ⭐ Exact Court Blue Palette (#0e4174 as core)
+        'brand-blue': {
+          50:  '#edf5fc',
+          100: '#d7e7f9',
+          200: '#b4d4f4',
+          300: '#83b8eb',
+          400: '#4c95de',
+          500: '#0e4174', // ⭐ Exact blue (#0e4174)
+          600: '#0b3662',
+          700: '#092c50',
+          800: '#07223f',
+          900: '#05182d',
+          950: '#030f1d',
+        },
+
         gold: {
-          50:  '#DCE5EE',   // deeper pale blue (was #E5EDF5)
-          100: '#BACCDE',   // deeper (was #C7D6E4)
-          200: '#8FA8C4',   // ⬇️ darker light blue (was #9DB8D2)
-          300: '#5E7DA1',   // ⬇️ darker mid blue — "Completed" text (was #6E90B0)
-          400: '#3E5D80',   // ⬇️ slightly deeper button blue (was #4A6B8E)
-          500: '#365270',   // mid-tone deepened (was #3E5C7C)
-          600: '#2E4863',   // deeper (was #33506E)
-          700: '#263F58',   // rich navy (was #294463)
-          800: '#1F3348',   // client's shadow range (was #263646)
-          900: '#18273A',   // near-black navy (was #1A2733)
-        },
+  50:  '#edf5fc',
+  100: '#d7e7f9',
+  200: '#b4d4f4',
+  300: '#83b8eb',
+  400: '#0e4174', // ⭐ Swapped from #4e6e96 to your exact blue
+  500: '#0b3662',
+  600: '#092c50',
+  700: '#07223f',
+  800: '#05182d',
+  900: '#030f1d',
+},
+        accentGreen: {
+  300: '#527b50', // Lighter tint for hover states
+  400: '#395838', // ⭐ YOUR EXACT COURT GREEN (targeted by text-accentGreen-400)
+  500: '#2a4229', // Darker shade for active/focus states
+},
         cream: {
           DEFAULT: '#F5F0E8',
           dark: '#E8E0D2',
@@ -47,11 +80,10 @@ export default {
         display: ['Oswald', 'Inter', 'sans-serif'],
       },
       boxShadow: {
-        // Adjusted glow to match the deeper blue
-        'glow-gold': '0 0 0 1px rgba(62,93,128,0.5), 0 8px 30px rgba(62,93,128,0.3)',
-        'card': '0 4px 24px rgba(0,0,0,0.25)',
-        'card-lg': '0 12px 40px rgba(0,0,0,0.35)',
-      },
+  'glow-gold': '0 0 0 1px rgba(14,65,116,0.6), 0 8px 30px rgba(14,65,116,0.35)',
+  'card': '0 4px 24px rgba(0,0,0,0.25)',
+  'card-lg': '0 12px 40px rgba(0,0,0,0.35)',
+},
       keyframes: {
         'fade-in': {
           '0%': { opacity: '0', transform: 'translateY(8px)' },
@@ -61,16 +93,10 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(24px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
-        // Pulse now matches the new deeper blue
-        'pulse-gold': {
-          '0%, 100%': { boxShadow: '0 0 0 0 rgba(62,93,128,0.6)' },
-          '50%': { boxShadow: '0 0 0 8px rgba(62,93,128,0)' },
-        },
       },
       animation: {
         'fade-in': 'fade-in 0.4s ease-out',
         'slide-up': 'slide-up 0.5s ease-out',
-        'pulse-gold': 'pulse-gold 2s infinite',
       },
     },
   },

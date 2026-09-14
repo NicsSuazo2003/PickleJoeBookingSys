@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react';
 import { Upload, X, Loader2, Image } from 'lucide-react';
-import { apiRequest } from '@/services/api';
 
 interface ImageUploadProps {
   value: string;
@@ -11,13 +10,13 @@ interface ImageUploadProps {
   className?: string;
 }
 
-export function ImageUpload({ 
-  value, 
-  onChange, 
-  onRemove, 
-  folder = 'courts', 
+export function ImageUpload({
+  value,
+  onChange,
+  onRemove,
+  folder = 'courts',
   label = 'Upload Image',
-  className = '' 
+  className = '',
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +44,6 @@ export function ImageUpload({
       const formData = new FormData();
       formData.append('file', file);
 
-      // ✅ Use apiRequest to handle the upload properly
       const token = localStorage.getItem('admin_token');
       const clientSubdomain = import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe';
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -57,7 +55,7 @@ export function ImageUpload({
       const response = await fetch(`${apiBaseUrl}/api/files/upload?folder=${folder}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'X-Client-Subdomain': clientSubdomain,
         },
         body: formData,
@@ -85,8 +83,12 @@ export function ImageUpload({
 
   return (
     <div className={`space-y-2 ${className}`}>
-      {label && <label className="text-sm font-medium text-cream">{label}</label>}
-      
+      {label && (
+        <label className="block text-xs font-semibold uppercase tracking-wider text-cream-muted">
+          {label}
+        </label>
+      )}
+
       <div className="flex items-start gap-4">
         <input
           ref={fileInputRef}
@@ -95,23 +97,24 @@ export function ImageUpload({
           className="hidden"
           onChange={handleFileSelect}
         />
-        
+
         {value ? (
           <div className="relative group">
-            <div className="relative rounded-lg overflow-hidden border border-forest-500 w-32 h-32">
-              <img 
-                src={value} 
-                alt="Uploaded" 
-                className="w-full h-full object-cover"
+            <div className="relative h-32 w-32 overflow-hidden rounded-xl border border-forest-700/80 bg-forest-950 shadow-md">
+              <img
+                src={value}
+                alt="Uploaded"
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/128x128?text=Error';
+                  (e.target as HTMLImageElement).src =
+                    'https://via.placeholder.com/128x128?text=Error';
                 }}
               />
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-charcoal/70 opacity-0 backdrop-blur-xs transition-opacity group-hover:opacity-100">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-1.5 rounded-lg bg-blue-500/80 hover:bg-blue-500 text-white transition"
+                  className="rounded-lg bg-brand-blue-500/90 p-2 text-white transition hover:bg-brand-blue-500"
                   title="Change image"
                 >
                   <Upload className="h-4 w-4" />
@@ -119,7 +122,7 @@ export function ImageUpload({
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="p-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white transition"
+                  className="rounded-lg bg-error/90 p-2 text-white transition hover:bg-error"
                   title="Remove image"
                 >
                   <X className="h-4 w-4" />
@@ -132,21 +135,21 @@ export function ImageUpload({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="w-32 h-32 rounded-lg border-2 border-dashed border-forest-500 hover:border-gold-400 transition flex flex-col items-center justify-center gap-2 text-cream-muted hover:text-cream disabled:opacity-50"
+            className="flex h-32 w-32 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-forest-700/90 bg-forest-950/40 text-cream-muted transition-all hover:border-brand-blue-400 hover:bg-brand-blue-500/5 hover:text-brand-blue-200 disabled:opacity-50"
           >
             {uploading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-gold-400" />
+              <Loader2 className="h-7 w-7 animate-spin text-brand-blue-400" />
             ) : (
               <>
-                <Image className="h-8 w-8" />
-                <span className="text-xs text-center">Upload Image</span>
+                <Image className="h-7 w-7 text-cream-muted/60" />
+                <span className="text-xs font-medium">Upload Image</span>
               </>
             )}
           </button>
         )}
       </div>
 
-      {error && <p className="text-sm text-error">{error}</p>}
+      {error && <p className="text-xs font-medium text-error">{error}</p>}
     </div>
   );
 }
