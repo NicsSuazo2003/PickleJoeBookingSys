@@ -14,7 +14,7 @@
     font-feature-settings: 'cv11', 'ss01';
   }
   ::selection {
-    @apply bg-gold-400 text-forest-950;
+    @apply bg-gold-400 text-cream;
   }
 }
 
