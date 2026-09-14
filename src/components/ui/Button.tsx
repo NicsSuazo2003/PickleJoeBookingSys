@@ -27,8 +27,9 @@ type LinkButtonProps = BaseProps & {
 type Props = ButtonProps | LinkButtonProps;
 
 const variants: Record<Variant, string> = {
+  // ✅ Changed text from text-forest-950 to text-cream for readability
   primary:
-    'bg-gold-400 text-forest-950 hover:bg-gold-300 active:bg-gold-500 shadow-sm font-semibold',
+    'bg-gold-400 text-cream hover:bg-gold-300 active:bg-gold-500 shadow-sm font-semibold',
   secondary:
     'border border-gold-400 text-gold-300 hover:bg-gold-400/10 active:bg-gold-400/20 font-medium',
   ghost: 'text-cream hover:bg-forest-600/60 active:bg-forest-600 font-medium',
