@@ -67,33 +67,25 @@ export function Footer() {
             <h4 className="mb-3 text-sm font-semibold text-gold-300 sm:mb-4">Contact</h4>
             <ul className="space-y-2 text-xs text-cream-muted sm:space-y-2.5 sm:text-sm">
               <li className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 flex-shrink-0 text-gold-400" />
-                <span>San Agustin Sur "Dawis", Tandag City, Surigao del Sur, Philippines</span>
-              </li>
-              <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 flex-shrink-0 text-gold-400" />
-                {displayNumber}
+                <span>{displayNumber}</span>
               </li>
-              <li className="flex items-center gap-2">
-                <Clock className="h-4 w-4 flex-shrink-0 text-gold-400" />
-                5:00 AM - 11:00 PM Daily
+              <li className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 flex-shrink-0 text-gold-400" />
+                <span>San Agustin Sur "Dawis", Tandag City, Surigao del Sur</span>
               </li>
             </ul>
           </div>
 
-          {/* Payment — spans both mobile columns since a bordered card reads
-              oddly squeezed into a half-width slot; single-line summary
-              instead of the icon+card treatment to save height */}
+          {/* Hours + Location — replaced the old Payment block */}
           <div className="col-span-2 md:col-span-1">
-            <h4 className="mb-3 text-sm font-semibold text-gold-300 sm:mb-4">Payment</h4>
-            <div className="flex items-center gap-2 rounded-lg border border-forest-500 bg-forest-700 px-3 py-2">
-              <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-blue-500 text-[10px] font-bold text-white">
-                G
-              </div>
-              <p className="text-xs text-cream-muted">
-                <span className="font-medium text-cream">GCash</span> · {displayNumber}
-              </p>
-            </div>
+            <h4 className="mb-3 text-sm font-semibold text-gold-300 sm:mb-4">Hours</h4>
+            <ul className="space-y-2 text-xs text-cream-muted sm:space-y-2.5 sm:text-sm">
+              <li className="flex items-center gap-2">
+                <Clock className="h-4 w-4 flex-shrink-0 text-gold-400" />
+                Mon – Sun · 5:00 AM – 11:00 PM
+              </li>
+            </ul>
             <Link
               to="/admin"
               className="mt-3 flex items-center gap-2 text-xs text-cream-muted hover:text-gold-300 transition"

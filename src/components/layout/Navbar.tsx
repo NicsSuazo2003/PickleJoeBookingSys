@@ -50,7 +50,7 @@ export function Navbar() {
       }`}
     >
       <nav className="container-page flex h-16 items-center justify-between md:h-20">
-        <Logo />
+  <Logo size="nav" />
 
         <div className="hidden items-center gap-1 md:flex">
           {navLinks.map((link) => (
