@@ -241,8 +241,8 @@ export function OpenPlay() {
                     </div>
 
                     <h3 className="font-display text-base font-bold text-cream">
-                      {session.court_name}
-                    </h3>
+  {session.title || session.host_name || 'Open Play Session'}
+</h3>
 
                     <div className="mt-3 space-y-2 text-xs text-cream-muted">
                       <div className="flex items-center gap-2">
@@ -260,12 +260,10 @@ export function OpenPlay() {
                           {session.spots_left} spot{session.spots_left === 1 ? '' : 's'} left
                         </span>
                       </div>
-                      {session.host_name && (
-                        <div className="flex items-center gap-2">
-                          <UserCircle2 className="h-3.5 w-3.5 text-brand-blue-300" />
-                          <span>Hosted by <span className="font-medium text-cream">{session.host_name}</span></span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <UserCircle2 className="h-3.5 w-3.5 text-brand-blue-300" />
+                        <span>{session.court_name}</span>
+                      </div>
                     </div>
 
                     {session.description && (
@@ -342,8 +340,8 @@ export function OpenPlay() {
                 </span>
               </div>
               <h3 className="font-display text-lg font-bold text-cream">
-                {detailsSession.court_name}
-              </h3>
+  {detailsSession.title || detailsSession.host_name || 'Open Play Session'}
+</h3>
             </div>
 
             {/* Meta */}
@@ -356,12 +354,10 @@ export function OpenPlay() {
                 <Clock className="h-4 w-4 text-brand-blue-300" />
                 <span>{formatTimeRange(detailsSession.start_time, detailsSession.end_time)}</span>
               </div>
-              {detailsSession.host_name && (
-                <div className="flex items-center gap-2.5">
-                  <UserCircle2 className="h-4 w-4 text-brand-blue-300" />
-                  <span>Hosted by <span className="font-semibold text-cream">{detailsSession.host_name}</span></span>
-                </div>
-              )}
+              <div className="flex items-center gap-2.5">
+                <UserCircle2 className="h-4 w-4 text-brand-blue-300" />
+                <span>{detailsSession.court_name}</span>
+              </div>
             </div>
 
             {/* Description */}
@@ -462,8 +458,12 @@ export function OpenPlay() {
           <div className="space-y-4">
             {/* Session Summary */}
             <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5">
-              <p className="text-sm font-bold text-cream">{selectedSession.court_name}</p>
-              <p className="mt-0.5 text-xs text-cream-muted">
+<p className="text-sm font-bold text-cream">
+  {selectedSession.title || selectedSession.host_name || 'Open Play Session'}
+</p>              <p className="mt-0.5 text-xs text-cream-muted">
+                {selectedSession.court_name}
+              </p>
+              <p className="mt-1 text-xs text-cream-muted">
                 {formatDateLong(selectedSession.date)} ·{' '}
                 {formatTimeRange(selectedSession.start_time, selectedSession.end_time)}
               </p>

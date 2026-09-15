@@ -33,6 +33,7 @@ function normalizeSession(raw: any): OpenPlaySession {
     skill_level: raw.skillLevel ?? raw.skill_level,
     host_name: raw.hostName ?? raw.host_name ?? null,
     description: raw.description ?? null,
+    title: raw.title ?? null,
     status: raw.status,
     is_active: raw.isActive ?? raw.is_active,
     created_at: raw.createdAt ?? raw.created_at,
@@ -160,6 +161,7 @@ export const openPlayService = {
         pricePerPlayer: payload.price_per_player,
         skillLevel: payload.skill_level,
         hostName: payload.host_name || null,
+        title: payload.title || null,
         description: payload.description || null,
       }),
     });
@@ -178,6 +180,7 @@ export const openPlayService = {
         pricePerPlayer: payload.price_per_player,
         skillLevel: payload.skill_level,
         hostName: payload.host_name || null,
+        title: payload.title || null,  
         description: payload.description || null,
         isActive: payload.is_active,
       }),

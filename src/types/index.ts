@@ -178,6 +178,7 @@ export interface OpenPlaySession {
   price_per_player: number;
   skill_level: OpenPlaySkillLevel;
   host_name?: string | null;
+  title?: string | null; 
   description?: string | null;
   status: OpenPlaySessionStatus;
   is_active: boolean;
@@ -215,6 +216,7 @@ export interface CreateOpenPlaySessionPayload {
   price_per_player: number;
   skill_level: OpenPlaySkillLevel;
   host_name?: string;
+  title?: string;
   description?: string;
 }
 

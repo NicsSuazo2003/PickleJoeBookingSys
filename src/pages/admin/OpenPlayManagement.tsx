@@ -102,6 +102,7 @@ export function OpenPlayManagement() {
     price_per_player: 200,
     skill_level: 'All Levels',
     host_name: '',
+    title: '', 
     description: '',
   });
 
@@ -325,6 +326,7 @@ export function OpenPlayManagement() {
       price_per_player: session.price_per_player,
       skill_level: session.skill_level,
       host_name: session.host_name || '',
+      title: session.title || '',  
       description: session.description || '',
     });
     setFormError(null);
@@ -369,6 +371,7 @@ export function OpenPlayManagement() {
         price_per_player: session.price_per_player,
         skill_level: session.skill_level,
         host_name: session.host_name || '',
+        title: session.title || '',
         description: session.description || '',
         is_active: !session.is_active,
       };
@@ -504,7 +507,9 @@ export function OpenPlayManagement() {
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-bold text-cream sm:text-base">{session.court_name}</h3>
+                    <h3 className="text-sm font-bold text-cream sm:text-base">
+  {session.title || session.host_name || session.court_name}
+</h3>
                     <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${status.className}`}>
                       {status.label}
                     </span>
@@ -745,6 +750,12 @@ export function OpenPlayManagement() {
               }
             />
           </div>
+          <Input
+            label="Session Title (optional)"
+            placeholder="e.g. Friday Night Socials"
+            value={formData.title || ''}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          />
 
           <Input
             label="Host Name (optional)"
