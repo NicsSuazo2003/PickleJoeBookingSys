@@ -174,7 +174,7 @@ export function Landing() {
     return hours * 60 + minutes;
   };
 
-  const getOpenPlaySessionForSlot = (
+    const getOpenPlaySessionForSlot = (
     courtId: string,
     startTime: string,
     endTime: string
@@ -182,14 +182,21 @@ export function Landing() {
     const slotStart = timeToMinutes(startTime);
     const slotEnd = timeToMinutes(endTime);
 
-    return openPlaySessions.find(
-      (session) =>
-        session.court_id === courtId &&
+    return openPlaySessions.find((session) => {
+      // ✅ Check ALL courts this session uses, fallback to primary
+      const sessionCourts =
+        session.courts && session.courts.length > 0
+          ? session.courts.map((c) => c.id)
+          : [session.court_id];
+
+      return (
+        sessionCourts.includes(courtId) &&
         session.date === selectedDate &&
         session.is_active === true &&
         timeToMinutes(session.start_time) <= slotStart &&
         timeToMinutes(session.end_time) >= slotEnd
-    );
+      );
+    });
   };
 
   const handleOpenPlayClick = (session: OpenPlaySession) => {
@@ -392,8 +399,8 @@ export function Landing() {
                         </span>
                       </div>
 
-                      <h3 className="truncate font-display text-base font-bold text-cream">
-                        {session.court_name}
+                    <h3 className="truncate font-display text-base font-bold text-cream">
+                        {session.title || session.host_name || session.court_name}
                       </h3>
 
                       <div className="mt-2 space-y-1.5 text-xs text-cream-muted">
@@ -406,10 +413,23 @@ export function Landing() {
                           {session.current_players}/{session.max_players} · {spotsLeft}{' '}
                           spot{spotsLeft === 1 ? '' : 's'} left
                         </div>
-                        {session.host_name && (
+                                              {session.host_name && (
                           <div className="flex items-center gap-2">
                             <UserCircle2 className="h-3.5 w-3.5 text-cyan-400" />
                             <span className="truncate">Hosted by {session.host_name}</span>
+                          </div>
+                        )}
+                        {/* ✅ Multi-court chips */}
+                        {session.courts && session.courts.length > 1 && (
+                          <div className="flex flex-wrap gap-1 pt-0.5">
+                            {session.courts.map((c) => (
+                              <span
+                                key={c.id}
+                                className="rounded bg-forest-800 border border-forest-600 px-1.5 py-0.5 text-[10px] text-cream-muted"
+                              >
+                                {c.name}
+                              </span>
+                            ))}
                           </div>
                         )}
                       </div>
