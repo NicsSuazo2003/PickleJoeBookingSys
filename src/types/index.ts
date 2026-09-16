@@ -165,10 +165,17 @@ export type AdminView = 'calendar' | 'list';
 export type OpenPlaySkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels';
 export type OpenPlaySessionStatus = 'upcoming' | 'active' | 'full' | 'past' | 'cancelled';
 
+// ✅ NEW — one court used by a session
+export interface OpenPlayCourt {
+  id: string;
+  name: string;
+}
+
 export interface OpenPlaySession {
   id: string;
-  court_id: string;
-  court_name: string;
+  court_id: string;           // primary court
+  court_name: string;         // primary court name
+  courts: OpenPlayCourt[];    // ✅ NEW — all courts
   date: string;
   start_time: string;
   end_time: string;
@@ -178,7 +185,7 @@ export interface OpenPlaySession {
   price_per_player: number;
   skill_level: OpenPlaySkillLevel;
   host_name?: string | null;
-  title?: string | null; 
+  title?: string | null;
   description?: string | null;
   status: OpenPlaySessionStatus;
   is_active: boolean;
@@ -208,7 +215,7 @@ export interface OpenPlayPlayer {
 }
 
 export interface CreateOpenPlaySessionPayload {
-  court_id: string;
+  court_ids: string[];        // ✅ was court_id: string
   date: string;
   start_time: string;
   end_time: string;

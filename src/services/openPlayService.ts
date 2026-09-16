@@ -7,6 +7,7 @@ import type {
   CreateOpenPlaySessionPayload,
   UpdateOpenPlaySessionPayload,
   CustomerDetails,
+  OpenPlayCourt,
 } from '@/types';
 import { apiRequest } from './api';
 
@@ -19,10 +20,16 @@ export interface PublicOpenPlayPlayer {
 }
 
 function normalizeSession(raw: any): OpenPlaySession {
+  const courts: OpenPlayCourt[] = (raw.courts ?? []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+  }));
+
   return {
     id: raw.id,
     court_id: raw.courtId ?? raw.court_id,
     court_name: raw.courtName ?? raw.court_name,
+    courts,
     date: raw.date,
     start_time: raw.startTime ?? raw.start_time,
     end_time: raw.endTime ?? raw.end_time,
@@ -32,8 +39,8 @@ function normalizeSession(raw: any): OpenPlaySession {
     price_per_player: raw.pricePerPlayer ?? raw.price_per_player,
     skill_level: raw.skillLevel ?? raw.skill_level,
     host_name: raw.hostName ?? raw.host_name ?? null,
-    description: raw.description ?? null,
     title: raw.title ?? null,
+    description: raw.description ?? null,
     status: raw.status,
     is_active: raw.isActive ?? raw.is_active,
     created_at: raw.createdAt ?? raw.created_at,
@@ -121,7 +128,6 @@ export const openPlayService = {
     return normalizeSession(res);
   },
 
-  // ✅ PII-safe public roster — returns only display_name, status, joined_at
   async getSessionPlayers(id: string): Promise<PublicOpenPlayPlayer[]> {
     const res = await apiRequest<any[]>(`/api/open-play/${id}/players/public`);
     return (res ?? []).map(normalizePublicPlayer);
@@ -153,7 +159,7 @@ export const openPlayService = {
     const res = await apiRequest<any>('/api/admin/open-play', {
       method: 'POST',
       body: JSON.stringify({
-        courtId: payload.court_id,
+        courtIds: payload.court_ids,
         date: payload.date,
         startTime: payload.start_time,
         endTime: payload.end_time,
@@ -172,7 +178,7 @@ export const openPlayService = {
     const res = await apiRequest<any>(`/api/admin/open-play/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
-        courtId: payload.court_id,
+        courtIds: payload.court_ids,
         date: payload.date,
         startTime: payload.start_time,
         endTime: payload.end_time,
@@ -180,7 +186,7 @@ export const openPlayService = {
         pricePerPlayer: payload.price_per_player,
         skillLevel: payload.skill_level,
         hostName: payload.host_name || null,
-        title: payload.title || null,  
+        title: payload.title || null,
         description: payload.description || null,
         isActive: payload.is_active,
       }),
@@ -192,7 +198,6 @@ export const openPlayService = {
     await apiRequest<void>(`/api/admin/open-play/${id}`, { method: 'DELETE' });
   },
 
-  // ✅ Admin roster — full PII. Uses the admin-only route.
   async adminGetPlayers(id: string): Promise<OpenPlayPlayer[]> {
     const res = await apiRequest<any[]>(`/api/admin/open-play/${id}/players`);
     return (res ?? []).map(normalizePlayer);

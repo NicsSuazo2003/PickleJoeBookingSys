@@ -63,6 +63,19 @@ const PAYMENT_STATUS_BADGE: Record<string, { label: string; className: string }>
   rejected: { label: 'Rejected', className: 'bg-red-500/15 text-red-400 border border-red-500/30' },
 };
 
+const EMPTY_FORM: CreateOpenPlaySessionPayload = {
+  court_ids: [],
+  date: todayISO(),
+  start_time: '',
+  end_time: '',
+  max_players: 12,
+  price_per_player: 200,
+  skill_level: 'All Levels',
+  host_name: '',
+  title: '',
+  description: '',
+};
+
 export function OpenPlayManagement() {
   const {
     adminSessions,
@@ -92,20 +105,9 @@ export function OpenPlayManagement() {
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
+  const [selectedCourtIds, setSelectedCourtIds] = useState<string[]>([]);
 
-  const [formData, setFormData] = useState<CreateOpenPlaySessionPayload>({
-    court_id: '',
-    date: todayISO(),
-    start_time: '',
-    end_time: '',
-    max_players: 12,
-    price_per_player: 200,
-    skill_level: 'All Levels',
-    host_name: '',
-    title: '', 
-    description: '',
-  });
-
+  const [formData, setFormData] = useState<CreateOpenPlaySessionPayload>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -120,12 +122,16 @@ export function OpenPlayManagement() {
     }
   }, [viewingPlayers, adminLoadPlayers, adminLoadStats]);
 
+  // ─────────────────────────────────────────────────────────
+  // Merge availability across ALL selected courts.
+  // A time window is selectable only if it's free on EVERY court.
+  // ─────────────────────────────────────────────────────────
   const fetchAndSetSlots = async (
-    courtId: string,
+    courtIds: string[],
     date: string,
     match?: { start: string; end: string }
   ) => {
-    if (!courtId || !date) {
+    if (courtIds.length === 0 || !date) {
       setAvailableSlots([]);
       setSelectedSlotIds([]);
       return;
@@ -133,12 +139,54 @@ export function OpenPlayManagement() {
 
     setLoadingSlots(true);
     try {
-      const slots = await courtService.getAvailability(courtId, date);
-      const available = slots.filter((s) => s.is_available);
-      setAvailableSlots(available);
+      const results = await Promise.all(
+        courtIds.map((id) => courtService.getAvailability(id, date))
+      );
 
+      // Map key: "HH:mm-HH:mm" → { start, end, price, availableOn: Set<courtId> }
+      const byTime = new Map<
+        string,
+        { start: string; end: string; price: number; availableOn: Set<string> }
+      >();
+
+      results.forEach((slots, idx) => {
+        const courtId = courtIds[idx];
+        slots.forEach((s) => {
+          const key = `${s.start_time}-${s.end_time}`;
+          if (!byTime.has(key)) {
+            byTime.set(key, {
+              start: s.start_time,
+              end: s.end_time,
+              price: s.price,
+              availableOn: new Set<string>(),
+            });
+          }
+          if (s.is_available) byTime.get(key)!.availableOn.add(courtId);
+        });
+      });
+
+      // Keep only windows available on every selected court
+      const merged = Array.from(byTime.values())
+        .filter((m) => m.availableOn.size === courtIds.length)
+        .sort((a, b) => a.start.localeCompare(b.start));
+
+      const synthetic: TimeSlot[] = merged.map((m) => ({
+        id: `${m.start}-${m.end}`,
+        court_id: courtIds[0],
+        date,
+        start_time: m.start,
+        end_time: m.end,
+        type: 'standard',
+        price: m.price,
+        is_available: true,
+        is_peak: false,
+      }));
+
+      setAvailableSlots(synthetic);
+
+      // Try to restore selection when editing
       if (match) {
-        const found = available.find(
+        const found = synthetic.find(
           (s) => s.start_time === match.start && s.end_time === match.end
         );
         if (found) {
@@ -152,12 +200,12 @@ export function OpenPlayManagement() {
         }
       }
 
-      if (available.length > 0) {
-        setSelectedSlotIds([available[0].id]);
+      if (synthetic.length > 0) {
+        setSelectedSlotIds([synthetic[0].id]);
         setFormData((prev) => ({
           ...prev,
-          start_time: available[0].start_time,
-          end_time: available[0].end_time,
+          start_time: synthetic[0].start_time,
+          end_time: synthetic[0].end_time,
         }));
       } else {
         setSelectedSlotIds([]);
@@ -172,77 +220,62 @@ export function OpenPlayManagement() {
     }
   };
 
-  const handleCourtChange = (courtId: string) => {
-    setFormData((prev) => ({ ...prev, court_id: courtId, start_time: '', end_time: '' }));
-    setSelectedSlotIds([]);
-    fetchAndSetSlots(courtId, formData.date);
+  const handleCourtToggle = (courtId: string) => {
+    setSelectedCourtIds((prev) => {
+      const next = prev.includes(courtId)
+        ? prev.filter((id) => id !== courtId)
+        : [...prev, courtId];
+
+      setFormData((f) => ({ ...f, court_ids: next, start_time: '', end_time: '' }));
+      setSelectedSlotIds([]);
+      fetchAndSetSlots(next, formData.date);
+      return next;
+    });
   };
 
   const handleDateChange = (date: string) => {
     setFormData((prev) => ({ ...prev, date, start_time: '', end_time: '' }));
     setSelectedSlotIds([]);
-    fetchAndSetSlots(formData.court_id, date);
+    fetchAndSetSlots(selectedCourtIds, date);
   };
 
+  // For multi-court sessions we use a single contiguous window
   const handleSlotSelect = (slotId: string) => {
     const slot = availableSlots.find((s) => s.id === slotId);
     if (!slot) return;
 
-    setSelectedSlotIds((prev) => {
-      if (prev.includes(slotId)) {
-        return prev.filter((id) => id !== slotId);
-      }
-      return [...prev, slotId];
-    });
-
-    const updatedSlots = availableSlots.filter((s) =>
-      selectedSlotIds.includes(s.id) || s.id === slotId
-    );
-
-    if (updatedSlots.length > 0) {
-      const sortedSlots = updatedSlots.sort((a, b) =>
-        a.start_time.localeCompare(b.start_time)
-      );
-      setFormData((prev) => ({
-        ...prev,
-        start_time: sortedSlots[0].start_time,
-        end_time: sortedSlots[sortedSlots.length - 1].end_time,
-      }));
-    }
+    setSelectedSlotIds([slotId]);
+    setFormData((prev) => ({
+      ...prev,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+    }));
   };
 
   const resetForm = () => {
-    setFormData({
-      court_id: courts[0]?.id || '',
-      date: todayISO(),
-      start_time: '',
-      end_time: '',
-      max_players: 12,
-      price_per_player: 200,
-      skill_level: 'All Levels',
-      host_name: '',
-      description: '',
-    });
+    setFormData({ ...EMPTY_FORM, court_ids: [] });
     setSelectedSlotIds([]);
+    setSelectedCourtIds([]);
     setAvailableSlots([]);
     setFormError(null);
   };
 
+  const validateForm = (): string | null => {
+    if (!formData.court_ids || formData.court_ids.length === 0)
+      return 'Please select at least one court';
+    if (!formData.start_time || !formData.end_time)
+      return 'Please select a time slot';
+    if (formData.max_players < 2 || formData.max_players > 20)
+      return 'Max players must be between 2 and 20';
+    if (formData.price_per_player <= 0)
+      return 'Price per player must be greater than 0';
+    return null;
+  };
+
   const handleCreate = async () => {
-    if (!formData.court_id) {
-      setFormError('Please select a court');
-      return;
-    }
-    if (!formData.start_time || !formData.end_time) {
-      setFormError('Please select at least one time slot');
-      return;
-    }
-    if (formData.max_players < 2 || formData.max_players > 20) {
-      setFormError('Max players must be between 2 and 20');
-      return;
-    }
-    if (formData.price_per_player <= 0) {
-      setFormError('Price per player must be greater than 0');
+    const err = validateForm();
+    if (err) {
+      setFormError(err);
       return;
     }
 
@@ -253,8 +286,8 @@ export function OpenPlayManagement() {
       await adminCreateSession(formData);
       setShowCreateModal(false);
       resetForm();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to create session');
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Failed to create session');
     } finally {
       setLoadingAction(false);
     }
@@ -262,20 +295,9 @@ export function OpenPlayManagement() {
 
   const handleUpdate = async () => {
     if (!editingSession) return;
-    if (!formData.court_id) {
-      setFormError('Please select a court');
-      return;
-    }
-    if (!formData.start_time || !formData.end_time) {
-      setFormError('Please select at least one time slot');
-      return;
-    }
-    if (formData.max_players < 2 || formData.max_players > 20) {
-      setFormError('Max players must be between 2 and 20');
-      return;
-    }
-    if (formData.price_per_player <= 0) {
-      setFormError('Price per player must be greater than 0');
+    const err = validateForm();
+    if (err) {
+      setFormError(err);
       return;
     }
 
@@ -290,8 +312,8 @@ export function OpenPlayManagement() {
       await adminUpdateSession(editingSession.id, payload);
       setEditingSession(null);
       resetForm();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to update session');
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Failed to update session');
     } finally {
       setLoadingAction(false);
     }
@@ -299,13 +321,9 @@ export function OpenPlayManagement() {
 
   const handleDelete = async (id: string, session: OpenPlaySession) => {
     if (session.current_players > 0) {
-      if (!confirm(`This session has ${session.current_players} player(s). Delete anyway?`)) {
-        return;
-      }
+      if (!confirm(`This session has ${session.current_players} player(s). Delete anyway?`)) return;
     } else {
-      if (!confirm('Delete this session?')) {
-        return;
-      }
+      if (!confirm('Delete this session?')) return;
     }
 
     try {
@@ -316,9 +334,11 @@ export function OpenPlayManagement() {
   };
 
   const openEditModal = (session: OpenPlaySession) => {
+    const ids = session.courts?.map((c) => c.id) ?? [session.court_id];
     setEditingSession(session);
+    setSelectedCourtIds(ids);
     setFormData({
-      court_id: session.court_id,
+      court_ids: ids,
       date: session.date,
       start_time: session.start_time,
       end_time: session.end_time,
@@ -326,44 +346,30 @@ export function OpenPlayManagement() {
       price_per_player: session.price_per_player,
       skill_level: session.skill_level,
       host_name: session.host_name || '',
-      title: session.title || '',  
+      title: session.title || '',
       description: session.description || '',
     });
     setFormError(null);
     setSelectedSlotIds([]);
-    fetchAndSetSlots(session.court_id, session.date, {
+    fetchAndSetSlots(ids, session.date, {
       start: session.start_time,
       end: session.end_time,
     });
   };
 
   const openCreateModal = () => {
-    const defaultCourt = courts[0]?.id || '';
-    const defaultDate = todayISO();
-    setFormData({
-      court_id: defaultCourt,
-      date: defaultDate,
-      start_time: '',
-      end_time: '',
-      max_players: 12,
-      price_per_player: 200,
-      skill_level: 'All Levels',
-      host_name: '',
-      description: '',
-    });
+    setFormData({ ...EMPTY_FORM });
+    setSelectedCourtIds([]);
     setSelectedSlotIds([]);
     setAvailableSlots([]);
     setFormError(null);
     setShowCreateModal(true);
-    if (defaultCourt) {
-      fetchAndSetSlots(defaultCourt, defaultDate);
-    }
   };
 
   const toggleActive = async (session: OpenPlaySession) => {
     try {
       const payload: UpdateOpenPlaySessionPayload = {
-        court_id: session.court_id,
+        court_ids: session.courts?.map((c) => c.id) ?? [session.court_id],
         date: session.date,
         start_time: session.start_time,
         end_time: session.end_time,
@@ -389,7 +395,9 @@ export function OpenPlayManagement() {
         adminLoadPlayers(viewingPlayers);
         adminLoadStats(viewingPlayers);
       }
-      setSelectedPlayerBooking((prev) => (prev && prev.id === bookingId ? { ...prev, status } : prev));
+      setSelectedPlayerBooking((prev) =>
+        prev && prev.id === bookingId ? { ...prev, status } : prev
+      );
     } finally {
       setUpdatingStatus(null);
     }
@@ -400,11 +408,9 @@ export function OpenPlayManagement() {
     if (player.joined_at) {
       try {
         const d = new Date(player.joined_at);
-        if (!isNaN(d.getTime())) {
-          dateStr = d.toISOString().split('T')[0];
-        }
+        if (!isNaN(d.getTime())) dateStr = d.toISOString().split('T')[0];
       } catch {
-        // Fallback
+        /* fallback */
       }
     }
 
@@ -433,9 +439,7 @@ export function OpenPlayManagement() {
     setSelectedPlayerBooking(booking);
   };
 
-  const handleViewPlayers = (sessionId: string) => {
-    setViewingPlayers(sessionId);
-  };
+  const handleViewPlayers = (sessionId: string) => setViewingPlayers(sessionId);
 
   if (loadingAdminSessions) {
     return (
@@ -467,11 +471,7 @@ export function OpenPlayManagement() {
           >
             <span className="hidden sm:inline">Refresh</span>
           </Button>
-          <Button
-            size="sm"
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={openCreateModal}
-          >
+          <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={openCreateModal}>
             New Session
           </Button>
         </div>
@@ -491,13 +491,22 @@ export function OpenPlayManagement() {
       {adminSessions.length === 0 ? (
         <div className="rounded-2xl border border-forest-700/80 bg-forest-900/60 p-8 text-center shadow-xl backdrop-blur-sm">
           <Users className="mx-auto h-10 w-10 text-cream-muted/30" />
-          <p className="mt-2 text-sm font-semibold text-cream-muted">No Open Play sessions created yet.</p>
-          <p className="text-xs text-cream-muted/60">Create your first session to get players joining.</p>
+          <p className="mt-2 text-sm font-semibold text-cream-muted">
+            No Open Play sessions created yet.
+          </p>
+          <p className="text-xs text-cream-muted/60">
+            Create your first session to get players joining.
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
           {adminSessions.map((session) => {
             const status = STATUS_BADGE[session.status] ?? STATUS_BADGE.upcoming;
+            const courtNames =
+              session.courts && session.courts.length > 0
+                ? session.courts.map((c) => c.name).join(', ')
+                : session.court_name;
+
             return (
               <motion.div
                 key={session.id}
@@ -508,8 +517,8 @@ export function OpenPlayManagement() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-bold text-cream sm:text-base">
-  {session.title || session.host_name || session.court_name}
-</h3>
+                      {session.title || session.host_name || courtNames}
+                    </h3>
                     <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${status.className}`}>
                       {status.label}
                     </span>
@@ -538,9 +547,12 @@ export function OpenPlayManagement() {
                     <span className="font-extrabold text-brand-blue-300">
                       {formatCurrency(session.price_per_player)}/player
                     </span>
+                    <span className="flex items-center gap-1.5">
+                      <UserCircle2 className="h-3.5 w-3.5 text-brand-blue-300" />
+                      {courtNames}
+                    </span>
                     {session.host_name && (
                       <span className="flex items-center gap-1.5">
-                        <UserCircle2 className="h-3.5 w-3.5 text-brand-blue-300" />
                         Host: {session.host_name}
                       </span>
                     )}
@@ -606,23 +618,41 @@ export function OpenPlayManagement() {
         size="lg"
       >
         <div className="space-y-4">
-          {/* Court Selection */}
+          {/* Multi-court selection */}
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-cream-muted">
-              Court *
+            <label className="mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-cream-muted">
+              <span>Courts *</span>
+              {selectedCourtIds.length > 0 && (
+                <span className="text-brand-blue-300">
+                  ({selectedCourtIds.length} selected)
+                </span>
+              )}
             </label>
-            <select
-              value={formData.court_id}
-              onChange={(e) => handleCourtChange(e.target.value)}
-              className="w-full rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5 text-sm text-cream transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
-            >
-              <option value="">Select a court</option>
-              {courts.map((court) => (
-                <option key={court.id} value={court.id} className="bg-forest-900">
-                  {court.name}
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {courts.map((court) => {
+                const checked = selectedCourtIds.includes(court.id);
+                return (
+                  <button
+                    key={court.id}
+                    type="button"
+                    onClick={() => handleCourtToggle(court.id)}
+                    className={`rounded-xl border p-2.5 text-left text-xs transition ${
+                      checked
+                        ? 'border-brand-blue-400 bg-brand-blue-500 text-white font-bold'
+                        : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/50 hover:text-cream'
+                    }`}
+                  >
+                    <span className="block">{court.name}</span>
+                    <span className="block text-[10px] opacity-75 mt-0.5">
+                      {formatCurrency(court.price_per_hour)}/hr
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {courts.length === 0 && (
+              <p className="text-xs text-cream-muted">No courts available.</p>
+            )}
           </div>
 
           {/* Date and Skill Level */}
@@ -642,7 +672,10 @@ export function OpenPlayManagement() {
               <select
                 value={formData.skill_level}
                 onChange={(e) =>
-                  setFormData({ ...formData, skill_level: e.target.value as OpenPlaySkillLevel })
+                  setFormData({
+                    ...formData,
+                    skill_level: e.target.value as OpenPlaySkillLevel,
+                  })
                 }
                 className="w-full rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5 text-sm text-cream transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
               >
@@ -658,16 +691,18 @@ export function OpenPlayManagement() {
           {/* Time Slot Selection */}
           <div>
             <label className="mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-cream-muted">
-              <span>Time Slots *</span>
-              {selectedSlotIds.length > 0 && (
-                <span className="text-brand-blue-300">
-                  ({selectedSlotIds.length} slot{selectedSlotIds.length > 1 ? 's' : ''} selected)
+              <span>Time Slot *</span>
+              {selectedCourtIds.length > 1 && (
+                <span className="text-brand-blue-300 text-[10px] font-normal">
+                  Only slots free on all {selectedCourtIds.length} courts shown
                 </span>
               )}
             </label>
 
-            {!formData.court_id || !formData.date ? (
-              <p className="text-xs text-cream-muted">Please select a court and date first</p>
+            {selectedCourtIds.length === 0 || !formData.date ? (
+              <p className="text-xs text-cream-muted">
+                Select at least one court and a date first
+              </p>
             ) : loadingSlots ? (
               <div className="flex items-center gap-2 py-3">
                 <LoadingSpinner />
@@ -675,53 +710,33 @@ export function OpenPlayManagement() {
               </div>
             ) : availableSlots.length === 0 ? (
               <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-300">
-                No available slots for this court on this date.
+                No common available slots across the selected courts for this date.
               </p>
             ) : (
-              <>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {availableSlots.map((slot) => {
-                    const isSelected = selectedSlotIds.includes(slot.id);
-                    return (
-                      <button
-                        key={slot.id}
-                        type="button"
-                        onClick={() => handleSlotSelect(slot.id)}
-                        className={`rounded-xl border p-2.5 text-center text-xs transition ${
-                          isSelected
-                            ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue font-bold'
-                            : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/50 hover:text-cream'
-                        }`}
-                      >
-                        <span className="font-mono block font-bold">
-                          {formatTimeRange(slot.start_time, slot.end_time)}
-                        </span>
-                        {slot.is_peak && (
-                          <span className="mt-0.5 inline-block text-[8px] uppercase tracking-wider font-extrabold text-amber-400">
-                            Peak
-                          </span>
-                        )}
-                        <span className="block text-[10px] opacity-75 mt-0.5">
-                          {formatCurrency(slot.price)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {selectedSlotIds.length > 0 && !loadingSlots && (
-                  <div className="mt-2.5 rounded-xl border border-brand-blue-500/30 bg-brand-blue-500/10 p-2.5 text-xs text-cream">
-                    <p className="font-semibold text-brand-blue-200">
-                      Selected: {selectedSlotIds.length} slot{selectedSlotIds.length > 1 ? 's' : ''}
-                    </p>
-                    {selectedSlotIds.length > 1 && (
-                      <p className="text-[11px] text-cream-muted mt-0.5">
-                        Duration Range: {formatTimeRange(formData.start_time, formData.end_time)}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {availableSlots.map((slot) => {
+                  const isSelected = selectedSlotIds.includes(slot.id);
+                  return (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      onClick={() => handleSlotSelect(slot.id)}
+                      className={`rounded-xl border p-2.5 text-center text-xs transition ${
+                        isSelected
+                          ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue font-bold'
+                          : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/50 hover:text-cream'
+                      }`}
+                    >
+                      <span className="font-mono block font-bold">
+                        {formatTimeRange(slot.start_time, slot.end_time)}
+                      </span>
+                      <span className="block text-[10px] opacity-75 mt-0.5">
+                        {formatCurrency(slot.price)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
 
@@ -736,7 +751,7 @@ export function OpenPlayManagement() {
               onChange={(e) =>
                 setFormData({ ...formData, max_players: parseInt(e.target.value) || 2 })
               }
-              hint="2-20 players"
+              hint="2-20 players (total across all courts)"
             />
 
             <Input
@@ -746,10 +761,14 @@ export function OpenPlayManagement() {
               step={50}
               value={formData.price_per_player}
               onChange={(e) =>
-                setFormData({ ...formData, price_per_player: parseFloat(e.target.value) || 0 })
+                setFormData({
+                  ...formData,
+                  price_per_player: parseFloat(e.target.value) || 0,
+                })
               }
             />
           </div>
+
           <Input
             label="Session Title (optional)"
             placeholder="e.g. Friday Night Socials"
@@ -829,7 +848,9 @@ export function OpenPlayManagement() {
                     {stats.confirmed_count}
                   </p>
                   {stats.total_revenue > 0 && (
-                    <p className="text-[10px] text-brand-blue-300 font-semibold">{formatCurrency(stats.total_revenue)}</p>
+                    <p className="text-[10px] text-brand-blue-300 font-semibold">
+                      {formatCurrency(stats.total_revenue)}
+                    </p>
                   )}
                 </div>
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3 text-center">
@@ -838,7 +859,9 @@ export function OpenPlayManagement() {
                     {stats.pending_count}
                   </p>
                   {stats.pending_revenue > 0 && (
-                    <p className="text-[10px] text-amber-300 font-semibold">{formatCurrency(stats.pending_revenue)}</p>
+                    <p className="text-[10px] text-amber-300 font-semibold">
+                      {formatCurrency(stats.pending_revenue)}
+                    </p>
                   )}
                 </div>
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3 text-center">
@@ -857,15 +880,20 @@ export function OpenPlayManagement() {
             ) : (
               <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
                 {players.map((player) => {
-                  const status = PAYMENT_STATUS_BADGE[player.status] ?? PAYMENT_STATUS_BADGE.pending_payment;
+                  const status =
+                    PAYMENT_STATUS_BADGE[player.status] ?? PAYMENT_STATUS_BADGE.pending_payment;
                   return (
                     <div
                       key={player.booking_id}
                       className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-cream">{player.customer_name}</p>
-                        <p className="truncate text-xs text-cream-muted">{player.customer_email}</p>
+                        <p className="truncate text-sm font-bold text-cream">
+                          {player.customer_name}
+                        </p>
+                        <p className="truncate text-xs text-cream-muted">
+                          {player.customer_email}
+                        </p>
                         {player.customer_phone && (
                           <p className="text-xs text-cream-muted/70">{player.customer_phone}</p>
                         )}
@@ -927,18 +955,32 @@ export function OpenPlayManagement() {
 
             <div className="grid gap-3.5 sm:grid-cols-2">
               <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">Customer</p>
-                <p className="mt-1 text-sm font-bold text-cream">{selectedPlayerBooking.customer?.name || 'Unknown'}</p>
-                <p className="text-xs text-cream-muted">{selectedPlayerBooking.customer?.email || 'No email'}</p>
-                <p className="text-xs text-cream-muted">{selectedPlayerBooking.customer?.phone || 'No phone'}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">
+                  Customer
+                </p>
+                <p className="mt-1 text-sm font-bold text-cream">
+                  {selectedPlayerBooking.customer?.name || 'Unknown'}
+                </p>
+                <p className="text-xs text-cream-muted">
+                  {selectedPlayerBooking.customer?.email || 'No email'}
+                </p>
+                <p className="text-xs text-cream-muted">
+                  {selectedPlayerBooking.customer?.phone || 'No phone'}
+                </p>
                 {selectedPlayerBooking.customer?.notes && (
-                  <p className="mt-2 text-xs italic text-cream-muted">"{selectedPlayerBooking.customer.notes}"</p>
+                  <p className="mt-2 text-xs italic text-cream-muted">
+                    "{selectedPlayerBooking.customer.notes}"
+                  </p>
                 )}
               </div>
               <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">Session Information</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">
+                  Session Information
+                </p>
                 <p className="mt-1 text-sm font-bold text-cream">Social Open Play</p>
-                <p className="text-xs text-cream-muted">{formatDateLong(selectedPlayerBooking.date)}</p>
+                <p className="text-xs text-cream-muted">
+                  {formatDateLong(selectedPlayerBooking.date)}
+                </p>
                 <p className="mt-1 font-mono text-xs text-brand-blue-300">
                   Ref: {selectedPlayerBooking.reference_code}
                 </p>
@@ -946,14 +988,18 @@ export function OpenPlayManagement() {
             </div>
 
             <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 p-4">
-              <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">Total Amount</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                Total Amount
+              </span>
               <span className="font-display text-2xl font-extrabold text-brand-blue-300">
                 {formatCurrency(selectedPlayerBooking.total_amount || 0)}
               </span>
             </div>
 
             <div className="border-t border-forest-700/80 pt-4">
-              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream-muted">Update Payment Status</p>
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream-muted">
+                Update Payment Status
+              </p>
               <div className="flex flex-wrap gap-2">
                 {selectedPlayerBooking.status !== 'confirmed' && (
                   <Button
@@ -962,22 +1008,27 @@ export function OpenPlayManagement() {
                     isLoading={updatingStatus === 'confirmed'}
                     disabled={updatingStatus !== null}
                     leftIcon={<CheckCircle2 className="h-4 w-4" />}
-                    onClick={() => handlePlayerStatusUpdate(selectedPlayerBooking.id, 'confirmed')}
+                    onClick={() =>
+                      handlePlayerStatusUpdate(selectedPlayerBooking.id, 'confirmed')
+                    }
                   >
                     Confirm Payment
                   </Button>
                 )}
-                {selectedPlayerBooking.status !== 'completed' && selectedPlayerBooking.status === 'confirmed' && (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    isLoading={updatingStatus === 'completed'}
-                    disabled={updatingStatus !== null}
-                    onClick={() => handlePlayerStatusUpdate(selectedPlayerBooking.id, 'completed')}
-                  >
-                    Mark Completed
-                  </Button>
-                )}
+                {selectedPlayerBooking.status !== 'completed' &&
+                  selectedPlayerBooking.status === 'confirmed' && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      isLoading={updatingStatus === 'completed'}
+                      disabled={updatingStatus !== null}
+                      onClick={() =>
+                        handlePlayerStatusUpdate(selectedPlayerBooking.id, 'completed')
+                      }
+                    >
+                      Mark Completed
+                    </Button>
+                  )}
                 {selectedPlayerBooking.status !== 'cancelled' && (
                   <Button
                     size="sm"
@@ -985,7 +1036,9 @@ export function OpenPlayManagement() {
                     isLoading={updatingStatus === 'cancelled'}
                     disabled={updatingStatus !== null}
                     leftIcon={<XCircle className="h-4 w-4" />}
-                    onClick={() => handlePlayerStatusUpdate(selectedPlayerBooking.id, 'cancelled')}
+                    onClick={() =>
+                      handlePlayerStatusUpdate(selectedPlayerBooking.id, 'cancelled')
+                    }
                   >
                     Cancel Registration
                   </Button>
@@ -996,7 +1049,9 @@ export function OpenPlayManagement() {
                     variant="danger"
                     isLoading={updatingStatus === 'rejected'}
                     disabled={updatingStatus !== null}
-                    onClick={() => handlePlayerStatusUpdate(selectedPlayerBooking.id, 'rejected')}
+                    onClick={() =>
+                      handlePlayerStatusUpdate(selectedPlayerBooking.id, 'rejected')
+                    }
                   >
                     Reject
                   </Button>

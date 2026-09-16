@@ -241,8 +241,8 @@ export function OpenPlay() {
                     </div>
 
                     <h3 className="font-display text-base font-bold text-cream">
-  {session.title || session.host_name || 'Open Play Session'}
-</h3>
+                      {session.title || session.host_name || 'Open Play Session'}
+                    </h3>
 
                     <div className="mt-3 space-y-2 text-xs text-cream-muted">
                       <div className="flex items-center gap-2">
@@ -260,9 +260,23 @@ export function OpenPlay() {
                           {session.spots_left} spot{session.spots_left === 1 ? '' : 's'} left
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <UserCircle2 className="h-3.5 w-3.5 text-brand-blue-300" />
-                        <span>{session.court_name}</span>
+                      {/* ✅ Multi-court display */}
+                      <div className="flex items-start gap-2">
+                        <UserCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-blue-300" />
+                        <div className="flex flex-wrap gap-1">
+                          {session.courts && session.courts.length > 0 ? (
+                            session.courts.map((c) => (
+                              <span
+                                key={c.id}
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-forest-800 border border-forest-600"
+                              >
+                                {c.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span>{session.court_name}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -340,8 +354,8 @@ export function OpenPlay() {
                 </span>
               </div>
               <h3 className="font-display text-lg font-bold text-cream">
-  {detailsSession.title || detailsSession.host_name || 'Open Play Session'}
-</h3>
+                {detailsSession.title || detailsSession.host_name || 'Open Play Session'}
+              </h3>
             </div>
 
             {/* Meta */}
@@ -354,9 +368,23 @@ export function OpenPlay() {
                 <Clock className="h-4 w-4 text-brand-blue-300" />
                 <span>{formatTimeRange(detailsSession.start_time, detailsSession.end_time)}</span>
               </div>
-              <div className="flex items-center gap-2.5">
-                <UserCircle2 className="h-4 w-4 text-brand-blue-300" />
-                <span>{detailsSession.court_name}</span>
+              {/* ✅ Multi-court display */}
+              <div className="flex items-start gap-2.5">
+                <UserCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-blue-300" />
+                <div className="flex flex-wrap gap-1.5">
+                  {detailsSession.courts && detailsSession.courts.length > 0 ? (
+                    detailsSession.courts.map((c) => (
+                      <span
+                        key={c.id}
+                        className="text-[10px] px-2 py-0.5 rounded bg-forest-800 border border-forest-600"
+                      >
+                        {c.name}
+                      </span>
+                    ))
+                  ) : (
+                    <span>{detailsSession.court_name}</span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -458,11 +486,24 @@ export function OpenPlay() {
           <div className="space-y-4">
             {/* Session Summary */}
             <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5">
-<p className="text-sm font-bold text-cream">
-  {selectedSession.title || selectedSession.host_name || 'Open Play Session'}
-</p>              <p className="mt-0.5 text-xs text-cream-muted">
-                {selectedSession.court_name}
+              <p className="text-sm font-bold text-cream">
+                {selectedSession.title || selectedSession.host_name || 'Open Play Session'}
               </p>
+              {/* ✅ Multi-court display */}
+              <div className="mt-0.5 flex flex-wrap gap-1">
+                {selectedSession.courts && selectedSession.courts.length > 0 ? (
+                  selectedSession.courts.map((c) => (
+                    <span
+                      key={c.id}
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-forest-800 border border-forest-600 text-cream-muted"
+                    >
+                      {c.name}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-cream-muted">{selectedSession.court_name}</span>
+                )}
+              </div>
               <p className="mt-1 text-xs text-cream-muted">
                 {formatDateLong(selectedSession.date)} ·{' '}
                 {formatTimeRange(selectedSession.start_time, selectedSession.end_time)}
