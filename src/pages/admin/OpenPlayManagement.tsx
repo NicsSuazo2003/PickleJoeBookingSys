@@ -16,6 +16,9 @@ import {
   RefreshCw,
   CreditCard,
   XCircle,
+  Check,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -108,6 +111,10 @@ export function OpenPlayManagement() {
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
   const [selectedCourtIds, setSelectedCourtIds] = useState<string[]>([]);
 
+  // ✅ NEW — per-court availability grid
+  const [showPerCourtGrid, setShowPerCourtGrid] = useState(false);
+  const [perCourtSlots, setPerCourtSlots] = useState<Record<string, TimeSlot[]>>({});
+
   const [formData, setFormData] = useState<CreateOpenPlaySessionPayload>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -135,6 +142,7 @@ export function OpenPlayManagement() {
     if (courtIds.length === 0 || !date) {
       setAvailableSlots([]);
       setSelectedSlotIds([]);
+      setPerCourtSlots({});
       return;
     }
 
@@ -143,6 +151,13 @@ export function OpenPlayManagement() {
       const results = await Promise.all(
         courtIds.map((id) => courtService.getAvailability(id, date))
       );
+
+      // ✅ NEW — store per-court availability for the diagnostic grid
+      const byCourt: Record<string, TimeSlot[]> = {};
+      courtIds.forEach((id, idx) => {
+        byCourt[id] = results[idx];
+      });
+      setPerCourtSlots(byCourt);
 
       // Map key: "HH:mm-HH:mm" → { start, end, price, availableOn: Set<courtId> }
       const byTime = new Map<
@@ -216,22 +231,21 @@ export function OpenPlayManagement() {
       console.error('Failed to load slots:', err);
       setAvailableSlots([]);
       setSelectedSlotIds([]);
+      setPerCourtSlots({});
     } finally {
       setLoadingSlots(false);
     }
   };
 
   const handleCourtToggle = (courtId: string) => {
-    setSelectedCourtIds((prev) => {
-      const next = prev.includes(courtId)
-        ? prev.filter((id) => id !== courtId)
-        : [...prev, courtId];
+    const next = selectedCourtIds.includes(courtId)
+      ? selectedCourtIds.filter((id) => id !== courtId)
+      : [...selectedCourtIds, courtId];
 
-      setFormData((f) => ({ ...f, court_ids: next, start_time: '', end_time: '' }));
-      setSelectedSlotIds([]);
-      fetchAndSetSlots(next, formData.date);
-      return next;
-    });
+    setSelectedCourtIds(next);
+    setFormData((f) => ({ ...f, court_ids: next, start_time: '', end_time: '' }));
+    setSelectedSlotIds([]);
+    fetchAndSetSlots(next, formData.date);
   };
 
   const handleDateChange = (date: string) => {
@@ -299,6 +313,8 @@ export function OpenPlayManagement() {
     setSelectedSlotIds([]);
     setSelectedCourtIds([]);
     setAvailableSlots([]);
+    setPerCourtSlots({});
+    setShowPerCourtGrid(false);
     setFormError(null);
   };
 
@@ -393,6 +409,7 @@ export function OpenPlayManagement() {
     });
     setFormError(null);
     setSelectedSlotIds([]);
+    setShowPerCourtGrid(false);
     fetchAndSetSlots(ids, session.date, {
       start: session.start_time,
       end: session.end_time,
@@ -404,6 +421,8 @@ export function OpenPlayManagement() {
     setSelectedCourtIds([]);
     setSelectedSlotIds([]);
     setAvailableSlots([]);
+    setPerCourtSlots({});
+    setShowPerCourtGrid(false);
     setFormError(null);
     setShowCreateModal(true);
   };
@@ -482,6 +501,38 @@ export function OpenPlayManagement() {
   };
 
   const handleViewPlayers = (sessionId: string) => setViewingPlayers(sessionId);
+
+  // ─────────────────────────────────────────────────────────
+  // ✅ NEW — build a per-court availability grid from perCourtSlots
+  // Returns an array of { start, end, cells: { courtId: slot | undefined } }
+  // ─────────────────────────────────────────────────────────
+  const buildPerCourtGrid = () => {
+    // Gather all unique time intervals across all courts
+    const intervals = new Map<string, { start: string; end: string }>();
+    Object.values(perCourtSlots).forEach((slots) => {
+      slots.forEach((s) => {
+        const key = `${s.start_time}-${s.end_time}`;
+        if (!intervals.has(key)) {
+          intervals.set(key, { start: s.start_time, end: s.end_time });
+        }
+      });
+    });
+
+    const sorted = Array.from(intervals.values()).sort((a, b) =>
+      a.start.localeCompare(b.start)
+    );
+
+    return sorted.map((interval) => {
+      const cells: Record<string, TimeSlot | undefined> = {};
+      selectedCourtIds.forEach((courtId) => {
+        const slot = perCourtSlots[courtId]?.find(
+          (s) => s.start_time === interval.start && s.end_time === interval.end
+        );
+        cells[courtId] = slot;
+      });
+      return { ...interval, cells };
+    });
+  };
 
   if (loadingAdminSessions) {
     return (
@@ -798,6 +849,106 @@ export function OpenPlayManagement() {
                     </div>
                   )}
               </>
+            )}
+
+            {/* ✅ NEW — per-court availability toggle + grid */}
+            {selectedCourtIds.length > 1 && !loadingSlots && Object.keys(perCourtSlots).length > 0 && (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowPerCourtGrid((v) => !v)}
+                  className="flex w-full items-center justify-between rounded-xl border border-forest-700/80 bg-forest-950/60 px-3 py-2 text-xs font-semibold text-cream-muted transition hover:border-brand-blue-400/50 hover:text-cream"
+                >
+                  <span className="flex items-center gap-2">
+                    {showPerCourtGrid ? (
+                      <ChevronUp className="h-3.5 w-3.5 text-brand-blue-300" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5 text-brand-blue-300" />
+                    )}
+                    Check availability per court
+                  </span>
+                  <span className="text-[10px] font-normal text-cream-muted/70">
+                    Why some hours are hidden
+                  </span>
+                </button>
+
+                {showPerCourtGrid && (
+                  <div className="mt-2 overflow-hidden rounded-xl border border-forest-700/80 bg-forest-950/70">
+                    <div className="max-h-[320px] overflow-auto">
+                      <table className="w-full text-xs">
+                        <thead className="sticky top-0 z-10 bg-forest-900 border-b border-forest-700/80">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-bold uppercase tracking-wider text-cream-muted text-[10px]">
+                              Hour
+                            </th>
+                            {selectedCourtIds.map((courtId) => {
+                              const court = courts.find((c) => c.id === courtId);
+                              return (
+                                <th
+                                  key={courtId}
+                                  className="px-3 py-2 text-center font-bold uppercase tracking-wider text-brand-blue-200 text-[10px]"
+                                >
+                                  {court?.name || 'Court'}
+                                </th>
+                              );
+                            })}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {buildPerCourtGrid().map((row) => {
+                            const allFree = selectedCourtIds.every(
+                              (id) => row.cells[id]?.is_available === true
+                            );
+                            return (
+                              <tr
+                                key={`${row.start}-${row.end}`}
+                                className={`border-b border-forest-800/60 ${
+                                  allFree ? 'bg-brand-blue-500/5' : ''
+                                }`}
+                              >
+                                <td className="px-3 py-1.5 font-mono font-bold text-cream whitespace-nowrap">
+                                  {formatTimeRange(row.start, row.end)}
+                                </td>
+                                {selectedCourtIds.map((courtId) => {
+                                  const cell = row.cells[courtId];
+                                  if (!cell) {
+                                    return (
+                                      <td
+                                        key={courtId}
+                                        className="px-3 py-1.5 text-center text-cream-muted/30"
+                                      >
+                                        —
+                                      </td>
+                                    );
+                                  }
+                                  return (
+                                    <td key={courtId} className="px-3 py-1.5 text-center">
+                                      {cell.is_available ? (
+                                        <span className="inline-flex items-center gap-1 text-accentGreen-300">
+                                          <Check className="h-3.5 w-3.5" />
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 text-red-400/80">
+                                          <X className="h-3.5 w-3.5" />
+                                        </span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="border-t border-forest-700/80 bg-forest-900/60 px-3 py-2 text-[10px] text-cream-muted">
+                      <Check className="mr-1 inline h-3 w-3 text-accentGreen-300" /> = free ·
+                      <X className="mx-1 inline h-3 w-3 text-red-400/80" /> = booked/blocked ·
+                      Hours free on <strong className="text-brand-blue-200">all courts</strong> appear in the picker above.
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
