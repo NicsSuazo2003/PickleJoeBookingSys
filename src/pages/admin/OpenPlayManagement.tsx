@@ -61,6 +61,7 @@ const PAYMENT_STATUS_BADGE: Record<string, { label: string; className: string }>
   cancelled: { label: 'Cancelled', className: 'bg-red-500/15 text-red-400 border border-red-500/30' },
   expired: { label: 'Expired', className: 'bg-forest-800 text-cream-muted/60 border border-forest-700' },
   rejected: { label: 'Rejected', className: 'bg-red-500/15 text-red-400 border border-red-500/30' },
+  free: { label: 'Free', className: 'bg-brand-blue-500/20 text-brand-blue-300 border border-brand-blue-400/30' },  // ✅ NEW
 };
 
 const EMPTY_FORM: CreateOpenPlaySessionPayload = {
@@ -544,8 +545,10 @@ export function OpenPlayManagement() {
                       <Users className="h-3.5 w-3.5 text-brand-blue-300" />
                       {session.current_players}/{session.max_players} players
                     </span>
-                    <span className="font-extrabold text-brand-blue-300">
-                      {formatCurrency(session.price_per_player)}/player
+                                        <span className="font-extrabold text-brand-blue-300">
+                      {session.price_per_player === 0
+                        ? 'Free'
+                        : `${formatCurrency(session.price_per_player)}/player`}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <UserCircle2 className="h-3.5 w-3.5 text-brand-blue-300" />

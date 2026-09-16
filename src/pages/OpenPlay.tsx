@@ -124,7 +124,7 @@ export function OpenPlay() {
     handleJoinClick(session);
   };
 
-  const handleJoinConfirm = async () => {
+    const handleJoinConfirm = async () => {
     if (!selectedSession) return;
     if (!customerDetails.name.trim()) {
       setJoinError('Name is required');
@@ -150,7 +150,13 @@ export function OpenPlay() {
       useBookingStore.setState({ currentBooking: booking });
 
       setShowJoinModal(false);
-      navigate('/checkout');
+
+      // ✅ Free sessions skip checkout entirely
+      if (booking.status === 'confirmed' && booking.total_amount === 0) {
+        navigate('/success');
+      } else {
+        navigate('/checkout');
+      }
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : 'Failed to join session');
     } finally {
@@ -291,7 +297,7 @@ export function OpenPlay() {
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-cream-muted font-semibold">Per player</p>
                       <p className="font-display text-lg font-extrabold text-brand-blue-300">
-                        {formatCurrency(session.price_per_player)}
+                        {session.price_per_player === 0 ? 'Free' : formatCurrency(session.price_per_player)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -456,10 +462,10 @@ export function OpenPlay() {
 
             {/* Price + CTA */}
             <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 p-3.5">
-              <div>
+                            <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Price per player</p>
                 <p className="font-display text-xl font-extrabold text-brand-blue-300">
-                  {formatCurrency(detailsSession.price_per_player)}
+                  {detailsSession.price_per_player === 0 ? 'Free' : formatCurrency(detailsSession.price_per_player)}
                 </p>
               </div>
               <Button
@@ -508,9 +514,11 @@ export function OpenPlay() {
                 {formatDateLong(selectedSession.date)} ·{' '}
                 {formatTimeRange(selectedSession.start_time, selectedSession.end_time)}
               </p>
-              <p className="mt-1 text-xs font-semibold text-brand-blue-300">
+                           <p className="mt-1 text-xs font-semibold text-brand-blue-300">
                 {selectedSession.current_players}/{selectedSession.max_players} players ·{' '}
-                {formatCurrency(selectedSession.price_per_player)} / player
+                {selectedSession.price_per_player === 0
+                  ? 'Free'
+                  : `${formatCurrency(selectedSession.price_per_player)} / player`}
               </p>
             </div>
 
@@ -561,8 +569,8 @@ export function OpenPlay() {
             )}
 
             <div className="flex flex-col gap-2.5 pt-2 sm:flex-row sm:gap-3">
-              <Button fullWidth isLoading={joining} onClick={handleJoinConfirm}>
-                Confirm & Pay
+               <Button fullWidth isLoading={joining} onClick={handleJoinConfirm}>
+                {selectedSession.price_per_player === 0 ? 'Confirm & Join' : 'Confirm & Pay'}
               </Button>
               <Button variant="ghost" fullWidth className="sm:w-auto" onClick={handleModalClose}>
                 Cancel
