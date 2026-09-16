@@ -61,7 +61,7 @@ const PAYMENT_STATUS_BADGE: Record<string, { label: string; className: string }>
   cancelled: { label: 'Cancelled', className: 'bg-red-500/15 text-red-400 border border-red-500/30' },
   expired: { label: 'Expired', className: 'bg-forest-800 text-cream-muted/60 border border-forest-700' },
   rejected: { label: 'Rejected', className: 'bg-red-500/15 text-red-400 border border-red-500/30' },
-  free: { label: 'Free', className: 'bg-brand-blue-500/20 text-brand-blue-300 border border-brand-blue-400/30' },  // ✅ NEW
+  free: { label: 'Free', className: 'bg-brand-blue-500/20 text-brand-blue-300 border border-brand-blue-400/30' },
 };
 
 const EMPTY_FORM: CreateOpenPlaySessionPayload = {
@@ -240,17 +240,58 @@ export function OpenPlayManagement() {
     fetchAndSetSlots(selectedCourtIds, date);
   };
 
-  // For multi-court sessions we use a single contiguous window
+  // ─────────────────────────────────────────────────────────
+  // Slot selection — allows multiple CONTIGUOUS hours.
+  // Example: click 8-9, then 9-10 → picks 8-10. Gaps are rejected.
+  // ─────────────────────────────────────────────────────────
+  const isContiguous = (ids: string[]) => {
+    if (ids.length <= 1) return true;
+    const times = ids
+      .map((id) => availableSlots.find((s) => s.id === id))
+      .filter(Boolean)
+      .map((s) => ({ start: s!.start_time, end: s!.end_time }))
+      .sort((a, b) => a.start.localeCompare(b.start));
+
+    for (let i = 1; i < times.length; i++) {
+      if (times[i].start !== times[i - 1].end) return false;
+    }
+    return true;
+  };
+
   const handleSlotSelect = (slotId: string) => {
     const slot = availableSlots.find((s) => s.id === slotId);
     if (!slot) return;
 
-    setSelectedSlotIds([slotId]);
-    setFormData((prev) => ({
-      ...prev,
-      start_time: slot.start_time,
-      end_time: slot.end_time,
-    }));
+    setSelectedSlotIds((prev) => {
+      const isSelected = prev.includes(slotId);
+      const next = isSelected
+        ? prev.filter((id) => id !== slotId)
+        : [...prev, slotId];
+
+      // Reject non-contiguous selections
+      if (!isContiguous(next)) {
+        return prev;
+      }
+
+      const pickedSlots = next
+        .map((id) => availableSlots.find((s) => s.id === id))
+        .filter(Boolean) as TimeSlot[];
+
+      if (pickedSlots.length === 0) {
+        setFormData((f) => ({ ...f, start_time: '', end_time: '' }));
+        return [];
+      }
+
+      const sorted = pickedSlots.sort((a, b) =>
+        a.start_time.localeCompare(b.start_time)
+      );
+      setFormData((f) => ({
+        ...f,
+        start_time: sorted[0].start_time,
+        end_time: sorted[sorted.length - 1].end_time,
+      }));
+      return next;
+    });
   };
 
   const resetForm = () => {
@@ -268,8 +309,8 @@ export function OpenPlayManagement() {
       return 'Please select a time slot';
     if (formData.max_players < 2 || formData.max_players > 20)
       return 'Max players must be between 2 and 20';
-    if (formData.price_per_player <= 0)
-      return 'Price per player must be greater than 0';
+    if (formData.price_per_player < 0)
+      return 'Price per player cannot be negative';
     return null;
   };
 
@@ -545,7 +586,7 @@ export function OpenPlayManagement() {
                       <Users className="h-3.5 w-3.5 text-brand-blue-300" />
                       {session.current_players}/{session.max_players} players
                     </span>
-                                        <span className="font-extrabold text-brand-blue-300">
+                    <span className="font-extrabold text-brand-blue-300">
                       {session.price_per_player === 0
                         ? 'Free'
                         : `${formatCurrency(session.price_per_player)}/player`}
@@ -716,30 +757,47 @@ export function OpenPlayManagement() {
                 No common available slots across the selected courts for this date.
               </p>
             ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {availableSlots.map((slot) => {
-                  const isSelected = selectedSlotIds.includes(slot.id);
-                  return (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      onClick={() => handleSlotSelect(slot.id)}
-                      className={`rounded-xl border p-2.5 text-center text-xs transition ${
-                        isSelected
-                          ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue font-bold'
-                          : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/50 hover:text-cream'
-                      }`}
-                    >
-                      <span className="font-mono block font-bold">
-                        {formatTimeRange(slot.start_time, slot.end_time)}
-                      </span>
-                      <span className="block text-[10px] opacity-75 mt-0.5">
-                        {formatCurrency(slot.price)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {availableSlots.map((slot) => {
+                    const isSelected = selectedSlotIds.includes(slot.id);
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        onClick={() => handleSlotSelect(slot.id)}
+                        className={`rounded-xl border p-2.5 text-center text-xs transition ${
+                          isSelected
+                            ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue font-bold'
+                            : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/50 hover:text-cream'
+                        }`}
+                      >
+                        <span className="font-mono block font-bold">
+                          {formatTimeRange(slot.start_time, slot.end_time)}
+                        </span>
+                        <span className="block text-[10px] opacity-75 mt-0.5">
+                          {formatCurrency(slot.price)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedSlotIds.length > 1 &&
+                  formData.start_time &&
+                  formData.end_time && (
+                    <div className="mt-2.5 rounded-xl border border-brand-blue-500/30 bg-brand-blue-500/10 p-2.5 text-xs">
+                      <p className="font-semibold text-brand-blue-200">
+                        Selected range: {formatTimeRange(formData.start_time, formData.end_time)}
+                      </p>
+                      <p className="text-[11px] text-cream-muted mt-0.5">
+                        {selectedSlotIds.length} hour{selectedSlotIds.length > 1 ? 's' : ''} ×{' '}
+                        {selectedCourtIds.length} court
+                        {selectedCourtIds.length > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  )}
+              </>
             )}
           </div>
 
@@ -769,6 +827,7 @@ export function OpenPlayManagement() {
                   price_per_player: parseFloat(e.target.value) || 0,
                 })
               }
+              hint="Set to 0 for a free session"
             />
           </div>
 
@@ -912,9 +971,13 @@ export function OpenPlayManagement() {
                             {status.label}
                           </span>
                           <p className="mt-1 text-xs font-semibold text-cream">
-                            {formatCurrency(player.amount_paid)}{' '}
+                            {player.amount_paid === 0
+                              ? 'Free'
+                              : formatCurrency(player.amount_paid)}{' '}
                             <span className="text-[10px] text-cream-muted font-normal">
-                              {player.status === 'confirmed' || player.status === 'completed'
+                              {player.amount_paid === 0
+                                ? ''
+                                : player.status === 'confirmed' || player.status === 'completed'
                                 ? 'paid'
                                 : '(pending)'}
                             </span>
@@ -995,7 +1058,9 @@ export function OpenPlayManagement() {
                 Total Amount
               </span>
               <span className="font-display text-2xl font-extrabold text-brand-blue-300">
-                {formatCurrency(selectedPlayerBooking.total_amount || 0)}
+                {selectedPlayerBooking.total_amount === 0
+                  ? 'Free'
+                  : formatCurrency(selectedPlayerBooking.total_amount || 0)}
               </span>
             </div>
 
