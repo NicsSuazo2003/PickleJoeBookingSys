@@ -118,21 +118,6 @@ export function Login() {
             </Button>
           </form>
 
-          <div className="mt-6 rounded-xl border border-gold-400/20 bg-gold-400/5 p-4">
-            <p className="text-xs font-semibold text-gold-300">Demo Credentials</p>
-            <p className="mt-1 text-xs text-cream-muted">
-              Email: <span className="font-mono text-cream">{ADMIN_CREDENTIALS.email}</span>
-            </p>
-            <p className="text-xs text-cream-muted">
-              Password: <span className="font-mono text-cream">{ADMIN_CREDENTIALS.password}</span>
-            </p>
-            <button
-              onClick={fillDemo}
-              className="mt-2 text-xs font-medium text-gold-400 underline hover:text-gold-300"
-            >
-              Auto-fill credentials
-            </button>
-          </div>
         </motion.div>
       </div>
     </div>
