@@ -187,15 +187,26 @@ export function Bookings() {
                         <span className="font-mono font-bold text-brand-blue-300 tracking-wide">
                           {b.reference_code || 'N/A'}
                         </span>
+                        {b.payment_reference && (
+                          <p className="mt-0.5 text-[10px] text-cream-muted">
+                            Pay ref: <span className="font-mono text-cream">{b.payment_reference}</span>
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3.5">
                         <p className="font-medium text-cream">{b.customer?.name || 'Unknown'}</p>
                         <p className="text-xs text-cream-muted">{b.customer?.email || 'No email'}</p>
                       </td>
-                      <td className="px-4 py-3.5 font-medium text-cream">{b.court_name || 'Unknown Court'}</td>
-                      <td className="px-4 py-3.5 text-xs text-cream-muted">{formatDateLong(b.date)}</td>
+                      <td className="px-4 py-3.5 font-medium text-cream">
+                        {b.court_name || 'Unknown Court'}
+                      </td>
                       <td className="px-4 py-3.5 text-xs text-cream-muted">
-                        {b.slots?.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ') || 'No slots'}
+                        {formatDateLong(b.date)}
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-cream-muted">
+                        {b.slots
+                          ?.map((s) => formatTimeRange(s.start_time, s.end_time))
+                          .join(', ') || 'No slots'}
                       </td>
                       <td className="px-4 py-3.5 font-bold text-brand-blue-300">
                         {formatCurrency(b.total_amount || 0)}
@@ -221,7 +232,10 @@ export function Bookings() {
             {/* Mobile list view */}
             <div className="space-y-3 p-4 md:hidden">
               {filtered.map((b) => (
-                <div key={b.id} className="rounded-xl border border-forest-700/70 bg-forest-950/70 p-4 space-y-2">
+                <div
+                  key={b.id}
+                  className="rounded-xl border border-forest-700/70 bg-forest-950/70 p-4 space-y-2"
+                >
                   <div className="flex items-center justify-between">
                     <span className="font-mono font-bold text-brand-blue-300 tracking-wide">
                       {b.reference_code || 'N/A'}
@@ -230,11 +244,20 @@ export function Bookings() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-cream">{b.customer?.name || 'Unknown'}</p>
-                    <p className="text-xs text-cream-muted">{b.court_name || 'Unknown Court'} — {formatDateLong(b.date)}</p>
+                    <p className="text-xs text-cream-muted">
+                      {b.court_name || 'Unknown Court'} — {formatDateLong(b.date)}
+                    </p>
                     <p className="mt-1 text-xs text-cream-muted/90">
-                      {b.slots?.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ') || 'No slots'}
+                      {b.slots
+                        ?.map((s) => formatTimeRange(s.start_time, s.end_time))
+                        .join(', ') || 'No slots'}
                     </p>
                   </div>
+                  {b.payment_reference && (
+                    <p className="text-[11px] text-cream-muted">
+                      Pay ref: <span className="font-mono text-cream">{b.payment_reference}</span>
+                    </p>
+                  )}
                   <div className="flex items-center justify-between border-t border-forest-800 pt-3">
                     <span className="text-sm font-extrabold text-brand-blue-300">
                       {formatCurrency(b.total_amount || 0)}
@@ -269,10 +292,18 @@ export function Bookings() {
 
               <div className="grid gap-3.5 sm:grid-cols-2">
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">Customer</p>
-                  <p className="mt-1 text-sm font-bold text-cream">{selectedBooking.customer?.name || 'Unknown'}</p>
-                  <p className="text-xs text-cream-muted">{selectedBooking.customer?.email || 'No email'}</p>
-                  <p className="text-xs text-cream-muted">{selectedBooking.customer?.phone || 'No phone'}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">
+                    Customer
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-cream">
+                    {selectedBooking.customer?.name || 'Unknown'}
+                  </p>
+                  <p className="text-xs text-cream-muted">
+                    {selectedBooking.customer?.email || 'No email'}
+                  </p>
+                  <p className="text-xs text-cream-muted">
+                    {selectedBooking.customer?.phone || 'No phone'}
+                  </p>
                   {selectedBooking.customer?.notes && (
                     <p className="mt-2.5 rounded-lg border border-forest-800 bg-forest-900/60 p-2 text-xs italic text-cream-muted">
                       "{selectedBooking.customer.notes}"
@@ -281,40 +312,88 @@ export function Bookings() {
                 </div>
 
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">Court Booking</p>
-                  <p className="mt-1 text-sm font-bold text-cream">{selectedBooking.court_name || 'Unknown Court'}</p>
-                  <p className="text-xs text-cream-muted">{formatDateLong(selectedBooking.date)}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">
+                    Court Booking
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-cream">
+                    {selectedBooking.court_name || 'Unknown Court'}
+                  </p>
+                  <p className="text-xs text-cream-muted">
+                    {formatDateLong(selectedBooking.date)}
+                  </p>
                   <p className="mt-1.5 text-xs text-cream-muted">
-                    {selectedBooking.slots?.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ') || 'No slots'}
+                    {selectedBooking.slots
+                      ?.map((s) => formatTimeRange(s.start_time, s.end_time))
+                      .join(', ') || 'No slots'}
                   </p>
                 </div>
               </div>
 
               {/* Total Summary */}
               <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 p-4">
-                <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">Total Amount</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                  Total Amount
+                </span>
                 <span className="font-display text-2xl font-extrabold text-brand-blue-300">
                   {formatCurrency(selectedBooking.total_amount || 0)}
                 </span>
               </div>
 
-              {/* Payment Screenshot */}
-              {selectedBooking.payment_screenshot_url && (
+              {/* Payment Details (screenshot + reference) */}
+              {(selectedBooking.payment_screenshot_url || selectedBooking.payment_reference) && (
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
                   <p className="mb-2.5 text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">
-                    Payment Screenshot
+                    Payment Details
                   </p>
-                  <img
-                    src={selectedBooking.payment_screenshot_url}
-                    alt="Payment screenshot"
-                    className="max-h-72 w-full rounded-lg object-contain bg-forest-950 border border-forest-800"
-                  />
+
+                  {selectedBooking.payment_reference && (
+                    <div className="mb-3 flex items-center justify-between rounded-xl border border-forest-700/60 bg-forest-900/70 p-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                          Reference Number
+                        </p>
+                        <p className="mt-0.5 font-mono text-sm font-bold tracking-wider text-brand-blue-300">
+                          {selectedBooking.payment_reference}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedBooking.payment_reference || '');
+                        }}
+                        className="rounded-lg border border-forest-600 bg-forest-800 p-1.5 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
+                        title="Copy reference"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+
+                  {selectedBooking.payment_screenshot_url ? (
+                    <img
+                      src={selectedBooking.payment_screenshot_url}
+                      alt="Payment screenshot"
+                      className="max-h-72 w-full rounded-lg object-contain bg-forest-950 border border-forest-800"
+                    />
+                  ) : (
+                    <p className="rounded-lg border border-dashed border-forest-700 bg-forest-950/60 p-3 text-center text-xs text-cream-muted">
+                      No screenshot uploaded — user submitted reference number only.
+                    </p>
+                  )}
                 </div>
               )}
 
               {/* Context-aware action buttons */}
               <div className="border-t border-forest-700/80 pt-4">
-                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream-muted">Actions</p>
+                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream-muted">
+                  Actions
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {/* Pending Payment → mark expired */}
                   {selectedBooking.status === 'pending_payment' && (
@@ -416,9 +495,15 @@ export function Bookings() {
                   )}
 
                   {/* Terminal statuses — no actions */}
-                  {['cancelled', 'rejected', 'expired', 'refunded'].includes(selectedBooking.status) && (
+                  {['cancelled', 'rejected', 'expired', 'refunded'].includes(
+                    selectedBooking.status
+                  ) && (
                     <p className="text-xs text-cream-muted">
-                      No actions available for <span className="font-semibold text-cream">{selectedBooking.status}</span> bookings.
+                      No actions available for{' '}
+                      <span className="font-semibold text-cream">
+                        {selectedBooking.status}
+                      </span>{' '}
+                      bookings.
                     </p>
                   )}
                 </div>
