@@ -91,7 +91,7 @@ function isWithinNextWeek(session: OpenPlaySession): boolean {
 const SKILL_BADGE: Record<string, string> = {
   Beginner: 'bg-green-500/15 text-green-400',
   Intermediate: 'bg-yellow-500/15 text-yellow-400',
-  Advanced: 'bg-red-500/15 text-red-400',
+  Advanced: 'bg-purple-500/15 text-purple-300',
   'All Levels': 'bg-gold-400/15 text-gold-300',
 };
 

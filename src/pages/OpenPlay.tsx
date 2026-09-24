@@ -26,7 +26,7 @@ import type { PublicOpenPlayPlayer } from '@/services/openPlayService';
 const SKILL_BADGE: Record<string, string> = {
   Beginner: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
   Intermediate: 'bg-amber-500/15 text-amber-300 border border-amber-500/30',
-  Advanced: 'bg-red-500/15 text-red-400 border border-red-500/30',
+  Advanced: 'bg-purple-500/15 text-purple-300 border border-purple-500/30',
   'All Levels': 'bg-brand-blue-500/20 text-brand-blue-200 border border-brand-blue-400/40',
 };
 
