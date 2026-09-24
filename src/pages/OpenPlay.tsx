@@ -2,6 +2,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Users,
   Clock,
@@ -9,6 +12,9 @@ import {
   UserCircle2,
   ArrowRight,
   Eye,
+  User,
+  Mail,
+  Phone,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -19,9 +25,43 @@ import { Input } from '@/components/ui/Input';
 import { useOpenPlayStore } from '@/stores/openPlayStore';
 import { useBookingStore } from '@/stores/bookingStore';
 import { formatDateLong, formatTimeRange, formatCurrency } from '@/utils/format';
-import type { OpenPlaySession, CustomerDetails } from '@/types';
+import type { OpenPlaySession } from '@/types';
 import { openPlayService } from '@/services/openPlayService';
 import type { PublicOpenPlayPlayer } from '@/services/openPlayService';
+
+// ── Local form schema (mirrors Booking.tsx) ──────────────────
+const normalizePhone = (value: string) =>
+  value.replace(/[\s\-()]/g, '').replace(/^\+?63/, '0');
+
+const customerSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Name is required')
+    .max(80, 'Name is too long')
+    .regex(/^[A-Za-zÀ-ÿ.'\-\s]+$/, "Name can only contain letters, spaces, and . ' -"),
+
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, 'Email is required')
+    .email('Enter a valid email address')
+    .max(120, 'Email is too long'),
+
+  phone: z
+    .string()
+    .trim()
+    .min(1, 'Mobile number is required')
+    .transform(normalizePhone)
+    .refine((v) => /^09\d{9}$/.test(v), {
+      message: 'Enter a valid PH mobile number (e.g. 0917 123 4567)',
+    }),
+
+  notes: z.string().max(500, 'Notes are too long').optional(),
+});
+
+type CustomerForm = z.infer<typeof customerSchema>;
 
 const SKILL_BADGE: Record<string, string> = {
   Beginner: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
@@ -48,11 +88,16 @@ export function OpenPlay() {
   const [selectedSession, setSelectedSession] = useState<OpenPlaySession | null>(null);
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
-  const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
-    name: '',
-    email: '',
-    phone: '',
-    notes: '',
+
+  const {
+    register,
+    handleSubmit,
+    reset: resetCustomerForm,
+    formState: { errors: customerErrors },
+  } = useForm<CustomerForm>({
+    resolver: zodResolver(customerSchema),
+    mode: 'onBlur',
+    defaultValues: { name: '', email: '', phone: '', notes: '' },
   });
 
   // ── Details modal state ──────────────────────────────────
@@ -114,7 +159,7 @@ export function OpenPlay() {
     setSelectedSession(session);
     setShowJoinModal(true);
     setJoinError(null);
-    setCustomerDetails({ name: '', email: '', phone: '', notes: '' });
+    resetCustomerForm({ name: '', email: '', phone: '', notes: '' });
   };
 
   const handleJoinFromDetails = () => {
@@ -124,32 +169,21 @@ export function OpenPlay() {
     handleJoinClick(session);
   };
 
-    const handleJoinConfirm = async () => {
+  const handleJoinConfirm = async (data: CustomerForm) => {
     if (!selectedSession) return;
-    if (!customerDetails.name.trim()) {
-      setJoinError('Name is required');
-      return;
-    }
-    if (!customerDetails.email.trim()) {
-      setJoinError('Email is required');
-      return;
-    }
-    if (!customerDetails.phone.trim()) {
-      setJoinError('Phone number is required');
-      return;
-    }
 
     setJoining(true);
     setJoinError(null);
 
     try {
-      const booking = await openPlayService.joinSession(selectedSession.id, customerDetails);
+      const booking = await openPlayService.joinSession(selectedSession.id, data);
 
       const store = useBookingStore.getState();
       store.reset();
       useBookingStore.setState({ currentBooking: booking });
 
       setShowJoinModal(false);
+      resetCustomerForm();
 
       // ✅ Free sessions skip checkout entirely
       if (booking.status === 'confirmed' && booking.total_amount === 0) {
@@ -462,7 +496,7 @@ export function OpenPlay() {
 
             {/* Price + CTA */}
             <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 p-3.5">
-                            <div>
+              <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Price per player</p>
                 <p className="font-display text-xl font-extrabold text-brand-blue-300">
                   {detailsSession.price_per_player === 0 ? 'Free' : formatCurrency(detailsSession.price_per_player)}
@@ -489,7 +523,7 @@ export function OpenPlay() {
         size="md"
       >
         {selectedSession && (
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit(handleJoinConfirm)} className="space-y-4">
             {/* Session Summary */}
             <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5">
               <p className="text-sm font-bold text-cream">
@@ -514,7 +548,7 @@ export function OpenPlay() {
                 {formatDateLong(selectedSession.date)} ·{' '}
                 {formatTimeRange(selectedSession.start_time, selectedSession.end_time)}
               </p>
-                           <p className="mt-1 text-xs font-semibold text-brand-blue-300">
+              <p className="mt-1 text-xs font-semibold text-brand-blue-300">
                 {selectedSession.current_players}/{selectedSession.max_players} players ·{' '}
                 {selectedSession.price_per_player === 0
                   ? 'Free'
@@ -523,43 +557,42 @@ export function OpenPlay() {
             </div>
 
             <Input
+              id="op-name"
               label="Full Name"
-              required
-              placeholder="Enter your full name"
-              value={customerDetails.name}
-              onChange={(e) =>
-                setCustomerDetails({ ...customerDetails, name: e.target.value })
-              }
+              placeholder="Juan Dela Cruz"
+              leftIcon={<User className="h-4 w-4" />}
+              error={customerErrors.name?.message}
+              {...register('name')}
             />
 
             <Input
+              id="op-email"
               label="Email Address"
-              required
               type="email"
-              placeholder="you@email.com"
-              value={customerDetails.email}
-              onChange={(e) =>
-                setCustomerDetails({ ...customerDetails, email: e.target.value })
-              }
+              inputMode="email"
+              placeholder="juan@email.com"
+              leftIcon={<Mail className="h-4 w-4" />}
+              error={customerErrors.email?.message}
+              {...register('email')}
             />
 
             <Input
+              id="op-phone"
               label="Phone Number"
-              required
+              type="tel"
+              inputMode="numeric"
               placeholder="0917 123 4567"
-              value={customerDetails.phone}
-              onChange={(e) =>
-                setCustomerDetails({ ...customerDetails, phone: e.target.value })
-              }
+              leftIcon={<Phone className="h-4 w-4" />}
+              error={customerErrors.phone?.message}
+              {...register('phone')}
             />
 
             <Input
+              id="op-notes"
               label="Notes (optional)"
               placeholder="Any special requests or paddle rental?"
-              value={customerDetails.notes || ''}
-              onChange={(e) =>
-                setCustomerDetails({ ...customerDetails, notes: e.target.value })
-              }
+              error={customerErrors.notes?.message}
+              {...register('notes')}
             />
 
             {joinError && (
@@ -569,14 +602,20 @@ export function OpenPlay() {
             )}
 
             <div className="flex flex-col gap-2.5 pt-2 sm:flex-row sm:gap-3">
-               <Button fullWidth isLoading={joining} onClick={handleJoinConfirm}>
+              <Button type="submit" fullWidth isLoading={joining}>
                 {selectedSession.price_per_player === 0 ? 'Confirm & Join' : 'Confirm & Pay'}
               </Button>
-              <Button variant="ghost" fullWidth className="sm:w-auto" onClick={handleModalClose}>
+              <Button
+                type="button"
+                variant="ghost"
+                fullWidth
+                className="sm:w-auto"
+                onClick={handleModalClose}
+              >
                 Cancel
               </Button>
             </div>
-          </div>
+          </form>
         )}
       </Modal>
 
