@@ -31,7 +31,7 @@ import {
 } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
 import { isInAppBrowser, getInAppBrowserName } from '@/utils/browser';
-import type { Booking } from '@/types';
+import type { Booking, BookingSummary } from '@/types';
 
 export function Track() {
   const settings = useClientStore((state) => state.settings);
@@ -43,6 +43,7 @@ export function Track() {
   );
   const [email, setEmail] = useState('');
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [summaries, setSummaries] = useState<BookingSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -56,19 +57,57 @@ export function Track() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reference.trim()) return;
+
+    const ref = reference.trim();
+    const mail = email.trim();
+
+    if (!ref && !mail) {
+      setError('Enter a reference code or your email to search.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setBooking(null);
+    setSummaries([]);
     setUploadSuccess(false);
+
     try {
-      const result = await bookingService.trackBooking(
-        reference.trim(),
-        email.trim() || undefined
-      );
-      setBooking(result);
+      if (ref) {
+        // Reference path — full detail
+        const result = await bookingService.trackBooking(ref, mail || undefined);
+        setBooking(result);
+      } else {
+        // Email path — masked summaries (pending/submitted only)
+        const list = await bookingService.trackBookingSummariesByEmail(mail);
+        if (list.length === 0) {
+          setError(
+            'No pending payments found for this email. If your booking is already confirmed, look it up with your reference code.'
+          );
+        } else {
+          setSummaries(list);
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Booking not found');
+      setError(err instanceof Error ? err.message : 'Search failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSummaryClick = async (summary: BookingSummary) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Re-verify with the same email to fetch full details
+      const detail = await bookingService.trackBooking(
+        summary.reference_code,
+        email.trim()
+      );
+      setBooking(detail);
+      setSummaries([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not open booking');
     } finally {
       setLoading(false);
     }
@@ -106,13 +145,20 @@ export function Track() {
     booking &&
     (booking.status === 'pending_payment' || booking.status === 'payment_submitted');
 
-  const formatSlotTime = (slot: { startTime?: string; endTime?: string; start_time?: string; end_time?: string }): string => {
+  const formatSlotTime = (slot: {
+    startTime?: string;
+    endTime?: string;
+    start_time?: string;
+    end_time?: string;
+  }): string => {
     const start = slot.startTime || slot.start_time || '';
     const end = slot.endTime || slot.end_time || '';
     return formatTimeRange(start, end);
   };
 
   const hasPaymentScreenshot = booking?.payment_screenshot_url;
+
+  const canSearch = reference.trim().length > 0 || email.trim().length > 0;
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
@@ -136,7 +182,7 @@ export function Track() {
               Track Your Booking
             </h1>
             <p className="mt-1.5 text-xs text-cream-muted sm:mt-2 sm:text-sm">
-              Enter your reference code to check your payment and reservation status.
+              Search by reference code for one booking, or by email to see bookings pending payment.
             </p>
           </div>
 
@@ -149,19 +195,19 @@ export function Track() {
               <Input
                 label="Reference Code"
                 placeholder="e.g. PJAB12CD"
-                required
                 leftIcon={<Search className="h-4 w-4 text-cream-muted" />}
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
+                hint="Optional if you provide email"
               />
               <Input
-                label="Email (optional)"
+                label="Email"
                 type="email"
                 placeholder="your@email.com"
                 leftIcon={<Mail className="h-4 w-4 text-cream-muted" />}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                hint="Adds extra security to your search"
+                hint="Shows only bookings that need payment action"
               />
             </div>
             <Button
@@ -170,21 +216,81 @@ export function Track() {
               fullWidth
               className="mt-4 sm:w-auto"
               isLoading={loading}
+              disabled={!canSearch}
               leftIcon={<Search className="h-5 w-5" />}
             >
               Search Booking
             </Button>
+            {!canSearch && (
+              <p className="mt-2 text-[11px] text-cream-muted">
+                Enter a reference code or email to enable search.
+              </p>
+            )}
           </form>
 
           {error && (
-            <div className="mt-4 flex items-center gap-2 rounded-xl border border-error/30 bg-error/10 p-3.5 text-xs text-error font-medium">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {error}
+            <div className="mt-4 flex items-start gap-2 rounded-xl border border-error/30 bg-error/10 p-3.5 text-xs text-error font-medium">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
           {loading && <LoadingSpinner className="py-12" />}
 
+          {/* ─── Email search: summary list ─── */}
+          {!loading && summaries.length > 0 && (
+            <div className="mt-6 space-y-3 sm:mt-8">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-bold text-cream sm:text-base">
+                    Bookings Needing Payment Action ({summaries.length})
+                  </h2>
+                  <p className="text-[11px] text-cream-muted">
+                    Confirmed or completed bookings won't appear here. Use your reference code to see them.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSummaries([]);
+                    setEmail('');
+                  }}
+                  className="shrink-0 text-[11px] text-cream-muted underline hover:text-error"
+                >
+                  Clear
+                </button>
+              </div>
+
+              {summaries.map((s) => (
+                <motion.button
+                  key={s.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={() => handleSummaryClick(s)}
+                  className="w-full cursor-pointer rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 text-left shadow-xl backdrop-blur-sm transition hover:border-brand-blue-400/60"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-mono text-sm font-extrabold tracking-wider text-brand-blue-300">
+                        {s.reference_code}
+                      </p>
+                      <p className="mt-0.5 text-xs text-cream-muted">
+                        {s.court_name} · {formatDateLong(s.date)}
+                        {s.start_time && s.end_time && (
+                          <> · {formatTimeRange(s.start_time, s.end_time)}</>
+                        )}
+                      </p>
+                    </div>
+                    <StatusBadge status={s.status} />
+                  </div>
+                  <p className="mt-2 text-[11px] text-cream-muted">
+                    Booked {formatDateTime(s.created_at)} · {formatCurrency(s.total_amount)}
+                  </p>
+                </motion.button>
+              ))}
+            </div>
+          )}
+
+          {/* ─── Single booking detail ─── */}
           <AnimatePresence>
             {booking && !loading && (
               <motion.div
@@ -213,8 +319,12 @@ export function Track() {
                         <MapPin className="h-4 w-4" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Court</p>
-                        <p className="text-sm font-bold text-cream sm:text-base">{booking.court_name}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                          Court
+                        </p>
+                        <p className="text-sm font-bold text-cream sm:text-base">
+                          {booking.court_name}
+                        </p>
                       </div>
                     </div>
 
@@ -223,8 +333,12 @@ export function Track() {
                         <Calendar className="h-4 w-4" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Date</p>
-                        <p className="text-sm font-bold text-cream sm:text-base">{formatDateLong(booking.date)}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                          Date
+                        </p>
+                        <p className="text-sm font-bold text-cream sm:text-base">
+                          {formatDateLong(booking.date)}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -270,12 +384,16 @@ export function Track() {
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <User className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Name:</span>
-                      <span className="truncate font-medium text-cream">{booking.customer.name}</span>
+                      <span className="truncate font-medium text-cream">
+                        {booking.customer.name}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <Mail className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Email:</span>
-                      <span className="truncate font-medium text-cream">{booking.customer.email}</span>
+                      <span className="truncate font-medium text-cream">
+                        {booking.customer.email}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <Phone className="h-4 w-4 shrink-0 text-brand-blue-300" />
@@ -285,7 +403,9 @@ export function Track() {
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <Calendar className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Booked:</span>
-                      <span className="font-medium text-cream">{formatDateTime(booking.created_at)}</span>
+                      <span className="font-medium text-cream">
+                        {formatDateTime(booking.created_at)}
+                      </span>
                     </div>
                   </div>
                   {booking.customer.notes && (
@@ -315,7 +435,10 @@ export function Track() {
                     </div>
                     {booking.payment_reference && (
                       <p className="mt-2.5 text-xs text-cream-muted">
-                        Reference Number: <span className="font-mono font-bold text-brand-blue-300">{booking.payment_reference}</span>
+                        Reference Number:{' '}
+                        <span className="font-mono font-bold text-brand-blue-300">
+                          {booking.payment_reference}
+                        </span>
                       </p>
                     )}
                   </div>

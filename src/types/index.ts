@@ -230,3 +230,15 @@ export interface CreateOpenPlaySessionPayload {
 export interface UpdateOpenPlaySessionPayload extends CreateOpenPlaySessionPayload {
   is_active: boolean;
 }
+
+export interface BookingSummary {
+  id: string;
+  reference_code: string;
+  court_name: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: BookingStatus;
+  total_amount: number;
+  created_at: string;
+}
