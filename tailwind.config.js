@@ -4,99 +4,60 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ⭐ Exact Court Green Palette (#395838 as core)
+        // True Court Infield Acrylic Blue (Calibrated to real court photo)
+        court: {
+          950: '#0c1827', // Deepest surface shadow
+          900: '#14253a', // Court base in low light
+          800: '#193350', // Court in indirect evening light
+          700: '#1e3f66', // Deep court angle
+          600: '#224870', // ⭐ EXACT COURT INFIELD BLUE (True daylight match)
+          500: '#2b5888', // Court directly under dome lights
+          400: '#3d72a8', // Crisp accent / border tone
+          300: '#6497cb', // Primary text highlight (Readable on dark green)
+          200: '#9ec1e5', // Light UI text / active badges
+          100: '#d1e3f5', // Pill backgrounds / subtle glow
+          50:  '#f0f6fc',
+        },
+
+        // Court Outfield Acrylic Green
         forest: {
           950: '#0b130b',
-          900: '#142013',
-          800: '#20311f',
-          700: '#2d442c',
-          600: '#344e33',
-          500: '#395838', // ⭐ Exact green
-          400: '#4e734c',
-          300: '#6d936b',
-          200: '#9db89c',
-          100: '#cfe0ce',
-          50:  '#eef4ee',
+          900: '#131e13',
+          800: '#1e2e1e',
+          700: '#283c27',
+          600: '#324a31',
+          500: '#3e583c', // ⭐ EXACT COURT OUTFIELD GREEN
+          400: '#537250',
+          300: '#739570',
+          200: '#a2bfa0',
+          100: '#d0dfcf',
+          50:  '#f1f5f0',
         },
 
-        'brand-green': {
-          50:  '#eef4ee',
-          100: '#cfe0ce',
-          200: '#9db89c',
-          300: '#6d936b',
-          400: '#4e734c',
-          500: '#395838', // ⭐ Exact green
-          600: '#344e33',
-          700: '#2d442c',
-          800: '#20311f',
-          900: '#142013',
-          950: '#0b130b',
+        // Paddle Grip Highlight
+        accent: {
+          DEFAULT: '#E85D26',
+          light: '#F58245',
+          dark: '#C44412',
+          muted: '#E85D2620',
         },
 
-        // ⭐ Exact Court Blue Palette (#0e4174 as core)
-        'brand-blue': {
-          50:  '#edf5fc',
-          100: '#d7e7f9',
-          200: '#b4d4f4',
-          300: '#83b8eb',
-          400: '#4c95de',
-          500: '#0e4174', // ⭐ Exact blue (#0e4174)
-          600: '#0b3662',
-          700: '#092c50',
-          800: '#07223f',
-          900: '#05182d',
-          950: '#030f1d',
-        },
-
-        gold: {
-  50:  '#edf5fc',
-  100: '#d7e7f9',
-  200: '#b4d4f4',
-  300: '#83b8eb',
-  400: '#0e4174', // ⭐ Swapped from #4e6e96 to your exact blue
-  500: '#0b3662',
-  600: '#092c50',
-  700: '#07223f',
-  800: '#05182d',
-  900: '#030f1d',
-},
-        accentGreen: {
-  300: '#527b50', // Lighter tint for hover states
-  400: '#395838', // ⭐ YOUR EXACT COURT GREEN (targeted by text-accentGreen-400)
-  500: '#2a4229', // Darker shade for active/focus states
-},
+        // Court White Boundary Lines
         cream: {
-          DEFAULT: '#F5F0E8',
-          dark: '#E8E0D2',
-          muted: '#B8B0A0',
+          DEFAULT: '#F4F6F2', // Crisp line paint
+          dark: '#E2E6DF',
+          muted: '#9FA99D',
         },
-        charcoal: '#1A1A1A',
+        charcoal: '#111411',
         success: '#2ECC71',
         error: '#E74C3C',
         warning: '#F39C12',
       },
-      fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['Oswald', 'Inter', 'sans-serif'],
-      },
+
       boxShadow: {
-  'glow-gold': '0 0 0 1px rgba(14,65,116,0.6), 0 8px 30px rgba(14,65,116,0.35)',
-  'card': '0 4px 24px rgba(0,0,0,0.25)',
-  'card-lg': '0 12px 40px rgba(0,0,0,0.35)',
-},
-      keyframes: {
-        'fade-in': {
-          '0%': { opacity: '0', transform: 'translateY(8px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        'slide-up': {
-          '0%': { opacity: '0', transform: 'translateY(24px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-      },
-      animation: {
-        'fade-in': 'fade-in 0.4s ease-out',
-        'slide-up': 'slide-up 0.5s ease-out',
+        // Matches the authentic deep-blue surface glow
+        'glow-court': '0 0 0 1px rgba(61, 114, 168, 0.6), 0 8px 25px rgba(34, 72, 112, 0.5)',
+        'glow-accent': '0 0 0 1px rgba(232, 93, 38, 0.5), 0 8px 24px rgba(232, 93, 38, 0.25)',
       },
     },
   },
