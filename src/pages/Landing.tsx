@@ -33,14 +33,12 @@ import {
 } from '@/utils/format';
 import type { TimeSlot, Court, OpenPlaySession } from '@/types';
 
-// Court palette harmonized column accents
+// Court palette column accents (Infield Blue & Outfield Green)
 const COURT_ACCENTS = [
-  { header: 'text-court-300', dot: 'bg-court-400', border: 'border-court-500/40', bg: 'bg-court-500/15', text: 'text-court-100', hoverBorder: 'hover:border-court-400/80', hoverBg: 'hover:bg-court-500/25' },
-  { header: 'text-forest-200', dot: 'bg-forest-400', border: 'border-forest-400/40', bg: 'bg-forest-500/20', text: 'text-forest-100', hoverBorder: 'hover:border-forest-300/80', hoverBg: 'hover:bg-forest-500/35' },
-  { header: 'text-court-200', dot: 'bg-court-300', border: 'border-court-400/40', bg: 'bg-court-600/20', text: 'text-court-50', hoverBorder: 'hover:border-court-300/80', hoverBg: 'hover:bg-court-600/30' },
-  { header: 'text-forest-300', dot: 'bg-forest-300', border: 'border-forest-500/40', bg: 'bg-forest-600/20', text: 'text-forest-100', hoverBorder: 'hover:border-forest-400/80', hoverBg: 'hover:bg-forest-600/30' },
-  { header: 'text-court-300', dot: 'bg-court-400', border: 'border-court-500/40', bg: 'bg-court-500/15', text: 'text-court-100', hoverBorder: 'hover:border-court-400/80', hoverBg: 'hover:bg-court-500/25' },
-  { header: 'text-forest-200', dot: 'bg-forest-400', border: 'border-forest-400/40', bg: 'bg-forest-500/20', text: 'text-forest-100', hoverBorder: 'hover:border-forest-300/80', hoverBg: 'hover:bg-forest-500/35' },
+  { header: 'text-court-200', dot: 'bg-court-400', border: 'border-court-500/40', bg: 'bg-court-600/20', text: 'text-court-100', hoverBorder: 'hover:border-court-300', hoverBg: 'hover:bg-court-600/35' },
+  { header: 'text-forest-200', dot: 'bg-forest-400', border: 'border-forest-500/40', bg: 'bg-forest-600/20', text: 'text-forest-100', hoverBorder: 'hover:border-forest-300', hoverBg: 'hover:bg-forest-600/35' },
+  { header: 'text-court-300', dot: 'bg-court-300', border: 'border-court-400/40', bg: 'bg-court-500/20', text: 'text-court-50', hoverBorder: 'hover:border-court-200', hoverBg: 'hover:bg-court-500/35' },
+  { header: 'text-forest-300', dot: 'bg-forest-300', border: 'border-forest-400/40', bg: 'bg-forest-700/30', text: 'text-forest-100', hoverBorder: 'hover:border-forest-200', hoverBg: 'hover:bg-forest-700/45' },
 ];
 
 function getCourtAccent(index: number) {
@@ -87,14 +85,17 @@ function isWithinNextWeek(session: OpenPlaySession): boolean {
 
 const SKILL_BADGE: Record<string, string> = {
   Beginner: 'bg-forest-500/25 text-forest-200 border border-forest-400/30',
-  Intermediate: 'bg-court-500/25 text-court-200 border border-court-400/30',
+  Intermediate: 'bg-court-600/30 text-court-200 border border-court-400/40',
   Advanced: 'bg-accent/20 text-accent-light border border-accent/40',
-  'All Levels': 'bg-court-600/30 text-court-100 border border-court-400/40',
+  'All Levels': 'bg-court-500/25 text-court-100 border border-court-400/30',
 };
 
 export function Landing() {
   const navigate = useNavigate();
   const bookingSectionRef = useRef<HTMLDivElement>(null);
+
+  // Background Slideshow State
+  const [heroIdx, setHeroIdx] = useState(0);
 
   const {
     courts,
@@ -119,6 +120,18 @@ export function Landing() {
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  // Cycle slideshow every 5 seconds
+  useEffect(() => {
+    const slides = COURT_IMAGES.heroSlideshow;
+    if (!slides || slides.length <= 1) return;
+
+    const timer = setInterval(() => {
+      setHeroIdx((prev) => (prev + 1) % slides.length);
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (courts.length === 0) {
@@ -249,14 +262,45 @@ export function Landing() {
 
       {/* Hero Section */}
       <section className="relative flex min-h-[85vh] items-start pt-28 sm:min-h-screen sm:items-center sm:pt-20 overflow-hidden">
+        {/* Cross-fade Slideshow Layer */}
         <div className="absolute inset-0">
-          <img
-            src={COURT_IMAGES.hero}
-            alt="Pickleball court"
-            className="h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/90 to-forest-950/40" />
+          {COURT_IMAGES.heroSlideshow.map((src, index) => (
+            <motion.img
+              key={src}
+              src={src}
+              alt={`Court scene ${index + 1}`}
+              className="absolute inset-0 h-full w-full object-cover"
+              initial={{ opacity: 0, scale: 1.05 }}
+              animate={{
+                opacity: index === heroIdx ? 1 : 0,
+                scale: index === heroIdx ? 1 : 1.05,
+              }}
+              transition={{
+                opacity: { duration: 1.2, ease: 'easeInOut' },
+                scale: { duration: 6, ease: 'easeOut' },
+              }}
+            />
+          ))}
+
+          {/* Vignette Gradients for Contrast */}
+          <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/90 to-forest-950/45" />
           <div className="absolute inset-0 bg-grid opacity-25" />
+        </div>
+
+        {/* Slide Indicator Dots */}
+        <div className="absolute bottom-6 right-6 z-20 hidden items-center gap-1.5 sm:flex">
+          {COURT_IMAGES.heroSlideshow.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setHeroIdx(idx)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                idx === heroIdx
+                  ? 'w-6 bg-court-400 shadow-glow-court'
+                  : 'w-1.5 bg-forest-600 hover:bg-forest-400'
+              }`}
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
         </div>
 
         <div className="container-page relative z-10 py-8 sm:py-20">
@@ -272,7 +316,7 @@ export function Landing() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.5 }}
                 onClick={() => navigate('/open-play')}
-                className="mb-4 flex w-full items-center gap-2 rounded-full border border-court-400/40 bg-court-600/30 px-3 py-2 backdrop-blur-md transition hover:border-court-300 hover:bg-court-600/50 sm:mb-5 sm:w-auto sm:px-4"
+                className="mb-4 flex w-full items-center gap-2 rounded-full border border-court-400/40 bg-court-600/35 px-3 py-2 backdrop-blur-md transition hover:border-court-300 hover:bg-court-600/50 sm:mb-5 sm:w-auto sm:px-4 shadow-sm"
               >
                 <span className="relative flex h-2 w-2 shrink-0">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-court-400 opacity-75"></span>
@@ -294,11 +338,13 @@ export function Landing() {
 
             <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl">
               <span className="text-cream">Center</span>
-              <span className="text-court-400">Court</span>
+              <span className="text-court-300">Court</span>
             </h1>
+
             <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
               {APP_CONFIG.tagline}
             </p>
+
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
               Book premium indoor and outdoor pickleball courts in seconds. Pay easily with GCash,
               track your bookings, and get playing.
@@ -957,7 +1003,7 @@ function OpenPlayPill({
   return (
     <button
       onClick={onClick}
-      className="group relative flex h-11 w-full items-center justify-between rounded-xl border-2 border-court-400 bg-court-600/30 px-3 font-bold transition-all hover:bg-court-600/50 hover:shadow-[0_0_20px_-4px_rgba(59,120,181,0.6)]"
+      className="group relative flex h-11 w-full items-center justify-between rounded-xl border-2 border-court-400 bg-court-600/35 px-3 font-bold transition-all hover:bg-court-600/55 hover:shadow-[0_0_20px_-4px_rgba(61,114,168,0.6)]"
       title={`Open Play: ${session.current_players}/${session.max_players} players · ${session.skill_level}`}
     >
       <span className="text-xs font-black text-court-300">OP</span>
@@ -965,7 +1011,7 @@ function OpenPlayPill({
         {session.current_players}/{session.max_players} joined
       </span>
 
-      {/* Tooltip */}
+      {/* Hover Tooltip */}
       <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-forest-500 bg-forest-900 px-3 py-2 text-xs text-cream shadow-xl group-hover:block">
         <p className="font-semibold text-court-300">Open Play Session</p>
         <p className="text-[11px] text-cream-muted">
@@ -1001,7 +1047,7 @@ function SlotPill({
   } else if (isPending) {
     styleClasses = 'border-amber-500/30 bg-amber-500/10 text-amber-300/80 cursor-not-allowed';
   } else if (isSelected) {
-    styleClasses = 'border-court-300 bg-court-500 text-white font-bold shadow-glow-court';
+    styleClasses = 'border-court-300 bg-court-600 text-white font-bold shadow-glow-court';
   }
 
   return (
