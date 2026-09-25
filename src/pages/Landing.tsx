@@ -261,126 +261,103 @@ export function Landing() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative flex min-h-[85vh] items-start pt-28 sm:min-h-screen sm:items-center sm:pt-20 overflow-hidden">
-        {/* Cross-fade Slideshow Layer */}
-        <div className="absolute inset-0">
-          {COURT_IMAGES.heroSlideshow.map((src, index) => (
-            <motion.img
-              key={src}
-              src={src}
-              alt={`Court scene ${index + 1}`}
-              className="absolute inset-0 h-full w-full object-cover"
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{
-                opacity: index === heroIdx ? 1 : 0,
-                scale: index === heroIdx ? 1 : 1.05,
-              }}
-              transition={{
-                opacity: { duration: 1.2, ease: 'easeInOut' },
-                scale: { duration: 6, ease: 'easeOut' },
-              }}
-            />
-          ))}
+<section className="relative flex min-h-[85vh] items-start pt-28 sm:min-h-screen sm:items-center sm:pt-20 overflow-hidden">
+  <div className="absolute inset-0">
+    {/* Single Background Image shifted right */}
+    <img
+      src="/images/bg3.jpg"
+      alt="Center Court"
+      className="h-full w-full object-cover object-right md:object-[75%_center]"
+    />
 
-          {/* Vignette Gradients for Contrast */}
-          <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/90 to-forest-950/45" />
-          <div className="absolute inset-0 bg-grid opacity-25" />
+    {/* Heavy Dark Forest Fade (Solid on the left text area, feathering softly towards the right court) */}
+    <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/95 sm:via-forest-950/85 to-forest-950/30" />
+    
+    {/* Vertical base shadow to blend seamlessly into the lower sections */}
+    <div className="absolute inset-0 bg-gradient-to-t from-forest-950 via-transparent to-transparent" />
+    
+    {/* Subtle court grid texture */}
+    <div className="absolute inset-0 bg-grid opacity-20" />
+  </div>
+
+  <div className="container-page relative z-10 py-8 sm:py-20">
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, ease: 'easeOut' }}
+      className="max-w-2xl"
+    >
+      {nextSession && (
+        <motion.button
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.5 }}
+          onClick={() => navigate('/open-play')}
+          className="mb-4 flex w-full items-center gap-2 rounded-full border border-court-400/40 bg-court-600/35 px-3 py-2 backdrop-blur-md transition hover:border-court-300 hover:bg-court-600/50 sm:mb-5 sm:w-auto sm:px-4 shadow-sm"
+        >
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-court-400 opacity-75"></span>
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-court-300"></span>
+          </span>
+          <Users className="h-4 w-4 shrink-0 text-court-300" />
+          <span className="truncate text-xs font-semibold text-court-100 sm:text-sm">
+            Open Play{' '}
+            {nextSession.status === 'active'
+              ? 'happening now'
+              : nextSession.date === todayISO()
+                ? 'today'
+                : 'soon'}{' '}
+            · {nextSession.current_players}/{nextSession.max_players} joined
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0 text-court-300" />
+        </motion.button>
+      )}
+
+      <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl">
+        <span className="text-cream">Center</span>{' '}
+        <span className="text-court-300">Court</span>
+      </h1>
+
+      <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
+        {APP_CONFIG.tagline}
+      </p>
+
+      <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
+        Book premium indoor and outdoor pickleball courts in seconds. Pay easily with GCash,
+        track your bookings, and get playing.
+      </p>
+
+      <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
+        <Button
+          size="lg"
+          onClick={scrollToBooking}
+          leftIcon={<CalendarPlus className="h-5 w-5" />}
+        >
+          Book a Court
+        </Button>
+        <Button
+          size="lg"
+          variant="secondary"
+          to="/track"
+          leftIcon={<CalendarDays className="h-5 w-5" />}
+        >
+          Track My Booking
+        </Button>
+      </div>
+
+      <div className="mt-8 flex flex-wrap items-center gap-4 text-xs text-cream-muted sm:mt-10 sm:gap-6 sm:text-sm">
+        <div className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-court-300" />
+          <span>San Agustin Sur Dawis, Tandag City</span>
         </div>
-
-        {/* Slide Indicator Dots */}
-        <div className="absolute bottom-6 right-6 z-20 hidden items-center gap-1.5 sm:flex">
-          {COURT_IMAGES.heroSlideshow.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setHeroIdx(idx)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                idx === heroIdx
-                  ? 'w-6 bg-court-400 shadow-glow-court'
-                  : 'w-1.5 bg-forest-600 hover:bg-forest-400'
-              }`}
-              aria-label={`Go to slide ${idx + 1}`}
-            />
-          ))}
+        <div className="flex items-center gap-1.5">
+          <Clock className="h-4 w-4 text-court-300" />
+          <span>Open 5AM - 12AM</span>
         </div>
-
-        <div className="container-page relative z-10 py-8 sm:py-20">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
-            className="max-w-2xl"
-          >
-            {nextSession && (
-              <motion.button
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.5 }}
-                onClick={() => navigate('/open-play')}
-                className="mb-4 flex w-full items-center gap-2 rounded-full border border-court-400/40 bg-court-600/35 px-3 py-2 backdrop-blur-md transition hover:border-court-300 hover:bg-court-600/50 sm:mb-5 sm:w-auto sm:px-4 shadow-sm"
-              >
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-court-400 opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-court-300"></span>
-                </span>
-                <Users className="h-4 w-4 shrink-0 text-court-300" />
-                <span className="truncate text-xs font-semibold text-court-100 sm:text-sm">
-                  Open Play{' '}
-                  {nextSession.status === 'active'
-                    ? 'happening now'
-                    : nextSession.date === todayISO()
-                      ? 'today'
-                      : 'soon'}{' '}
-                  · {nextSession.current_players}/{nextSession.max_players} joined
-                </span>
-                <ArrowRight className="h-4 w-4 shrink-0 text-court-300" />
-              </motion.button>
-            )}
-
-            <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl">
-              <span className="text-cream">Center</span>
-              <span className="text-court-300">Court</span>
-            </h1>
-
-            <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
-              {APP_CONFIG.tagline}
-            </p>
-
-            <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
-              Book premium indoor and outdoor pickleball courts in seconds. Pay easily with GCash,
-              track your bookings, and get playing.
-            </p>
-
-            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
-              <Button
-                size="lg"
-                onClick={scrollToBooking}
-                leftIcon={<CalendarPlus className="h-5 w-5" />}
-              >
-                Book a Court
-              </Button>
-              <Button
-                size="lg"
-                variant="secondary"
-                to="/track"
-                leftIcon={<CalendarDays className="h-5 w-5" />}
-              >
-                Track My Booking
-              </Button>
-            </div>
-
-            <div className="mt-8 flex flex-wrap items-center gap-4 text-xs text-cream-muted sm:mt-10 sm:gap-6 sm:text-sm">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-court-300" />
-                <span>San Agustin Sur Dawis, Tandag City</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-court-300" />
-                <span>Open 5AM - 12AM</span>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      </div>
+    </motion.div>
+  </div>
+</section>
 
       {/* Open Play This Week Section */}
       {weekSessions.length > 0 && (
