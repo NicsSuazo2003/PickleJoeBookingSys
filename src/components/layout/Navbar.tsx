@@ -15,7 +15,17 @@ export function Navbar() {
 
   const settings = useClientStore((state) => state.settings);
   const loadSettings = useClientStore((state) => state.loadSettings);
-  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber;
+
+  // ✅ FIXED: renamed constant + defensive fallback chain so it's always a string.
+  const displayNumber =
+    settings?.gcash_number ||
+    APP_CONFIG.paymentNumber ||
+    '09XX XXX XXXX';
+
+  // Safe tel: href — never crashes even if displayNumber is empty.
+  const telHref = displayNumber.trim()
+    ? `tel:${displayNumber.replace(/\s/g, '')}`
+    : '';
 
   useEffect(() => {
     loadSettings();
@@ -70,7 +80,7 @@ export function Navbar() {
 
         <div className="hidden items-center gap-3 md:flex">
           <a
-            href={`tel:${displayNumber.replace(/\s/g, '')}`}
+            href={telHref}
             className="flex items-center gap-1.5 text-sm text-cream-muted hover:text-brand-blue-300 transition"
           >
             <Phone className="h-4 w-4 text-brand-green-400" />
@@ -114,7 +124,7 @@ export function Navbar() {
               ))}
 
               <a
-                href={`tel:${displayNumber.replace(/\s/g, '')}`}
+                href={telHref}
                 className="flex items-center gap-2 rounded-lg px-4 py-3 text-sm text-cream-muted hover:bg-forest-800/60 hover:text-brand-blue-300 transition"
               >
                 <Phone className="h-4 w-4 text-brand-green-400" />
