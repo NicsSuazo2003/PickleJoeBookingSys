@@ -261,103 +261,103 @@ export function Landing() {
       <Navbar />
 
       {/* Hero Section */}
-<section className="relative flex min-h-[85vh] items-start pt-28 sm:min-h-screen sm:items-center sm:pt-20 overflow-hidden">
-  <div className="absolute inset-0">
-    {/* Single Background Image shifted right */}
-    <img
-      src="/images/bg3.jpg"
-      alt="Center Court"
-      className="h-full w-full object-cover object-right md:object-[75%_center]"
-    />
+      <section className="relative flex min-h-[85vh] items-start pt-28 sm:min-h-screen sm:items-center sm:pt-20 overflow-hidden">
+        <div className="absolute inset-0">
+          {/* Single Background Image shifted right */}
+          <img
+            src="/images/bg3.jpg"
+            alt="Center Court"
+            className="h-full w-full object-cover object-right md:object-[75%_center]"
+          />
 
-    {/* Heavy Dark Forest Fade (Solid on the left text area, feathering softly towards the right court) */}
-    <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/95 sm:via-forest-950/85 to-forest-950/30" />
-    
-    {/* Vertical base shadow to blend seamlessly into the lower sections */}
-    <div className="absolute inset-0 bg-gradient-to-t from-forest-950 via-transparent to-transparent" />
-    
-    {/* Subtle court grid texture */}
-    <div className="absolute inset-0 bg-grid opacity-20" />
-  </div>
+          {/* Heavy Dark Forest Fade */}
+          <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/95 sm:via-forest-950/85 to-forest-950/30" />
 
-  <div className="container-page relative z-10 py-8 sm:py-20">
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.7, ease: 'easeOut' }}
-      className="max-w-2xl"
-    >
-      {nextSession && (
-        <motion.button
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.5 }}
-          onClick={() => navigate('/open-play')}
-          className="mb-4 flex w-full items-center gap-2 rounded-full border border-court-400/40 bg-court-600/35 px-3 py-2 backdrop-blur-md transition hover:border-court-300 hover:bg-court-600/50 sm:mb-5 sm:w-auto sm:px-4 shadow-sm"
-        >
-          <span className="relative flex h-2 w-2 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-court-400 opacity-75"></span>
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-court-300"></span>
-          </span>
-          <Users className="h-4 w-4 shrink-0 text-court-300" />
-          <span className="truncate text-xs font-semibold text-court-100 sm:text-sm">
-            Open Play{' '}
-            {nextSession.status === 'active'
-              ? 'happening now'
-              : nextSession.date === todayISO()
-                ? 'today'
-                : 'soon'}{' '}
-            · {nextSession.current_players}/{nextSession.max_players} joined
-          </span>
-          <ArrowRight className="h-4 w-4 shrink-0 text-court-300" />
-        </motion.button>
-      )}
+          {/* Vertical base shadow */}
+          <div className="absolute inset-0 bg-gradient-to-t from-forest-950 via-transparent to-transparent" />
 
-      <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl">
-        <span className="text-cream">Center</span>{' '}
-        <span className="text-court-300">Court</span>
-      </h1>
-
-      <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
-        {APP_CONFIG.tagline}
-      </p>
-
-      <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
-        Book premium indoor and outdoor pickleball courts in seconds. Pay easily with GCash,
-        track your bookings, and get playing.
-      </p>
-
-      <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
-        <Button
-          size="lg"
-          onClick={scrollToBooking}
-          leftIcon={<CalendarPlus className="h-5 w-5" />}
-        >
-          Book a Court
-        </Button>
-        <Button
-          size="lg"
-          variant="secondary"
-          to="/track"
-          leftIcon={<CalendarDays className="h-5 w-5" />}
-        >
-          Track My Booking
-        </Button>
-      </div>
-
-      <div className="mt-8 flex flex-wrap items-center gap-4 text-xs text-cream-muted sm:mt-10 sm:gap-6 sm:text-sm">
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-court-300" />
-          <span>San Agustin Sur Dawis, Tandag City</span>
+          {/* Subtle court grid texture */}
+          <div className="absolute inset-0 bg-grid opacity-20" />
         </div>
-        <div className="flex items-center gap-1.5">
-          <Clock className="h-4 w-4 text-court-300" />
-          <span>Open 5AM - 12AM</span>
+
+        <div className="container-page relative z-10 py-8 sm:py-20">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            className="max-w-2xl"
+          >
+            {nextSession && (
+              <motion.button
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.5 }}
+                onClick={() => navigate('/open-play')}
+                className="mb-4 flex w-full items-center gap-2 rounded-full border border-court-400/40 bg-court-600/35 px-3 py-2 backdrop-blur-md transition hover:border-court-300 hover:bg-court-600/50 sm:mb-5 sm:w-auto sm:px-4 shadow-sm"
+              >
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-court-400 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-court-300"></span>
+                </span>
+                <Users className="h-4 w-4 shrink-0 text-court-300" />
+                <span className="truncate text-xs font-semibold text-court-100 sm:text-sm">
+                  Open Play{' '}
+                  {nextSession.status === 'active'
+                    ? 'happening now'
+                    : nextSession.date === todayISO()
+                      ? 'today'
+                      : 'soon'}{' '}
+                  · {nextSession.current_players}/{nextSession.max_players} joined
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-court-300" />
+              </motion.button>
+            )}
+
+            <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl lg:text-7xl">
+              <span className="text-cream">Center</span>{' '}
+              <span className="text-court-300">Court</span>
+            </h1>
+
+            <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
+              {APP_CONFIG.tagline}
+            </p>
+
+            <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
+              Book premium indoor and outdoor pickleball courts in seconds. Pay easily with GCash,
+              track your bookings, and get playing.
+            </p>
+
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
+              <Button
+                size="lg"
+                onClick={scrollToBooking}
+                leftIcon={<CalendarPlus className="h-5 w-5" />}
+              >
+                Book a Court
+              </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                to="/track"
+                leftIcon={<CalendarDays className="h-5 w-5" />}
+              >
+                Track My Booking
+              </Button>
+            </div>
+
+            <div className="mt-8 flex flex-wrap items-center gap-4 text-xs text-cream-muted sm:mt-10 sm:gap-6 sm:text-sm">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-court-300" />
+                <span>San Agustin Sur Dawis, Tandag City</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-court-300" />
+                <span>Open 5AM - 12AM</span>
+              </div>
+            </div>
+          </motion.div>
         </div>
-      </div>
-    </motion.div>
-  </div>
-</section>
+      </section>
 
       {/* Open Play This Week Section */}
       {weekSessions.length > 0 && (
@@ -503,17 +503,40 @@ export function Landing() {
               <div className="p-4 pb-24 sm:p-6 sm:pb-24 md:p-8 md:pb-8">
                 {/* STEP 1: Date Selection */}
                 <div className="mb-6 md:mb-10">
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full border border-court-400/50 bg-court-600 text-xs font-bold text-white shadow-sm">
-                      1
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    {/* LEFT: step number + "Choose Date" */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full border border-court-400/50 bg-court-600 text-xs font-bold text-white shadow-sm">
+                        1
+                      </div>
+                      <h3 className="text-sm font-bold text-cream sm:text-base">
+                        Choose <span className="text-court-200">Date</span>
+                      </h3>
                     </div>
-                    <h3 className="text-sm font-bold text-cream sm:text-base">
-                      Choose <span className="text-court-200">Date</span>
-                    </h3>
+
+                    {/* RIGHT: mobile-only prev/next week arrows */}
+                    <div className="flex items-center gap-1.5 sm:hidden">
+                      <button
+                        onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
+                        disabled={weekOffset === 0}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 disabled:opacity-30 active:scale-95"
+                        aria-label="Previous week"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setWeekOffset((w) => w + 1)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 active:scale-95"
+                        aria-label="Next week"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="relative -mx-4 overflow-hidden px-4 sm:mx-0 sm:overflow-visible sm:px-0">
                     <div className="flex items-center gap-1.5 sm:gap-2">
+                      {/* Desktop-only left arrow */}
                       <button
                         onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
                         disabled={weekOffset === 0}
@@ -589,6 +612,7 @@ export function Landing() {
                         })}
                       </div>
 
+                      {/* Desktop-only right arrow */}
                       <button
                         onClick={() => setWeekOffset((w) => w + 1)}
                         className="hidden h-14 w-10 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 sm:flex"
