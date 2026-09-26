@@ -34,8 +34,8 @@ const EMPTY_FORM: EditorForm = {
   id: null,
   label: '',
   days: [],
-  start_time: '08:00',
-  end_time: '22:00',
+  start_time: '',
+  end_time: '',
   price_per_hour: '',
   priority: 0,
 };
@@ -49,8 +49,8 @@ function formatTimeShort(time: string): string {
 }
 
 /**
- * Build the set of unique {start_time, end_time} intervals for a court,
- * sorted and grouped by period (morning / afternoon / evening).
+ * Group intervals by period (morning / afternoon / evening), deduping
+ * identical start-end pairs across the day.
  */
 function groupSlotsByPeriod(slots: TimeSlot[]) {
   const morningMap = new Map<string, { start_time: string; end_time: string }>();
@@ -58,6 +58,7 @@ function groupSlotsByPeriod(slots: TimeSlot[]) {
   const eveningMap = new Map<string, { start_time: string; end_time: string }>();
 
   slots.forEach((slot) => {
+    if (!slot.start_time || !slot.end_time) return;
     const hour = parseInt(slot.start_time.split(':')[0], 10);
     const key = `${slot.start_time}-${slot.end_time}`;
     const obj = { start_time: slot.start_time, end_time: slot.end_time };
@@ -91,31 +92,50 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
   // ─── Slot picker state ──────────────────────────────────────
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [slotsError, setSlotsError] = useState<string | null>(null);
   const [manualMode, setManualMode] = useState(false);
 
   useEffect(() => {
     if (courtId) loadPricingRules(courtId).catch(() => {});
   }, [courtId, loadPricingRules]);
 
-  // Fetch this court's time slots once so the picker can show real intervals.
+  // Fetch this court's availability for today so the picker can show the
+  // real intervals. The endpoint is /api/courts/{id}/availability?date=…
+  // and returns TimeSlotAvailabilityDto — we normalize it to our TimeSlot
+  // shape so the rest of the editor doesn't care about the backend DTO.
   useEffect(() => {
     if (!courtId) return;
     let cancelled = false;
 
     (async () => {
       setLoadingSlots(true);
-      setSlotsError(null);
       try {
-        const res = await apiRequest<any>(`/api/courts/${courtId}/slots`);
-        const list = Array.isArray(res) ? res : res?.data ?? [];
-        if (!cancelled) setSlots(list as TimeSlot[]);
+        const today = new Date().toISOString().slice(0, 10);
+
+        const res = await apiRequest<any>(
+          `/api/courts/${courtId}/availability?date=${today}`
+        );
+
+        const rawList = Array.isArray(res) ? res : res?.data ?? [];
+
+        const normalized: TimeSlot[] = rawList.map((item: any) => ({
+          id: item.id ?? '',
+          court_id: item.courtId ?? item.court_id ?? courtId,
+          date: item.date ?? today,
+          start_time: item.startTime ?? item.start_time ?? '',
+          end_time: item.endTime ?? item.end_time ?? '',
+          type: 'standard',
+          price: Number(item.price ?? 0),
+          is_available: item.isAvailable ?? item.is_available ?? true,
+          is_peak: item.isPeak ?? item.is_peak ?? false,
+        }));
+
+        if (!cancelled) setSlots(normalized);
       } catch (err) {
-        if (!cancelled) {
-          setSlotsError(
-            err instanceof Error ? err.message : 'Failed to load time slots'
-          );
-        }
+        // Silent fallback: if availability can't be fetched (endpoint
+        // unavailable, CORS, no slots for today), the admin can still
+        // use manual time entry.
+        if (!cancelled) setSlots([]);
+        console.warn('[PricingRulesEditor] Slot fetch failed:', err);
       } finally {
         if (!cancelled) setLoadingSlots(false);
       }
@@ -184,42 +204,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
 
   // ─── Slot-picking logic ─────────────────────────────────────
 
-  /**
-   * Each pill represents one interval. Clicking behavior:
-   *   - If no start yet (or both set), this pill becomes the new start.
-   *   - If a start is set and no end yet, this pill becomes the end
-   *     (must be >= start index).
-   *   - Clicking the same pill twice clears the selection.
-   */
-  const handleSlotClick = (interval: { start_time: string; end_time: string }) => {
-    if (!form) return;
-    const currentStart = form.start_time;
-    const currentEnd = form.end_time;
-    const inRange = isInRange(currentStart, currentEnd, interval);
-
-    // If both are already set, restart selection with this as new start
-    if (inRange) {
-      // Clicking inside the range clears it
-      setForm({ ...form, start_time: '', end_time: '' });
-      return;
-    }
-
-    if (!currentStart || (currentStart && currentEnd)) {
-      // Start a fresh selection
-      setForm({ ...form, start_time: interval.start_time, end_time: interval.end_time });
-      return;
-    }
-
-    // We have a start but no end → complete the range
-    const cmp = interval.start_time.localeCompare(currentStart);
-    if (cmp >= 0) {
-      setForm({ ...form, end_time: interval.end_time });
-    } else {
-      // User picked an earlier pill → flip and use it as new start
-      setForm({ ...form, start_time: interval.start_time, end_time: currentEnd || interval.end_time });
-    }
-  };
-
   const isInRange = (
     start: string,
     end: string,
@@ -230,6 +214,46 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
       return interval.start_time === start;
     }
     return interval.start_time >= start && interval.end_time <= end;
+  };
+
+  /**
+   * Click behavior:
+   *  - If nothing selected → this pill becomes start (and end for now).
+   *  - If only start selected → this pill becomes end. If it's earlier
+   *    than start, it becomes the new start instead.
+   *  - If a full range selected → clicking inside clears; clicking outside
+   *    starts a fresh selection at the clicked pill.
+   */
+  const handleSlotClick = (interval: { start_time: string; end_time: string }) => {
+    if (!form) return;
+    const { start_time, end_time } = form;
+
+    if (isInRange(start_time, end_time, interval)) {
+      // Click inside → clear
+      setForm({ ...form, start_time: '', end_time: '' });
+      return;
+    }
+
+    // No selection yet → start here
+    if (!start_time) {
+      setForm({ ...form, start_time: interval.start_time, end_time: interval.end_time });
+      return;
+    }
+
+    // Have start but no distinct end (or only single pill) → extend
+    if (!end_time || start_time === end_time) {
+      const cmp = interval.start_time.localeCompare(start_time);
+      if (cmp >= 0) {
+        setForm({ ...form, end_time: interval.end_time });
+      } else {
+        // Picked earlier than start → make it the new start
+        setForm({ ...form, start_time: interval.start_time, end_time: end_time || interval.end_time });
+      }
+      return;
+    }
+
+    // Have a full range → restart from this pill
+    setForm({ ...form, start_time: interval.start_time, end_time: interval.end_time });
   };
 
   const handleSubmit = async () => {
@@ -524,17 +548,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/40 py-6 text-center">
                   <LoadingSpinner />
                 </div>
-              ) : slotsError ? (
-                <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-xs text-error">
-                  {slotsError}
-                  <button
-                    type="button"
-                    onClick={() => setManualMode(true)}
-                    className="ml-2 underline"
-                  >
-                    Enter manually
-                  </button>
-                </div>
               ) : slots.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-forest-700/80 bg-forest-950/40 p-4 text-center text-xs text-cream-muted">
                   No time slots found for this court.{' '}
@@ -547,7 +560,7 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
                   </button>
                 </div>
               ) : (
-                /* ── Slot picker (same style as landing page) ── */
+                /* ── Slot picker ── */
                 <div className="space-y-4 rounded-xl border border-forest-700/80 bg-forest-950/40 p-3.5">
                   {renderSlotGroup(
                     'Morning',
