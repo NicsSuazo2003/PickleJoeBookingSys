@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Edit3, Save, X } from 'lucide-react';
+import { Building2, Edit3, Save } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
@@ -12,20 +13,13 @@ import { AMENITIES_LIST } from '@/utils/constants';
 import type { Court } from '@/types';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 
-// Local edit-state shape: numeric fields can be '' while editing so the
-// user can clear the field. Coerced to number on save.
-interface CourtEditForm extends Omit<Court, 'price_per_hour' | 'peak_price_per_hour'> {
-  price_per_hour: number | '';
-  peak_price_per_hour: number | '';
-}
-
 export function Courts() {
   const courts = useAdminStore((state) => state.courts);
   const loadingCourts = useAdminStore((state) => state.loadingCourts);
   const loadCourts = useAdminStore((state) => state.loadCourts);
   const updateCourt = useAdminStore((state) => state.updateCourt);
 
-  const [editing, setEditing] = useState<CourtEditForm | null>(null);
+  const [editing, setEditing] = useState<Court | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -33,24 +27,16 @@ export function Courts() {
   }, [loadCourts]);
 
   const startEditing = (court: Court) => {
-    setEditing({
-      ...court,
-      price_per_hour: court.price_per_hour ?? 0,
-      peak_price_per_hour: court.peak_price_per_hour ?? 0,
-    });
+    setEditing({ ...court });
   };
 
   const handleSave = async () => {
     if (!editing) return;
     setSaving(true);
     try {
-      await updateCourt({
-        ...editing,
-        price_per_hour: Number(editing.price_per_hour) || 0,
-        peak_price_per_hour: Number(editing.peak_price_per_hour) || 0,
-      } as Court);
-      // Store has already updated `courts` optimistically, so the card list
-      // below re-renders with the new values the moment we close the modal.
+      // Pricing fields (price_per_hour, peak_price_per_hour) are intentionally
+      // NOT sent from here. They are managed exclusively on the Pricing page.
+      await updateCourt(editing);
       setEditing(null);
     } catch {
       // Keep the modal open so the user can retry. Store surfaces the error.
@@ -70,19 +56,6 @@ export function Courts() {
     });
   };
 
-  const handleNumberField = (
-    field: 'price_per_hour' | 'peak_price_per_hour',
-    raw: string
-  ) => {
-    if (!editing) return;
-    if (raw === '') {
-      setEditing({ ...editing, [field]: '' });
-      return;
-    }
-    const n = Number(raw);
-    if (!Number.isNaN(n)) setEditing({ ...editing, [field]: n });
-  };
-
   const getImageUrl = (court: Court): string => {
     return (
       court?.image ||
@@ -99,7 +72,11 @@ export function Courts() {
             Courts Management
           </h1>
           <p className="mt-1 text-xs text-cream-muted sm:text-sm">
-            Manage court details, peak/off-peak pricing, and available amenities
+            Manage court details, operating hours, and amenities. Pricing is on the{' '}
+            <Link to="/admin/pricing" className="text-brand-blue-300 underline hover:text-brand-blue-200">
+              Pricing page
+            </Link>
+            .
           </p>
         </div>
 
@@ -178,25 +155,21 @@ export function Courts() {
                         )}
                       </div>
 
-                      <div className="mt-4 grid grid-cols-2 gap-2.5 border-t border-forest-700/80 pt-3.5">
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
-                            Off-Peak
-                          </p>
-                          <p className="text-sm font-extrabold text-brand-blue-300 sm:text-base">
-                            {formatCurrency(court?.price_per_hour || 0)}
-                            <span className="text-[10px] font-normal text-cream-muted">/hr</span>
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
-                            Peak
-                          </p>
-                          <p className="text-sm font-extrabold text-brand-blue-300 sm:text-base">
-                            {formatCurrency(court?.peak_price_per_hour || 0)}
-                            <span className="text-[10px] font-normal text-cream-muted">/hr</span>
-                          </p>
-                        </div>
+                      {/* Read-only info. Pricing is on the Pricing page. */}
+                      <div className="mt-4 rounded-xl border border-forest-700/60 bg-forest-950/40 p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">
+                          Current Rates
+                        </p>
+                        <p className="mt-1 text-sm font-extrabold text-brand-blue-300">
+                          {formatCurrency(court?.price_per_hour || 0)}
+                          <span className="text-[10px] font-normal text-cream-muted">/hr base</span>
+                        </p>
+                        <Link
+                          to="/admin/pricing"
+                          className="mt-1.5 inline-block text-[10px] text-brand-blue-300 underline hover:text-brand-blue-200"
+                        >
+                          Edit on Pricing page →
+                        </Link>
                       </div>
 
                       <div className="mt-3 text-[11px] font-medium text-cream-muted">
@@ -249,25 +222,9 @@ export function Courts() {
               onChange={(e) => setEditing({ ...editing, description: e.target.value })}
             />
 
+            {/* Operating hours — these stay here because they're about the court,
+                not about money. Pricing fields are intentionally omitted. */}
             <div className="grid gap-3.5 sm:grid-cols-2">
-              <Input
-                label="Price per Hour (Off-Peak)"
-                type="number"
-                inputMode="decimal"
-                min="0"
-                value={editing?.price_per_hour === '' ? '' : editing?.price_per_hour ?? 0}
-                onChange={(e) => handleNumberField('price_per_hour', e.target.value)}
-                onFocus={(e) => e.target.select()}
-              />
-              <Input
-                label="Peak Price per Hour"
-                type="number"
-                inputMode="decimal"
-                min="0"
-                value={editing?.peak_price_per_hour === '' ? '' : editing?.peak_price_per_hour ?? 0}
-                onChange={(e) => handleNumberField('peak_price_per_hour', e.target.value)}
-                onFocus={(e) => e.target.select()}
-              />
               <Input
                 label="Opening Time"
                 type="time"
@@ -342,7 +299,19 @@ export function Courts() {
               </label>
             </div>
 
-            {/* Modal Actions */}
+            {/* Note about pricing */}
+            <div className="rounded-xl border border-brand-blue-500/30 bg-brand-blue-500/10 p-3 text-xs text-cream-muted">
+              <strong className="text-brand-blue-200">Pricing is not edited here.</strong>{' '}
+              To change rates or add day-based rules, go to the{' '}
+              <Link
+                to="/admin/pricing"
+                className="font-semibold text-brand-blue-300 underline hover:text-brand-blue-200"
+              >
+                Pricing page
+              </Link>
+              .
+            </div>
+
             <div className="sticky bottom-0 -mx-4 -mb-4 mt-5 border-t border-forest-700/80 bg-forest-900/95 p-4 backdrop-blur-sm sm:static sm:mx-0 sm:mb-0 sm:bg-transparent sm:p-0 sm:pt-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
                 <Button
