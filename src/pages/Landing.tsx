@@ -16,6 +16,7 @@ import {
   CloudSun,
   Users,
   UserCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -83,18 +84,12 @@ function isWithinNextWeek(session: OpenPlaySession): boolean {
   }
 }
 
-/**
- * Returns the number of whole weeks between today and the given ISO date.
- * Used to sync weekOffset when the user picks a far-future date.
- */
 function weeksBetweenToday(isoDate: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(`${isoDate}T00:00:00`);
   target.setHours(0, 0, 0, 0);
 
-  // Align both to the start of their week (Sunday) so the offset
-  // matches the week strip that renders `addDays(new Date(), weekOffset * 7)`.
   const todayWeekStart = new Date(today);
   todayWeekStart.setDate(today.getDate() - today.getDay());
 
@@ -117,7 +112,6 @@ export function Landing() {
   const bookingSectionRef = useRef<HTMLDivElement>(null);
   const datePickerRef = useRef<HTMLInputElement>(null);
 
-  // Background Slideshow State
   const [heroIdx, setHeroIdx] = useState(0);
 
   const {
@@ -144,7 +138,6 @@ export function Landing() {
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  // Cycle slideshow every 5 seconds
   useEffect(() => {
     const slides = COURT_IMAGES.heroSlideshow;
     if (!slides || slides.length <= 1) return;
@@ -173,10 +166,6 @@ export function Landing() {
     bookingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  /**
-   * Handle a date chosen from the native calendar picker.
-   * Sets the selected date AND syncs weekOffset so the strip shows that week.
-   */
   const handleCalendarPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const iso = e.target.value;
     if (!iso) return;
@@ -185,21 +174,16 @@ export function Landing() {
     setWeekOffset(Math.max(0, weeksBetweenToday(iso)));
   };
 
-  /**
-   * Open the native date picker. We use showPicker() where available,
-   * otherwise fall back to focus()/click() for older browsers.
-   */
   const openDatePicker = () => {
     const input = datePickerRef.current;
     if (!input) return;
 
-    // showPicker is the modern API (Chrome 99+, Safari 16+, Firefox 101+)
     if ('showPicker' in input && typeof (input as HTMLInputElement & { showPicker?: () => void }).showPicker === 'function') {
       try {
         (input as HTMLInputElement & { showPicker: () => void }).showPicker();
         return;
       } catch {
-        // Fall through to focus/click fallback
+        // Fallback below
       }
     }
     input.focus();
@@ -535,17 +519,35 @@ export function Landing() {
 
               {/* Header Banner */}
               <div className="border-b border-forest-700 bg-forest-950 px-4 py-4 sm:px-6 sm:py-5 md:px-8 md:py-7">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-bold tracking-tight text-cream sm:text-2xl md:text-3xl">
                       Book a <span className="text-court-300">Court</span>
                     </h2>
-                    <p className="text-xs text-cream-muted sm:text-sm">
+                    <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
                       Pick a date, then tap any number of available time slots
+                    </p>
+                    <p className="mt-1 text-xs text-cream-muted/70">
+                      * Prices are subject to change without prior notice.
                     </p>
                   </div>
                   <div className="hidden rounded-xl border border-court-500/40 bg-court-600/20 p-2.5 text-court-300 sm:block md:p-3">
                     <CalendarDays className="h-5 w-5 md:h-6 md:w-6" />
+                  </div>
+                </div>
+
+                {/* No Cancellation Policy Card */}
+                <div className="mt-4 flex items-start gap-3 rounded-xl border border-rose-900/50 bg-rose-950/25 p-3.5 sm:gap-4 sm:p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-800/40 bg-rose-900/40 text-rose-400">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="text-xs font-black tracking-widest text-rose-400 uppercase sm:text-sm">
+                      No Cancellation Policy
+                    </h4>
+                    <p className="text-xs leading-relaxed text-cream-muted sm:text-sm">
+                      Once confirmed, no cancellations or refunds. Can&apos;t make it? Find someone to take your slot and settle payment directly.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -554,7 +556,6 @@ export function Landing() {
                 {/* STEP 1: Date Selection */}
                 <div className="mb-6 md:mb-10">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    {/* LEFT: step number + "Choose Date" */}
                     <div className="flex items-center gap-2">
                       <div className="flex h-6 w-6 items-center justify-center rounded-full border border-court-400/50 bg-court-600 text-xs font-bold text-white shadow-sm">
                         1
@@ -564,13 +565,7 @@ export function Landing() {
                       </h3>
                     </div>
 
-                    {/* RIGHT: calendar picker + mobile-only prev/next week arrows */}
                     <div className="flex items-center gap-1.5">
-                      {/*
-                        Hidden native date input. The calendar button below
-                        triggers it programmatically via showPicker().
-                        `min` prevents selecting past dates.
-                      */}
                       <input
                         ref={datePickerRef}
                         type="date"
@@ -582,7 +577,6 @@ export function Landing() {
                         tabIndex={-1}
                       />
 
-                      {/* Calendar picker button — visible on all breakpoints */}
                       <button
                         type="button"
                         onClick={openDatePicker}
@@ -593,7 +587,6 @@ export function Landing() {
                         <CalendarDays className="h-4 w-4" />
                       </button>
 
-                      {/* Mobile-only prev/next week arrows */}
                       <div className="flex items-center gap-1.5 sm:hidden">
                         <button
                           onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
@@ -616,7 +609,6 @@ export function Landing() {
 
                   <div className="relative -mx-4 overflow-hidden px-4 sm:mx-0 sm:overflow-visible sm:px-0">
                     <div className="flex items-center gap-1.5 sm:gap-2">
-                      {/* Desktop-only left arrow */}
                       <button
                         onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
                         disabled={weekOffset === 0}
@@ -692,7 +684,6 @@ export function Landing() {
                         })}
                       </div>
 
-                      {/* Desktop-only right arrow */}
                       <button
                         onClick={() => setWeekOffset((w) => w + 1)}
                         className="hidden h-14 w-10 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 sm:flex"
@@ -1092,7 +1083,6 @@ function OpenPlayPill({
         {session.current_players}/{session.max_players} joined
       </span>
 
-      {/* Hover Tooltip */}
       <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-forest-500 bg-forest-900 px-3 py-2 text-xs text-cream shadow-xl group-hover:block">
         <p className="font-semibold text-court-300">Open Play Session</p>
         <p className="text-[11px] text-cream-muted">
