@@ -6,7 +6,8 @@ import { useClientStore } from '@/stores/clientStore';
 
 export function Footer() {
   const settings = useClientStore((state) => state.settings);
-  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber;
+  // Backend field name kept as gcash_number for DB compatibility; UI treats it generically.
+  const displayNumber = settings?.gcash_number || APP_CONFIG.paymentNumber;
 
   return (
     <footer className="border-t border-forest-700/80 bg-forest-950 text-cream">

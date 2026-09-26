@@ -4,8 +4,8 @@ export const APP_CONFIG = {
   apiUrl: import.meta.env.VITE_API_BASE_URL ?? 'https://pickleballcourbookingv2.onrender.com',
   tagline: 'Book Your Court. Play Your Game.',
   established: '2026',
-  gcashNumber: '09XX XXX XXXX',
-  gcashAccountName: 'Center Court',
+  paymentNumber: '09XX XXX XXXX',
+  paymentAccountName: 'Center Court',
   developer: 'Astravex Systems',
   paymentTimerSeconds: 15 * 60,
 };

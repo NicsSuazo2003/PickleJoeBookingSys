@@ -12,25 +12,48 @@ import { AMENITIES_LIST } from '@/utils/constants';
 import type { Court } from '@/types';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 
+// Local edit-state shape: numeric fields can be '' while editing so the
+// user can clear the field. Coerced to number on save.
+interface CourtEditForm extends Omit<Court, 'price_per_hour' | 'peak_price_per_hour'> {
+  price_per_hour: number | '';
+  peak_price_per_hour: number | '';
+}
+
 export function Courts() {
   const courts = useAdminStore((state) => state.courts);
   const loadingCourts = useAdminStore((state) => state.loadingCourts);
   const loadCourts = useAdminStore((state) => state.loadCourts);
   const updateCourt = useAdminStore((state) => state.updateCourt);
 
-  const [editing, setEditing] = useState<Court | null>(null);
+  const [editing, setEditing] = useState<CourtEditForm | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadCourts();
   }, [loadCourts]);
 
+  const startEditing = (court: Court) => {
+    setEditing({
+      ...court,
+      price_per_hour: court.price_per_hour ?? 0,
+      peak_price_per_hour: court.peak_price_per_hour ?? 0,
+    });
+  };
+
   const handleSave = async () => {
     if (!editing) return;
     setSaving(true);
     try {
-      await updateCourt(editing);
+      await updateCourt({
+        ...editing,
+        price_per_hour: Number(editing.price_per_hour) || 0,
+        peak_price_per_hour: Number(editing.peak_price_per_hour) || 0,
+      } as Court);
+      // Store has already updated `courts` optimistically, so the card list
+      // below re-renders with the new values the moment we close the modal.
       setEditing(null);
+    } catch {
+      // Keep the modal open so the user can retry. Store surfaces the error.
     } finally {
       setSaving(false);
     }
@@ -45,6 +68,19 @@ export function Courts() {
         ? editing.amenities.filter((a) => a !== amenity)
         : [...editing.amenities, amenity],
     });
+  };
+
+  const handleNumberField = (
+    field: 'price_per_hour' | 'peak_price_per_hour',
+    raw: string
+  ) => {
+    if (!editing) return;
+    if (raw === '') {
+      setEditing({ ...editing, [field]: '' });
+      return;
+    }
+    const n = Number(raw);
+    if (!Number.isNaN(n)) setEditing({ ...editing, [field]: n });
   };
 
   const getImageUrl = (court: Court): string => {
@@ -178,7 +214,7 @@ export function Courts() {
                       variant="secondary"
                       fullWidth
                       leftIcon={<Edit3 className="h-3.5 w-3.5" />}
-                      onClick={() => court && setEditing({ ...court })}
+                      onClick={() => court && startEditing(court)}
                       disabled={!court}
                     >
                       Edit Court Details
@@ -217,18 +253,20 @@ export function Courts() {
               <Input
                 label="Price per Hour (Off-Peak)"
                 type="number"
-                value={editing?.price_per_hour || 0}
-                onChange={(e) =>
-                  setEditing({ ...editing, price_per_hour: Number(e.target.value) })
-                }
+                inputMode="decimal"
+                min="0"
+                value={editing?.price_per_hour === '' ? '' : editing?.price_per_hour ?? 0}
+                onChange={(e) => handleNumberField('price_per_hour', e.target.value)}
+                onFocus={(e) => e.target.select()}
               />
               <Input
                 label="Peak Price per Hour"
                 type="number"
-                value={editing?.peak_price_per_hour || 0}
-                onChange={(e) =>
-                  setEditing({ ...editing, peak_price_per_hour: Number(e.target.value) })
-                }
+                inputMode="decimal"
+                min="0"
+                value={editing?.peak_price_per_hour === '' ? '' : editing?.peak_price_per_hour ?? 0}
+                onChange={(e) => handleNumberField('peak_price_per_hour', e.target.value)}
+                onFocus={(e) => e.target.select()}
               />
               <Input
                 label="Opening Time"

@@ -36,7 +36,8 @@ import type { Booking, BookingSummary } from '@/types';
 export function Track() {
   const settings = useClientStore((state) => state.settings);
   const loadSettings = useClientStore((state) => state.loadSettings);
-  const displayNumber = settings?.gcash_number || APP_CONFIG.gcashNumber;
+  // Backend field name kept as gcash_number for DB compatibility; UI treats it generically.
+  const displayNumber = settings?.gcash_number || APP_CONFIG.paymentNumber;
 
   const [reference, setReference] = useState(
     () => localStorage.getItem('pendingBookingRef') || ''
@@ -74,11 +75,9 @@ export function Track() {
 
     try {
       if (ref) {
-        // Reference path — full detail
         const result = await bookingService.trackBooking(ref, mail || undefined);
         setBooking(result);
       } else {
-        // Email path — masked summaries (pending/submitted only)
         const list = await bookingService.trackBookingSummariesByEmail(mail);
         if (list.length === 0) {
           setError(
@@ -99,7 +98,6 @@ export function Track() {
     setLoading(true);
     setError(null);
     try {
-      // Re-verify with the same email to fetch full details
       const detail = await bookingService.trackBooking(
         summary.reference_code,
         email.trim()
@@ -452,7 +450,7 @@ export function Track() {
                       Complete Payment
                     </h3>
                     <p className="mb-3.5 text-xs text-cream-muted sm:text-sm">
-                      Send {formatCurrency(booking.total_amount)} to GCash{' '}
+                      Send {formatCurrency(booking.total_amount)} to our payment account{' '}
                       <span className="font-bold text-brand-blue-300">{displayNumber}</span> and
                       upload your receipt below.
                     </p>
@@ -515,7 +513,7 @@ export function Track() {
                                 type="text"
                                 value={paymentRef}
                                 onChange={(e) => setPaymentRef(e.target.value)}
-                                placeholder="GCash reference number"
+                                placeholder="Payment reference number"
                                 className="w-full rounded-xl border border-forest-700/80 bg-forest-950/60 px-4 py-2.5 text-sm text-cream placeholder-cream-muted/40 transition-all focus:border-brand-blue-400 focus:bg-forest-900/60 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
                               />
                             </div>

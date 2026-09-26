@@ -142,7 +142,7 @@ export function Success() {
             <ul className="mt-2.5 space-y-2 text-xs text-cream-muted sm:mt-3 sm:text-sm">
               <li className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue-300" />
-                <span>Our team will verify your GCash payment reference number and screenshot.</span>
+                <span>Our team will verify your payment reference number and screenshot.</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue-300" />

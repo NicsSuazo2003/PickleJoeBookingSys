@@ -62,7 +62,7 @@ export function Checkout() {
   const [paymentRef, setPaymentRef] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [copiedGcash, setCopiedGcash] = useState(false);
+  const [copiedAccount, setCopiedAccount] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -143,7 +143,7 @@ export function Checkout() {
         currentBooking.id,
         screenshot,
         paymentRef.trim(),
-        selectedMethod?.name      // ✅ NEW — save the method
+        selectedMethod?.name
       );
       navigate('/success');
     } catch (err) {
@@ -153,12 +153,12 @@ export function Checkout() {
     }
   };
 
-  const copyGcash = () => {
+  const copyAccountNumber = () => {
     const number = selectedMethod?.config?.account_number;
     if (!number) return;
     navigator.clipboard.writeText(number.replace(/\s/g, ''));
-    setCopiedGcash(true);
-    setTimeout(() => setCopiedGcash(false), 2000);
+    setCopiedAccount(true);
+    setTimeout(() => setCopiedAccount(false), 2000);
   };
 
   const copyReference = () => {
@@ -170,12 +170,8 @@ export function Checkout() {
   const isExpired = timeLeft <= 0;
 
   const displayNumber = selectedMethod?.config?.account_number || '';
-  const displayAccountName =
-    selectedMethod?.config?.account_name ||
-    (selectedMethod?.type === 'gcash'
-      ? settings?.gcash_account_name || APP_CONFIG.gcashAccountName
-      : '');
-  const methodName = selectedMethod?.name || 'GCash';
+  const displayAccountName = selectedMethod?.config?.account_name || '';
+  const methodName = selectedMethod?.name || 'Payment Method';
   const methodIcon = selectedMethod?.icon || 'Smartphone';
   const IconComponent = ICON_MAP[methodIcon] || Smartphone;
 
@@ -210,7 +206,7 @@ export function Checkout() {
                 <span>
                   You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. Tap{' '}
                   <strong>⋯</strong> (top right) and choose <strong>"Open in Browser"</strong> for
-                  easier banking and receipt upload.
+                  easier payment and receipt upload.
                 </span>
               </div>
             )}
@@ -251,7 +247,7 @@ export function Checkout() {
               </div>
             </div>
 
-            {/* ✅ FIX 1 — Payment Method Selector moved UP, before all details */}
+            {/* Payment Method Selector */}
             {hasMultipleMethods && (
               <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 shadow-xl backdrop-blur-sm">
                 <p className="mb-2.5 text-[10px] font-bold uppercase tracking-wider text-cream-muted">
@@ -280,7 +276,7 @@ export function Checkout() {
               </div>
             )}
 
-            {/* ✅ FIX 2 — Confirmation banner */}
+            {/* Confirmation banner */}
             {selectedMethod && (
               <div className="flex items-center gap-2 rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/10 p-3 text-xs">
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-blue-300" />
@@ -292,31 +288,32 @@ export function Checkout() {
               </div>
             )}
 
-            {/* Dynamic Payment Instructions */}
+            {/* Payment Instructions (generic) */}
             {selectedMethod && (
               <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 sm:p-5 shadow-xl backdrop-blur-sm space-y-3.5">
                 <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
                   <IconComponent className="h-4 w-4" />
-                  Step 2 — {methodName} Payment Details
+                  Step 2 — Payment Details
                 </h2>
 
                 {/* Instructions */}
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5 text-xs text-cream-muted space-y-2.5">
                   <p className="font-semibold text-cream text-[13px]">
-                    How to pay with {methodName}
+                    How to pay
                   </p>
 
                   <ol className="list-decimal list-inside space-y-1.5 leading-relaxed">
                     <li>
-                      Open your <strong className="text-cream">{methodName}</strong> app on your
-                      phone.
+                      Open any payment app or online banking that supports{' '}
+                      <strong className="text-cream">{methodName}</strong>.
                     </li>
                     <li>
-                      Tap <strong className="text-cream">Send Money</strong> or{' '}
-                      <strong className="text-cream">Transfer</strong>.
+                      Choose <strong className="text-cream">Send Money</strong>,{' '}
+                      <strong className="text-cream">Transfer</strong>, or{' '}
+                      <strong className="text-cream">Scan QR</strong>.
                     </li>
                     <li>
-                      Enter the account number shown below
+                      Enter the account number or scan the QR code shown below
                       {displayAccountName ? (
                         <>
                           {' '}under <strong className="text-cream">{displayAccountName}</strong>
@@ -346,10 +343,10 @@ export function Checkout() {
                     <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-brand-blue-300" />
                     <p className="text-[11px] text-cream-muted leading-relaxed">
                       <strong className="text-brand-blue-200">Transparency notice:</strong>{' '}
-                      CenterCourt uses <strong className="text-cream">{methodName}</strong> as one
-                      of our official payment methods. The account details shown below are
-                      verified and belong to our business. If anything looks different, please
-                      contact us before sending any money.
+                      CenterCourt accepts the selected payment method as one of our official
+                      channels. The account details shown below are verified and belong to our
+                      business. If anything looks different, please contact us before sending any
+                      money.
                     </p>
                   </div>
                 </div>
@@ -370,11 +367,11 @@ export function Checkout() {
                       )}
                     </div>
                     <button
-                      onClick={copyGcash}
+                      onClick={copyAccountNumber}
                       className="rounded-lg border border-forest-600 bg-forest-800 p-2 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
                       title="Copy Account Number"
                     >
-                      {copiedGcash ? (
+                      {copiedAccount ? (
                         <CheckCircle2 className="h-4 w-4 text-accentGreen-300" />
                       ) : (
                         <Copy className="h-4 w-4" />
@@ -399,17 +396,17 @@ export function Checkout() {
                     <div className="rounded-2xl border border-forest-700/80 bg-forest-950/90 p-4 text-center shadow-lg">
                       <img
                         src={selectedMethod.config.qr_image_url}
-                        alt={`${methodName} QR Code`}
+                        alt="Payment QR Code"
                         className="h-36 w-36 object-contain mx-auto rounded-lg"
                       />
                       <p className="mt-2 text-[11px] font-medium text-cream-muted">
-                        Scan with your banking or e-wallet app
+                        Scan with any banking or e-wallet app
                       </p>
                     </div>
                   </div>
                 )}
 
-                {/* ✅ Amount box — moved here, above the ref input */}
+                {/* Amount box */}
                 <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 px-4 py-3">
                   <span className="text-xs font-medium text-cream-muted">
                     Exact Amount to Send
@@ -456,7 +453,7 @@ export function Checkout() {
                 {selectedMethod.config?.instructions && (
                   <details className="group rounded-xl border border-forest-800 bg-forest-950/50 p-3 text-xs text-cream-muted">
                     <summary className="cursor-pointer list-none font-semibold text-cream flex items-center justify-between">
-                      <span>Additional instructions from {methodName}</span>
+                      <span>Additional instructions</span>
                       <ChevronDown className="h-3.5 w-3.5 text-cream-muted transition group-open:rotate-180" />
                     </summary>
                     <p className="mt-2 whitespace-pre-wrap leading-relaxed">
@@ -478,11 +475,11 @@ export function Checkout() {
                   type="text"
                   value={paymentRef}
                   onChange={(e) => setPaymentRef(e.target.value)}
-                  placeholder="e.g. 1002 9384 1928"
+                  placeholder="e.g. 1234 5678 9012"
                   className="w-full rounded-xl border border-forest-700/80 bg-forest-950/60 px-4 py-2.5 text-sm text-cream placeholder-cream-muted/40 transition-all focus:border-brand-blue-400 focus:bg-forest-900/60 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
                 />
                 <p className="mt-1.5 text-[11px] text-cream-muted">
-                  Paste the reference number from your {methodName} receipt
+                  Paste the reference number from your payment receipt
                 </p>
               </div>
 
@@ -679,7 +676,7 @@ export function Checkout() {
         </div>
       </div>
 
-      {/* ✅ FIX 4 — Sticky mobile bar shows the selected method */}
+      {/* Sticky mobile bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-500 bg-charcoal/95 p-3.5 backdrop-blur-md sm:hidden">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">

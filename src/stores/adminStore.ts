@@ -126,14 +126,36 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
     }
   },
 
+  // ✅ UPDATED: optimistic update + merge server response + re-throw on error.
+  // This makes the UI reflect the change instantly and stay in sync with the
+  // backend's canonical values once the PUT resolves.
   updateCourt: async (court) => {
+    const previous = get().courts;
+
+    // 1. Optimistically apply the user's values right away so the UI updates
+    //    without waiting for the network round-trip.
+    set((state) => ({
+      courts: state.courts.map((c) => (c.id === court.id ? { ...c, ...court } : c)),
+    }));
+
     try {
       const updated = await adminService.updateCourt(court);
+
+      // 2. Reconcile with the server response. Merge order matters:
+      //    start from existing state -> overlay submitted values -> overlay
+      //    server values so the backend is authoritative on conflict.
       set((state) => ({
-        courts: state.courts.map((c) => (c.id === court.id ? updated : c)),
+        courts: state.courts.map((c) =>
+          c.id === court.id ? { ...c, ...court, ...(updated ?? {}) } : c
+        ),
       }));
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Failed to update court' });
+      // 3. Roll back on failure so the UI isn't left showing a lie.
+      set({
+        courts: previous,
+        error: err instanceof Error ? err.message : 'Failed to update court',
+      });
+      throw err;
     }
   },
 
