@@ -83,6 +83,28 @@ function isWithinNextWeek(session: OpenPlaySession): boolean {
   }
 }
 
+/**
+ * Returns the number of whole weeks between today and the given ISO date.
+ * Used to sync weekOffset when the user picks a far-future date.
+ */
+function weeksBetweenToday(isoDate: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${isoDate}T00:00:00`);
+  target.setHours(0, 0, 0, 0);
+
+  // Align both to the start of their week (Sunday) so the offset
+  // matches the week strip that renders `addDays(new Date(), weekOffset * 7)`.
+  const todayWeekStart = new Date(today);
+  todayWeekStart.setDate(today.getDate() - today.getDay());
+
+  const targetWeekStart = new Date(target);
+  targetWeekStart.setDate(target.getDate() - target.getDay());
+
+  const diffMs = targetWeekStart.getTime() - todayWeekStart.getTime();
+  return Math.round(diffMs / (1000 * 60 * 60 * 24 * 7));
+}
+
 const SKILL_BADGE: Record<string, string> = {
   Beginner: 'bg-forest-500/25 text-forest-200 border border-forest-400/30',
   Intermediate: 'bg-court-600/30 text-court-200 border border-court-400/40',
@@ -93,6 +115,7 @@ const SKILL_BADGE: Record<string, string> = {
 export function Landing() {
   const navigate = useNavigate();
   const bookingSectionRef = useRef<HTMLDivElement>(null);
+  const datePickerRef = useRef<HTMLInputElement>(null);
 
   // Background Slideshow State
   const [heroIdx, setHeroIdx] = useState(0);
@@ -148,6 +171,39 @@ export function Landing() {
 
   const scrollToBooking = () => {
     bookingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  /**
+   * Handle a date chosen from the native calendar picker.
+   * Sets the selected date AND syncs weekOffset so the strip shows that week.
+   */
+  const handleCalendarPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const iso = e.target.value;
+    if (!iso) return;
+
+    setDate(iso);
+    setWeekOffset(Math.max(0, weeksBetweenToday(iso)));
+  };
+
+  /**
+   * Open the native date picker. We use showPicker() where available,
+   * otherwise fall back to focus()/click() for older browsers.
+   */
+  const openDatePicker = () => {
+    const input = datePickerRef.current;
+    if (!input) return;
+
+    // showPicker is the modern API (Chrome 99+, Safari 16+, Firefox 101+)
+    if ('showPicker' in input && typeof (input as HTMLInputElement & { showPicker?: () => void }).showPicker === 'function') {
+      try {
+        (input as HTMLInputElement & { showPicker: () => void }).showPicker();
+        return;
+      } catch {
+        // Fall through to focus/click fallback
+      }
+    }
+    input.focus();
+    input.click();
   };
 
   const nextSession = openPlaySessions
@@ -263,20 +319,14 @@ export function Landing() {
       {/* Hero Section */}
       <section className="relative flex min-h-[85vh] items-start pt-28 sm:min-h-screen sm:items-center sm:pt-20 overflow-hidden">
         <div className="absolute inset-0">
-          {/* Single Background Image shifted right */}
           <img
             src="/images/bg3.jpg"
             alt="Center Court"
             className="h-full w-full object-cover object-right md:object-[75%_center]"
           />
 
-          {/* Heavy Dark Forest Fade */}
           <div className="absolute inset-0 bg-gradient-to-r from-forest-950 via-forest-950/95 sm:via-forest-950/85 to-forest-950/30" />
-
-          {/* Vertical base shadow */}
           <div className="absolute inset-0 bg-gradient-to-t from-forest-950 via-transparent to-transparent" />
-
-          {/* Subtle court grid texture */}
           <div className="absolute inset-0 bg-grid opacity-20" />
         </div>
 
@@ -514,23 +564,53 @@ export function Landing() {
                       </h3>
                     </div>
 
-                    {/* RIGHT: mobile-only prev/next week arrows */}
-                    <div className="flex items-center gap-1.5 sm:hidden">
+                    {/* RIGHT: calendar picker + mobile-only prev/next week arrows */}
+                    <div className="flex items-center gap-1.5">
+                      {/*
+                        Hidden native date input. The calendar button below
+                        triggers it programmatically via showPicker().
+                        `min` prevents selecting past dates.
+                      */}
+                      <input
+                        ref={datePickerRef}
+                        type="date"
+                        value={selectedDate}
+                        min={todayISO()}
+                        onChange={handleCalendarPick}
+                        className="sr-only"
+                        aria-hidden="true"
+                        tabIndex={-1}
+                      />
+
+                      {/* Calendar picker button — visible on all breakpoints */}
                       <button
-                        onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
-                        disabled={weekOffset === 0}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 disabled:opacity-30 active:scale-95"
-                        aria-label="Previous week"
+                        type="button"
+                        onClick={openDatePicker}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-court-400/50 bg-court-600/30 text-court-200 transition hover:border-court-300 hover:bg-court-600/50 active:scale-95"
+                        aria-label="Pick a date from calendar"
+                        title="Pick a date from calendar"
                       >
-                        <ChevronLeft className="h-4 w-4" />
+                        <CalendarDays className="h-4 w-4" />
                       </button>
-                      <button
-                        onClick={() => setWeekOffset((w) => w + 1)}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 active:scale-95"
-                        aria-label="Next week"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
+
+                      {/* Mobile-only prev/next week arrows */}
+                      <div className="flex items-center gap-1.5 sm:hidden">
+                        <button
+                          onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
+                          disabled={weekOffset === 0}
+                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 disabled:opacity-30 active:scale-95"
+                          aria-label="Previous week"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setWeekOffset((w) => w + 1)}
+                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 active:scale-95"
+                          aria-label="Next week"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
