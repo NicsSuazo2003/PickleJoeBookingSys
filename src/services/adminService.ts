@@ -1,4 +1,4 @@
-import type { Analytics, Booking, BookingStatus, Court, BlockedDate, ClientSettings, PaymentMethod } from '@/types';
+import type { Analytics, Booking, BookingStatus, Court, BlockedDate, ClientSettings, PaymentMethod, PricingRule } from '@/types';
 import { apiRequest } from './api';
 import { normalizeCourt, buildCourtPayload } from './courtService';
 
@@ -272,7 +272,7 @@ async updateSettings(payload: {
   total_amount?: number;
   staff_notes?: string;
   send_confirmation?: boolean;
-}): Promise<Booking> {
+ }): Promise<Booking> {
   const res = await apiRequest<any>('/api/admin/bookings/manual', {
     method: 'POST',
     body: JSON.stringify({
@@ -293,5 +293,99 @@ async updateSettings(payload: {
     }),
   });
   return normalizeBooking(res?.data ?? res);
+},
+// ─────────────────────────────────────────────────────────────
+// Pricing Rules (per-court day-based pricing)
+// ─────────────────────────────────────────────────────────────
+
+async getPricingRules(courtId: string): Promise<PricingRule[]> {
+  const res = await apiRequest<any>(`/api/admin/courts/${courtId}/pricing-rules`);
+  const rawList = Array.isArray(res) ? res : res?.data || [];
+  return rawList.map((r: any) => ({
+    id: r.id || '',
+    court_id: r.courtId ?? r.court_id ?? courtId,
+    label: r.label || '',
+    days: r.days || '',
+    start_time: r.startTime ?? r.start_time ?? '00:00',
+    end_time: r.endTime ?? r.end_time ?? '00:00',
+    price_per_hour: Number(r.pricePerHour ?? r.price_per_hour ?? 0),
+    priority: Number(r.priority ?? 0),
+  }));
+},
+
+async createPricingRule(
+  courtId: string,
+  rule: {
+    label: string;
+    days: string;
+    start_time: string;
+    end_time: string;
+    price_per_hour: number;
+    priority: number;
+  }
+): Promise<PricingRule> {
+  const res = await apiRequest<any>(`/api/admin/courts/${courtId}/pricing-rules`, {
+    method: 'POST',
+    body: JSON.stringify({
+      label: rule.label,
+      days: rule.days,
+      startTime: rule.start_time,
+      endTime: rule.end_time,
+      pricePerHour: rule.price_per_hour,
+      priority: rule.priority,
+    }),
+  });
+  const r = res?.data ?? res;
+  return {
+    id: r.id || '',
+    court_id: r.courtId ?? r.court_id ?? courtId,
+    label: r.label || '',
+    days: r.days || '',
+    start_time: r.startTime ?? r.start_time ?? '00:00',
+    end_time: r.endTime ?? r.end_time ?? '00:00',
+    price_per_hour: Number(r.pricePerHour ?? r.price_per_hour ?? 0),
+    priority: Number(r.priority ?? 0),
+  };
+},
+
+async updatePricingRule(
+  ruleId: string,
+  rule: {
+    label: string;
+    days: string;
+    start_time: string;
+    end_time: string;
+    price_per_hour: number;
+    priority: number;
+  }
+): Promise<PricingRule> {
+  const res = await apiRequest<any>(`/api/admin/pricing-rules/${ruleId}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      label: rule.label,
+      days: rule.days,
+      startTime: rule.start_time,
+      endTime: rule.end_time,
+      pricePerHour: rule.price_per_hour,
+      priority: rule.priority,
+    }),
+  });
+  const r = res?.data ?? res;
+  return {
+    id: r.id || ruleId,
+    court_id: r.courtId ?? r.court_id ?? '',
+    label: r.label || '',
+    days: r.days || '',
+    start_time: r.startTime ?? r.start_time ?? '00:00',
+    end_time: r.endTime ?? r.end_time ?? '00:00',
+    price_per_hour: Number(r.pricePerHour ?? r.price_per_hour ?? 0),
+    priority: Number(r.priority ?? 0),
+  };
+},
+
+async deletePricingRule(ruleId: string): Promise<void> {
+  await apiRequest<void>(`/api/admin/pricing-rules/${ruleId}`, {
+    method: 'DELETE',
+  });
 },
 };

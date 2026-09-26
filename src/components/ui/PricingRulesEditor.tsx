@@ -1,0 +1,379 @@
+// src/components/ui/PricingRulesEditor.tsx
+import { useEffect, useState } from 'react';
+import { Plus, Pencil, Trash2, Tag } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { useAdminStore } from '@/stores/adminStore';
+import { formatCurrency } from '@/utils/format';
+import type { DayOfWeek, PricingRule } from '@/types';
+
+const DAYS: { key: DayOfWeek; label: string }[] = [
+  { key: 'mon', label: 'Mon' },
+  { key: 'tue', label: 'Tue' },
+  { key: 'wed', label: 'Wed' },
+  { key: 'thu', label: 'Thu' },
+  { key: 'fri', label: 'Fri' },
+  { key: 'sat', label: 'Sat' },
+  { key: 'sun', label: 'Sun' },
+];
+
+interface EditorForm {
+  id: string | null;
+  label: string;
+  days: DayOfWeek[];
+  start_time: string;
+  end_time: string;
+  price_per_hour: number | '';
+  priority: number | '';
+}
+
+const EMPTY_FORM: EditorForm = {
+  id: null,
+  label: '',
+  days: [],
+  start_time: '08:00',
+  end_time: '22:00',
+  price_per_hour: '',
+  priority: 0,
+};
+
+export function PricingRulesEditor({ courtId }: { courtId: string }) {
+  const court = useAdminStore((s) => s.courts.find((c) => c.id === courtId));
+  const loadPricingRules = useAdminStore((s) => s.loadPricingRules);
+  const addPricingRule = useAdminStore((s) => s.addPricingRule);
+  const editPricingRule = useAdminStore((s) => s.editPricingRule);
+  const removePricingRule = useAdminStore((s) => s.removePricingRule);
+
+  const [form, setForm] = useState<EditorForm | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (courtId) loadPricingRules(courtId).catch(() => {});
+  }, [courtId, loadPricingRules]);
+
+  const rules = court?.pricing_rules ?? [];
+
+  const openCreate = () => {
+    setLocalError(null);
+    setForm({ ...EMPTY_FORM });
+  };
+
+  const openEdit = (rule: PricingRule) => {
+    setLocalError(null);
+    setForm({
+      id: rule.id,
+      label: rule.label,
+      days: rule.days
+        .split(',')
+        .map((d) => d.trim().toLowerCase())
+        .filter((d): d is DayOfWeek => DAYS.some((x) => x.key === d)),
+      start_time: rule.start_time,
+      end_time: rule.end_time,
+      price_per_hour: rule.price_per_hour,
+      priority: rule.priority,
+    });
+  };
+
+  const close = () => {
+    if (saving) return;
+    setForm(null);
+    setLocalError(null);
+  };
+
+  const toggleDay = (day: DayOfWeek) => {
+    if (!form) return;
+    const has = form.days.includes(day);
+    setForm({
+      ...form,
+      days: has ? form.days.filter((d) => d !== day) : [...form.days, day],
+    });
+  };
+
+  const selectEveryDay = () => {
+    if (!form) return;
+    setForm({ ...form, days: DAYS.map((d) => d.key) });
+  };
+
+  const clearDays = () => {
+    if (!form) return;
+    setForm({ ...form, days: [] });
+  };
+
+  const handleSubmit = async () => {
+    if (!form) return;
+    setLocalError(null);
+
+    if (!form.label.trim()) {
+      setLocalError('Please enter a label (e.g. "Weekend All Day").');
+      return;
+    }
+    if (form.end_time <= form.start_time) {
+      setLocalError('End time must be after start time.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        label: form.label.trim(),
+        days: form.days.join(','),
+        start_time: form.start_time,
+        end_time: form.end_time,
+        price_per_hour: Number(form.price_per_hour) || 0,
+        priority: Number(form.priority) || 0,
+      };
+
+      if (form.id) {
+        await editPricingRule(form.id, payload);
+      } else {
+        await addPricingRule(courtId, payload);
+      }
+      setForm(null);
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (rule: PricingRule) => {
+    if (!confirm(`Delete pricing rule "${rule.label}"?`)) return;
+    try {
+      await removePricingRule(courtId, rule.id);
+    } catch {
+      // store surfaces error
+    }
+  };
+
+  const formatDays = (csv: string): string => {
+    if (!csv.trim()) return 'Every day';
+    const parts = csv.split(',').map((d) => d.trim().toLowerCase());
+    if (parts.length === 7) return 'Every day';
+    return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(', ');
+  };
+
+  return (
+    <div className="mt-5 border-t border-forest-700/80 pt-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-brand-blue-300">
+            Day-Based Pricing Rules
+          </p>
+          <p className="text-[11px] text-cream-muted">
+            Override the base rate for specific days and time windows.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          leftIcon={<Plus className="h-3.5 w-3.5" />}
+          onClick={openCreate}
+        >
+          Add Rule
+        </Button>
+      </div>
+
+      {rules.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-forest-700/80 bg-forest-950/40 p-4 text-center text-xs text-cream-muted">
+          No rules yet. Base and peak prices above apply to all slots.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {rules
+            .slice()
+            .sort((a, b) => b.priority - a.priority)
+            .map((rule) => (
+              <div
+                key={rule.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-forest-700/80 bg-forest-950/60 px-3.5 py-2.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-3.5 w-3.5 shrink-0 text-brand-blue-300" />
+                    <span className="truncate text-sm font-bold text-cream">
+                      {rule.label}
+                    </span>
+                    {rule.priority > 0 && (
+                      <span className="rounded-md border border-brand-blue-400/40 bg-brand-blue-500/20 px-1.5 py-0.5 text-[9px] font-bold text-brand-blue-200">
+                        P{rule.priority}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-cream-muted">
+                    {formatDays(rule.days)} · {rule.start_time}–{rule.end_time}
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p className="font-display text-base font-bold text-brand-blue-300">
+                    {formatCurrency(rule.price_per_hour)}
+                    <span className="text-[10px] font-normal text-cream-muted">/hr</span>
+                  </p>
+                </div>
+
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => openEdit(rule)}
+                    className="rounded-lg border border-forest-600 bg-forest-800 p-1.5 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
+                    title="Edit rule"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(rule)}
+                    className="rounded-lg border border-forest-600 bg-forest-800 p-1.5 text-cream-muted transition hover:border-red-400 hover:text-red-400 active:scale-95"
+                    title="Delete rule"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {form && (
+        <Modal
+          isOpen={!!form}
+          onClose={close}
+          title={form.id ? 'Edit Pricing Rule' : 'Add Pricing Rule'}
+          size="md"
+        >
+          <div className="space-y-4">
+            <Input
+              label="Label"
+              placeholder='e.g. "Saturday All Day", "Weekday Peak"'
+              value={form.label}
+              onChange={(e) => setForm({ ...form, label: e.target.value })}
+            />
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                  Days
+                </p>
+                <div className="flex gap-2 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={selectEveryDay}
+                    className="text-brand-blue-300 underline hover:text-brand-blue-200"
+                  >
+                    Every day
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearDays}
+                    className="text-cream-muted underline hover:text-cream"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {DAYS.map((d) => {
+                  const isSelected = form.days.includes(d.key);
+                  return (
+                    <button
+                      key={d.key}
+                      type="button"
+                      onClick={() => toggleDay(d.key)}
+                      className={`min-w-[52px] rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+                        isSelected
+                          ? 'border-brand-blue-400 bg-brand-blue-500 text-white'
+                          : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/40 hover:text-cream'
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-[11px] text-cream-muted">
+                Leave all off to apply this rule to <strong>every day</strong>.
+              </p>
+            </div>
+
+            <div className="grid gap-3.5 sm:grid-cols-2">
+              <Input
+                label="Start Time"
+                type="time"
+                value={form.start_time}
+                onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+              />
+              <Input
+                label="End Time"
+                type="time"
+                value={form.end_time}
+                onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+              />
+            </div>
+
+            <div className="grid gap-3.5 sm:grid-cols-2">
+              <Input
+                label="Price per Hour"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                value={form.price_per_hour === '' ? '' : form.price_per_hour}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setForm({
+                    ...form,
+                    price_per_hour: raw === '' ? '' : Number(raw),
+                  });
+                }}
+                onFocus={(e) => e.target.select()}
+                leftIcon={<span className="text-xs font-bold text-brand-blue-300">₱</span>}
+              />
+              <Input
+                label="Priority"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                value={form.priority === '' ? '' : form.priority}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setForm({
+                    ...form,
+                    priority: raw === '' ? '' : Number(raw),
+                  });
+                }}
+                onFocus={(e) => e.target.select()}
+                hint="Higher wins on overlap. Default 0."
+              />
+            </div>
+
+            {localError && (
+              <div className="rounded-xl border border-error/30 bg-error/10 p-2.5 text-xs text-error">
+                {localError}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-3 pt-1">
+              <Button
+                size="md"
+                fullWidth
+                isLoading={saving}
+                onClick={handleSubmit}
+              >
+                {form.id ? 'Save Changes' : 'Create Rule'}
+              </Button>
+              <Button
+                size="md"
+                variant="ghost"
+                fullWidth
+                className="sm:w-auto"
+                onClick={close}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}

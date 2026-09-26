@@ -9,6 +9,7 @@ export type BookingStatus =
   | 'refunded';
 
 export type SlotType = 'standard' | 'fixed_2hr';
+export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 
 export interface Court {
   id: string;
@@ -30,6 +31,7 @@ export interface Court {
   is_active: boolean;
   status?: string;
   client_id?: string;
+  pricing_rules?: PricingRule[];   // ✅ NEW — day-based pricing rules
 }
 
 export interface TimeSlot {
@@ -100,13 +102,16 @@ export interface BlockedDate {
   endTime?: string | null;
 }
 
+// ✅ NEW — per-court, day-based pricing rule
 export interface PricingRule {
+  id: string;
   court_id: string;
-  peak_start: string;
-  peak_end: string;
-  peak_price: number;
-  off_peak_price: number;
-  weekend_multiplier: number;
+  label: string;
+  days: string;            // CSV: "mon,tue,sat" — empty means every day
+  start_time: string;      // "HH:mm"
+  end_time: string;        // "HH:mm"
+  price_per_hour: number;
+  priority: number;        // higher wins on overlap
 }
 
 export interface Analytics {
@@ -165,7 +170,6 @@ export type AdminView = 'calendar' | 'list';
 export type OpenPlaySkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels';
 export type OpenPlaySessionStatus = 'upcoming' | 'active' | 'full' | 'past' | 'cancelled';
 
-// ✅ NEW — one court used by a session
 export interface OpenPlayCourt {
   id: string;
   name: string;
@@ -173,9 +177,9 @@ export interface OpenPlayCourt {
 
 export interface OpenPlaySession {
   id: string;
-  court_id: string;           // primary court
-  court_name: string;         // primary court name
-  courts: OpenPlayCourt[];    // ✅ NEW — all courts
+  court_id: string;
+  court_name: string;
+  courts: OpenPlayCourt[];
   date: string;
   start_time: string;
   end_time: string;
@@ -215,7 +219,7 @@ export interface OpenPlayPlayer {
 }
 
 export interface CreateOpenPlaySessionPayload {
-  court_ids: string[];        // ✅ was court_id: string
+  court_ids: string[];
   date: string;
   start_time: string;
   end_time: string;

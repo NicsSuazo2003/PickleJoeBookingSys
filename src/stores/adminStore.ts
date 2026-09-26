@@ -1,5 +1,13 @@
 import { create } from 'zustand';
-import type { Analytics, Booking, BookingStatus, Court, BlockedDate, PaymentMethod } from '@/types';
+import type {
+  Analytics,
+  Booking,
+  BookingStatus,
+  Court,
+  BlockedDate,
+  PaymentMethod,
+  PricingRule,
+} from '@/types';
 import { adminService } from '@/services/adminService';
 
 // ✅ Type for the manual booking payload — matches adminService.createManualBooking
@@ -46,6 +54,18 @@ interface AdminStoreState {
   removeBlockedDate: (id: string) => Promise<void>;
   loadPaymentMethods: () => Promise<void>;
   updatePaymentMethods: (methods: PaymentMethod[]) => Promise<void>;
+
+  // ✅ NEW: per-court, day-based pricing rules
+  loadPricingRules: (courtId: string) => Promise<PricingRule[]>;
+  addPricingRule: (
+    courtId: string,
+    rule: Omit<PricingRule, 'id' | 'court_id'>
+  ) => Promise<PricingRule>;
+  editPricingRule: (
+    ruleId: string,
+    rule: Omit<PricingRule, 'id' | 'court_id'>
+  ) => Promise<PricingRule>;
+  removePricingRule: (courtId: string, ruleId: string) => Promise<void>;
 }
 
 export const useAdminStore = create<AdminStoreState>((set, get) => ({
@@ -212,6 +232,79 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
       set({ paymentMethods: methods });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to update payment methods' });
+      throw err;
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // ✅ NEW — Pricing Rules (per-court, day-based)
+  // ─────────────────────────────────────────────────────────────
+
+  loadPricingRules: async (courtId) => {
+    try {
+      const rules = await adminService.getPricingRules(courtId);
+      set((state) => ({
+        courts: state.courts.map((c) =>
+          c.id === courtId ? { ...c, pricing_rules: rules } : c
+        ),
+      }));
+      return rules;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to load pricing rules' });
+      throw err;
+    }
+  },
+
+  addPricingRule: async (courtId, rule) => {
+    try {
+      const created = await adminService.createPricingRule(courtId, rule);
+      set((state) => ({
+        courts: state.courts.map((c) =>
+          c.id === courtId
+            ? { ...c, pricing_rules: [...(c.pricing_rules ?? []), created] }
+            : c
+        ),
+      }));
+      return created;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to add pricing rule' });
+      throw err;
+    }
+  },
+
+  editPricingRule: async (ruleId, rule) => {
+    try {
+      const updated = await adminService.updatePricingRule(ruleId, rule);
+      set((state) => ({
+        courts: state.courts.map((c) => ({
+          ...c,
+          pricing_rules: (c.pricing_rules ?? []).map((r) =>
+            r.id === ruleId ? updated : r
+          ),
+        })),
+      }));
+      return updated;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to update pricing rule' });
+      throw err;
+    }
+  },
+
+  removePricingRule: async (courtId, ruleId) => {
+    try {
+      await adminService.deletePricingRule(ruleId);
+      set((state) => ({
+        courts: state.courts.map((c) =>
+          c.id === courtId
+            ? {
+                ...c,
+                pricing_rules: (c.pricing_rules ?? []).filter((r) => r.id !== ruleId),
+              }
+            : c
+        ),
+      }));
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to delete pricing rule' });
       throw err;
     }
   },

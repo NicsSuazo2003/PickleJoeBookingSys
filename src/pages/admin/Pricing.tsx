@@ -8,6 +8,8 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAdminStore } from '@/stores/adminStore';
 import { formatCurrency } from '@/utils/format';
 import type { Court } from '@/types';
+import { PricingRulesEditor } from '@/components/ui/PricingRulesEditor';
+
 
 // Local form-state shape: numeric fields are strings while editing so the
 // user can clear the field. Coerced to number on save.
@@ -249,17 +251,20 @@ export function Pricing() {
                     </div>
                   </div>
 
-                  <div className="mt-5 border-t border-forest-700/80 pt-4">
-                    <Button
-                      size="sm"
-                      leftIcon={<Save className="h-4 w-4" />}
-                      isLoading={savingId === court.id}
-                      disabled={savingId !== null && savingId !== court.id}
-                      onClick={() => handleSave(court)}
-                    >
-                      Save Pricing
-                    </Button>
-                  </div>
+                  {/* ─── Day-based pricing rules ─── */}
+<PricingRulesEditor courtId={court.id} />
+
+<div className="mt-5 border-t border-forest-700/80 pt-4">
+  <Button
+    size="sm"
+    leftIcon={<Save className="h-4 w-4" />}
+    isLoading={savingId === court.id}
+    disabled={savingId !== null && savingId !== court.id}
+    onClick={() => handleSave(court)}
+  >
+    Save Pricing
+  </Button>
+</div>
                 </motion.div>
               );
             })}
