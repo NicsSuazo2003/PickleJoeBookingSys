@@ -45,7 +45,9 @@ function formatTimeShort(time: string): string {
   const [hour, minute] = time.split(':').map(Number);
   const ampm = hour >= 12 ? 'PM' : 'AM';
   const hour12 = hour % 12 || 12;
-  return minute === 0 ? `${hour12}${ampm}` : `${hour12}:${String(minute).padStart(2, '0')}${ampm}`;
+  return minute === 0
+    ? `${hour12}${ampm}`
+    : `${hour12}:${String(minute).padStart(2, '0')}${ampm}`;
 }
 
 /**
@@ -89,7 +91,7 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
   const [saving, setSaving] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // ─── Slot picker state ──────────────────────────────────────
+  // Slot picker state
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [manualMode, setManualMode] = useState(false);
@@ -98,10 +100,8 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
     if (courtId) loadPricingRules(courtId).catch(() => {});
   }, [courtId, loadPricingRules]);
 
-  // Fetch this court's availability for today so the picker can show the
-  // real intervals. The endpoint is /api/courts/{id}/availability?date=…
-  // and returns TimeSlotAvailabilityDto — we normalize it to our TimeSlot
-  // shape so the rest of the editor doesn't care about the backend DTO.
+  // Fetch this court's availability for today so the picker shows real intervals.
+  // Backend route: GET /api/courts/{id}/availability?date=YYYY-MM-DD
   useEffect(() => {
     if (!courtId) return;
     let cancelled = false;
@@ -110,11 +110,9 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
       setLoadingSlots(true);
       try {
         const today = new Date().toISOString().slice(0, 10);
-
         const res = await apiRequest<any>(
           `/api/courts/${courtId}/availability?date=${today}`
         );
-
         const rawList = Array.isArray(res) ? res : res?.data ?? [];
 
         const normalized: TimeSlot[] = rawList.map((item: any) => ({
@@ -131,9 +129,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
 
         if (!cancelled) setSlots(normalized);
       } catch (err) {
-        // Silent fallback: if availability can't be fetched (endpoint
-        // unavailable, CORS, no slots for today), the admin can still
-        // use manual time entry.
         if (!cancelled) setSlots([]);
         console.warn('[PricingRulesEditor] Slot fetch failed:', err);
       } finally {
@@ -149,6 +144,11 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
   const { morning, afternoon, evening } = useMemo(
     () => groupSlotsByPeriod(slots),
     [slots]
+  );
+
+  const allIntervals = useMemo(
+    () => [...morning, ...afternoon, ...evening],
+    [morning, afternoon, evening]
   );
 
   const rules = court?.pricing_rules ?? [];
@@ -202,7 +202,7 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
     setForm({ ...form, days: [] });
   };
 
-  // ─── Slot-picking logic ─────────────────────────────────────
+  // ─── Slot range logic ────────────────────────────────────────
 
   const isInRange = (
     start: string,
@@ -218,42 +218,89 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
 
   /**
    * Click behavior:
-   *  - If nothing selected → this pill becomes start (and end for now).
-   *  - If only start selected → this pill becomes end. If it's earlier
-   *    than start, it becomes the new start instead.
-   *  - If a full range selected → clicking inside clears; clicking outside
-   *    starts a fresh selection at the clicked pill.
+   *  - Nothing selected → this pill becomes start & end.
+   *  - Clicking the current start pill → clear selection.
+   *  - Clicking a later pill than start → extends end to that pill.
+   *  - Clicking an earlier pill than start → shifts start earlier.
+   *  - The range always stays continuous — every pill between start and
+   *    end is highlighted automatically.
    */
   const handleSlotClick = (interval: { start_time: string; end_time: string }) => {
     if (!form) return;
-    const { start_time, end_time } = form;
+    const s = form.start_time;
+    const e = form.end_time;
+    const clickedStart = interval.start_time;
+    const clickedEnd = interval.end_time;
 
-    if (isInRange(start_time, end_time, interval)) {
-      // Click inside → clear
+    // Nothing selected yet → start here
+    if (!s) {
+      setForm({ ...form, start_time: clickedStart, end_time: clickedEnd });
+      return;
+    }
+
+    // Clicking the current start pill → clear
+    if (s === clickedStart && e === clickedEnd) {
       setForm({ ...form, start_time: '', end_time: '' });
       return;
     }
 
-    // No selection yet → start here
-    if (!start_time) {
-      setForm({ ...form, start_time: interval.start_time, end_time: interval.end_time });
+    // Clicked after current start → extend end
+    if (clickedStart > s) {
+      setForm({ ...form, start_time: s, end_time: clickedEnd });
       return;
     }
 
-    // Have start but no distinct end (or only single pill) → extend
-    if (!end_time || start_time === end_time) {
-      const cmp = interval.start_time.localeCompare(start_time);
-      if (cmp >= 0) {
-        setForm({ ...form, end_time: interval.end_time });
-      } else {
-        // Picked earlier than start → make it the new start
-        setForm({ ...form, start_time: interval.start_time, end_time: end_time || interval.end_time });
-      }
+    // Clicked before current start → shift start earlier
+    if (clickedStart < s) {
+      setForm({
+        ...form,
+        start_time: clickedStart,
+        end_time: e || clickedEnd,
+      });
       return;
     }
 
-    // Have a full range → restart from this pill
-    setForm({ ...form, start_time: interval.start_time, end_time: interval.end_time });
+    // Fallback: same start time
+    setForm({ ...form, start_time: s, end_time: clickedEnd });
+  };
+
+  const selectWholeDay = () => {
+    if (!form || allIntervals.length === 0) return;
+    const first = allIntervals.reduce(
+      (min, x) => (x.start_time < min.start_time ? x : min),
+      allIntervals[0]
+    );
+    const last = allIntervals.reduce(
+      (max, x) => (x.end_time > max.end_time ? x : max),
+      allIntervals[0]
+    );
+    setForm({ ...form, start_time: first.start_time, end_time: last.end_time });
+  };
+
+  const selectMorning = () => {
+    if (!form || morning.length === 0) return;
+    const first = morning[0];
+    const last = morning[morning.length - 1];
+    setForm({ ...form, start_time: first.start_time, end_time: last.end_time });
+  };
+
+  const selectAfternoon = () => {
+    if (!form || afternoon.length === 0) return;
+    const first = afternoon[0];
+    const last = afternoon[afternoon.length - 1];
+    setForm({ ...form, start_time: first.start_time, end_time: last.end_time });
+  };
+
+  const selectEvening = () => {
+    if (!form || evening.length === 0) return;
+    const first = evening[0];
+    const last = evening[evening.length - 1];
+    setForm({ ...form, start_time: first.start_time, end_time: last.end_time });
+  };
+
+  const clearRange = () => {
+    if (!form) return;
+    setForm({ ...form, start_time: '', end_time: '' });
   };
 
   const handleSubmit = async () => {
@@ -514,22 +561,69 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
                 </button>
               </div>
 
-              {/* Selected range preview */}
-              <div className="mb-3 flex items-center gap-2 rounded-lg border border-brand-blue-500/30 bg-brand-blue-500/10 px-3 py-2 text-xs">
-                <Clock className="h-3.5 w-3.5 shrink-0 text-brand-blue-300" />
-                {form.start_time && form.end_time ? (
-                  <span className="font-semibold text-cream">
-                    {formatRange(form.start_time, form.end_time)}
-                  </span>
-                ) : (
-                  <span className="text-cream-muted">
-                    Tap a slot below to set the start time, then tap another to set the end.
-                  </span>
+              {/* Selected range preview + quick presets */}
+              <div className="mb-3 rounded-lg border border-brand-blue-500/30 bg-brand-blue-500/10 p-3">
+                <div className="flex items-center gap-2 text-xs">
+                  <Clock className="h-3.5 w-3.5 shrink-0 text-brand-blue-300" />
+                  {form.start_time && form.end_time ? (
+                    <span className="font-semibold text-cream">
+                      {formatRange(form.start_time, form.end_time)}
+                    </span>
+                  ) : (
+                    <span className="text-cream-muted">
+                      Tap a slot to set the start, then tap later slots to extend.
+                    </span>
+                  )}
+                </div>
+
+                {!manualMode && allIntervals.length > 0 && (
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={selectWholeDay}
+                      className="rounded-lg border border-brand-blue-400/40 bg-brand-blue-500/15 px-2.5 py-1 text-[11px] font-semibold text-brand-blue-200 transition hover:bg-brand-blue-500/25"
+                    >
+                      Whole day
+                    </button>
+                    {morning.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={selectMorning}
+                        className="rounded-lg border border-forest-700/80 bg-forest-950/60 px-2.5 py-1 text-[11px] text-cream-muted transition hover:border-court-400/40 hover:text-cream"
+                      >
+                        Morning
+                      </button>
+                    )}
+                    {afternoon.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={selectAfternoon}
+                        className="rounded-lg border border-forest-700/80 bg-forest-950/60 px-2.5 py-1 text-[11px] text-cream-muted transition hover:border-court-400/40 hover:text-cream"
+                      >
+                        Afternoon
+                      </button>
+                    )}
+                    {evening.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={selectEvening}
+                        className="rounded-lg border border-forest-700/80 bg-forest-950/60 px-2.5 py-1 text-[11px] text-cream-muted transition hover:border-court-400/40 hover:text-cream"
+                      >
+                        Evening
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={clearRange}
+                      className="rounded-lg border border-forest-700/80 bg-forest-950/60 px-2.5 py-1 text-[11px] text-cream-muted transition hover:text-error"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 )}
               </div>
 
               {manualMode ? (
-                /* ── Manual entry fallback ── */
                 <div className="grid gap-3.5 sm:grid-cols-2">
                   <Input
                     label="Start Time"
@@ -548,7 +642,7 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/40 py-6 text-center">
                   <LoadingSpinner />
                 </div>
-              ) : slots.length === 0 ? (
+              ) : allIntervals.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-forest-700/80 bg-forest-950/40 p-4 text-center text-xs text-cream-muted">
                   No time slots found for this court.{' '}
                   <button
@@ -560,7 +654,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
                   </button>
                 </div>
               ) : (
-                /* ── Slot picker ── */
                 <div className="space-y-4 rounded-xl border border-forest-700/80 bg-forest-950/40 p-3.5">
                   {renderSlotGroup(
                     'Morning',
