@@ -27,17 +27,25 @@ type LinkButtonProps = BaseProps & {
 type Props = ButtonProps | LinkButtonProps;
 
 const variants: Record<Variant, string> = {
-  // Brand Blue (#0e4174) with crisp white text and elevation shadow
+  // Primary: Solid vibrant Court Blue with crisp border and glow
   primary:
-    'bg-brand-blue-500 text-white hover:bg-brand-blue-400 active:bg-brand-blue-600 shadow-glow-blue font-semibold border border-brand-blue-400/40',
+    'bg-court-600 text-white hover:bg-court-500 active:bg-court-700 shadow-glow-court font-semibold border border-court-400/50',
+
+  // Secondary: High-contrast outlined surface that stands out against dark forest backgrounds
   secondary:
-    'border border-forest-600 bg-forest-800/80 text-cream hover:border-brand-blue-400 hover:text-brand-blue-200 active:bg-forest-700 font-medium',
+    'border border-forest-500 bg-forest-800 text-cream hover:border-court-400 hover:bg-forest-700 hover:text-white active:bg-forest-600 font-medium shadow-sm',
+
+  // Ghost: Subtle flat button for tertiary actions
   ghost:
     'text-cream-muted hover:text-cream hover:bg-forest-800/60 active:bg-forest-700/60 font-medium',
+
+  // Danger: Red tinted pill with clean affordance
   danger:
-    'bg-error/15 text-error border border-error/30 hover:bg-error hover:text-white active:bg-error/90 font-semibold',
+    'bg-error/20 text-red-300 border border-error/40 hover:bg-error hover:text-white active:bg-error/90 font-semibold',
+
+  // Success: Green tinted pill with clean affordance
   success:
-    'bg-accentGreen-400/20 text-accentGreen-300 border border-accentGreen-400/40 hover:bg-accentGreen-400 hover:text-white active:bg-accentGreen-500 font-semibold',
+    'bg-success/20 text-green-300 border border-success/40 hover:bg-success hover:text-white active:bg-success/90 font-semibold',
 };
 
 const sizes: Record<Size, string> = {
@@ -79,7 +87,7 @@ export const Button = forwardRef<HTMLButtonElement, Props>(
     },
     ref
   ) => {
-    const classes = `inline-flex items-center justify-center select-none transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-forest-950 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98] ${variants[variant]} ${sizes[size]} ${fullWidth ? 'w-full' : ''} ${className}`;
+    const classes = `inline-flex items-center justify-center select-none transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-court-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-forest-950 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98] ${variants[variant]} ${sizes[size]} ${fullWidth ? 'w-full' : ''} ${className}`;
 
     if ('to' in rest && rest.to) {
       return (
