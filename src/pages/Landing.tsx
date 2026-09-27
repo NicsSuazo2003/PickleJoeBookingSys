@@ -340,8 +340,7 @@ export function Landing() {
             </p>
 
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
-              Book premium indoor and outdoor pickleball courts in seconds. Pay easily with GCash,
-              track your bookings, and get playing.
+              Book 3 premium pickleball courts in the city featuring a 7-layer court surface system designed for a playing experience you can actually feel. Beginner-friendly, tournament-ready, and made for everyone who loves the game.
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
