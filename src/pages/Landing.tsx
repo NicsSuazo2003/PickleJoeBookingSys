@@ -110,7 +110,6 @@ const SKILL_BADGE: Record<string, string> = {
 export function Landing() {
   const navigate = useNavigate();
   const bookingSectionRef = useRef<HTMLDivElement>(null);
-  const datePickerRef = useRef<HTMLInputElement>(null);
 
   const [heroIdx, setHeroIdx] = useState(0);
 
@@ -172,22 +171,6 @@ export function Landing() {
 
     setDate(iso);
     setWeekOffset(Math.max(0, weeksBetweenToday(iso)));
-  };
-
-  const openDatePicker = () => {
-    const input = datePickerRef.current;
-    if (!input) return;
-
-    if ('showPicker' in input && typeof (input as HTMLInputElement & { showPicker?: () => void }).showPicker === 'function') {
-      try {
-        (input as HTMLInputElement & { showPicker: () => void }).showPicker();
-        return;
-      } catch {
-        // Fallback below
-      }
-    }
-    input.focus();
-    input.click();
   };
 
   const nextSession = openPlaySessions
@@ -566,26 +549,18 @@ export function Landing() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <input
-                        ref={datePickerRef}
-                        type="date"
-                        value={selectedDate}
-                        min={todayISO()}
-                        onChange={handleCalendarPick}
-                        className="sr-only"
-                        aria-hidden="true"
-                        tabIndex={-1}
-                      />
-
-                      <button
-                        type="button"
-                        onClick={openDatePicker}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-court-400/50 bg-court-600/30 text-court-200 transition hover:border-court-300 hover:bg-court-600/50 active:scale-95"
-                        aria-label="Pick a date from calendar"
-                        title="Pick a date from calendar"
-                      >
-                        <CalendarDays className="h-4 w-4" />
-                      </button>
+                      {/* iOS & Android friendly Calendar Picker: Tap target covers the button directly */}
+                      <div className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-court-400/50 bg-court-600/30 text-court-200 transition hover:border-court-300 hover:bg-court-600/50 active:scale-95">
+                        <CalendarDays className="pointer-events-none h-4 w-4" />
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          min={todayISO()}
+                          onChange={handleCalendarPick}
+                          aria-label="Pick a date from calendar"
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:dark]"
+                        />
+                      </div>
 
                       <div className="flex items-center gap-1.5 sm:hidden">
                         <button
