@@ -338,7 +338,7 @@ export function Landing() {
             <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
               {APP_CONFIG.tagline}
             </p>
-
+            
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
               Book 3 premium pickleball courts in the city featuring a 7-layer court surface system designed for a playing experience you can actually feel. Beginner-friendly, tournament-ready, and made for everyone who loves the game.
             </p>
@@ -868,8 +868,8 @@ export function Landing() {
               },
               {
                 icon: Wallet,
-                title: 'GCash Payment',
-                desc: 'Pay securely with GCash. Upload your receipt and get confirmed in minutes.',
+                title: 'Flexible Payment',
+                desc: 'Pay securely using your chosen payment method. Upload your receipt and get confirmed in minutes.',
               },
               {
                 icon: ShieldCheck,
@@ -914,7 +914,7 @@ export function Landing() {
             {[
               { step: '01', title: 'Select Court & Time', desc: 'Pick your preferred court, date, and available time slots.' },
               { step: '02', title: 'Enter Details', desc: 'Fill in your name, contact info, and any special requests.' },
-              { step: '03', title: 'Pay via GCash', desc: 'Send payment to our GCash number and upload your screenshot.' },
+              { step: '03', title: 'Pay Your Way', desc: 'Send payment using your chosen payment method and upload your screenshot.' },
               { step: '04', title: 'Get Confirmed', desc: 'We verify your payment and confirm your booking. Play!' },
             ].map((item, i) => (
               <motion.div
