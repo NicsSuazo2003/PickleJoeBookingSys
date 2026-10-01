@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   CalendarDays,
@@ -10,6 +11,7 @@ import {
   ChevronRight,
   LayoutGrid,
   List,
+  AlertCircle,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -29,6 +31,44 @@ const monthNames = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+// Adjust if your admin bookings route is different.
+const ADMIN_BOOKINGS_PATH = '/admin/bookings';
+const LIST_PAGE_SIZE = 20;
+
+type StatusFilter = 'all' | 'pending_payment' | 'confirmed' | 'cancelled';
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'pending_payment', label: 'Pending payment' },
+  { key: 'confirmed', label: 'Confirmed' },
+  { key: 'cancelled', label: 'Cancelled' },
+];
+
+// One place that defines status colors, used by chips, dots and the legend.
+const STATUS_STYLE: Record<string, { chip: string; dot: string; label: string }> = {
+  confirmed: {
+    chip: 'bg-accentGreen-500/25 text-accentGreen-300 border border-accentGreen-400/30',
+    dot: 'bg-accentGreen-400',
+    label: 'Confirmed',
+  },
+  pending_payment: {
+    chip: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+    dot: 'bg-amber-400',
+    label: 'Pending payment',
+  },
+  cancelled: {
+    chip: 'bg-red-500/20 text-red-300 border border-red-500/30 line-through',
+    dot: 'bg-red-400',
+    label: 'Cancelled',
+  },
+};
+const DEFAULT_STATUS_STYLE = {
+  chip: 'bg-brand-blue-500/25 text-brand-blue-200 border border-brand-blue-400/30',
+  dot: 'bg-brand-blue-300',
+  label: 'Other',
+};
+const statusStyle = (status: string) => STATUS_STYLE[status] ?? DEFAULT_STATUS_STYLE;
+
 function formatTimeShort(time: string): string {
   if (!time || time === '?' || time === 'N/A') return time || '?';
   const [hour, minute] = time.split(':').map(Number);
@@ -36,6 +76,25 @@ function formatTimeShort(time: string): string {
   const ampm = hour >= 12 ? 'PM' : 'AM';
   const hour12 = hour % 12 || 12;
   return minute === 0 ? `${hour12}${ampm}` : `${hour12}:${String(minute).padStart(2, '0')}${ampm}`;
+}
+
+function formatSlotTime(slot: any): string {
+  if (!slot) return '?';
+  const start = slot.start_time ? formatTimeShort(slot.start_time) : '?';
+  const end = slot.end_time ? formatTimeShort(slot.end_time) : '?';
+  return `${start}-${end}`;
+}
+
+function firstStart(b: any): string {
+  return b?.slots?.[0]?.start_time ?? '';
+}
+
+function customerName(b: any): string {
+  return b?.customer?.name || 'Unknown';
+}
+
+function bookingKey(b: any, i: number): string {
+  return b?.id ?? `${b?.reference_code ?? 'b'}-${i}`;
 }
 
 export function Dashboard() {
@@ -49,44 +108,62 @@ export function Dashboard() {
   const [view, setView] = useState<AdminView>('calendar');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(todayISO());
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [visibleCount, setVisibleCount] = useState(LIST_PAGE_SIZE);
+  const [activeBar, setActiveBar] = useState<string | null>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadAnalytics();
     loadBookings();
   }, [loadAnalytics, loadBookings]);
 
+  useEffect(() => {
+    setVisibleCount(LIST_PAGE_SIZE);
+  }, [statusFilter]);
+
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();
   const weeks = getMonthMatrix(year, month);
 
-  // Group bookings by date
-  const bookingsByDate = new Map<string, Booking[]>();
-  bookings.forEach((b) => {
-    if (!b || !b.date) return;
-    const existing = bookingsByDate.get(b.date) ?? [];
-    existing.push(b);
-    bookingsByDate.set(b.date, existing);
-  });
+  const bookingsByDate = useMemo(() => {
+    const map = new Map<string, Booking[]>();
+    bookings.forEach((b) => {
+      if (!b || !b.date) return;
+      const existing = map.get(b.date) ?? [];
+      existing.push(b);
+      map.set(b.date, existing);
+    });
+    // Earliest first, so the day drawer reads like a schedule.
+    map.forEach((list) => list.sort((a, b) => firstStart(a).localeCompare(firstStart(b))));
+    return map;
+  }, [bookings]);
 
-  const selectedDateBookings = selectedDate
-    ? (bookingsByDate.get(selectedDate) ?? []).filter((b) => b)
-    : [];
+  const selectedDateBookings = selectedDate ? bookingsByDate.get(selectedDate) ?? [] : [];
 
-  const formatSlotTime = (slot: any): string => {
-    if (!slot) return '?';
-    const start = slot.start_time ? formatTimeShort(slot.start_time) : '?';
-    const end = slot.end_time ? formatTimeShort(slot.end_time) : '?';
-    return `${start}-${end}`;
+  const filteredList = useMemo(() => {
+    return bookings
+      .filter((b) => b && (statusFilter === 'all' || b.status === statusFilter))
+      .sort((a, b) => {
+        const byDate = (b.date ?? '').localeCompare(a.date ?? '');
+        return byDate || firstStart(b).localeCompare(firstStart(a));
+      });
+  }, [bookings, statusFilter]);
+
+  const pendingCount = analytics?.pending_payments ?? 0;
+  const statsLoading = loadingAnalytics && !analytics;
+
+  const selectDate = (iso: string) => {
+    setSelectedDate(iso);
+    // On phones the day details sit below the grid, so bring them into view.
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      setTimeout(() => drawerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
   };
 
-  const getCustomerFirstName = (booking: any): string => {
-    if (!booking?.customer?.name) return 'Unknown';
-    return booking.customer.name.split(' ')[0] || 'Unknown';
-  };
-
-  const getCustomerName = (booking: any): string => {
-    if (!booking?.customer?.name) return 'Unknown';
-    return booking.customer.name || 'Unknown';
+  const goToToday = () => {
+    setCalendarDate(new Date());
+    setSelectedDate(todayISO());
   };
 
   const statCards = [
@@ -113,12 +190,19 @@ export function Dashboard() {
     },
     {
       label: 'Pending Payments',
-      value: analytics?.pending_payments ?? 0,
+      value: pendingCount,
       icon: Clock,
       color: 'text-amber-300',
       bg: 'bg-amber-500/20 border border-amber-400/30',
+      needsAction: pendingCount > 0,
     },
   ];
+
+  // Revenue chart helpers (computed once, not per bar)
+  const revenueDays = analytics?.revenue_by_day ?? [];
+  const maxRevenue = Math.max(...revenueDays.map((d) => d.revenue), 1);
+  const periodTotal = revenueDays.reduce((sum, d) => sum + d.revenue, 0);
+  const activeDay = revenueDays.find((d) => d.date === activeBar);
 
   return (
     <AdminLayout>
@@ -132,6 +216,28 @@ export function Dashboard() {
           </p>
         </div>
 
+        {/* Needs attention: the most common admin task is verifying payments */}
+        {pendingCount > 0 && (
+          <Link
+            to={ADMIN_BOOKINGS_PATH}
+            className="mb-6 flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 transition hover:border-amber-400/70 hover:bg-amber-500/15 sm:mb-8"
+          >
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-300" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-amber-200">
+                {pendingCount} booking{pendingCount !== 1 ? 's' : ''} waiting for payment verification
+              </p>
+              <p className="text-xs text-cream-muted">
+                Customers can&apos;t get confirmed until you review these.
+              </p>
+            </div>
+            <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-amber-200">
+              Review
+              <ChevronRight className="h-4 w-4" />
+            </span>
+          </Link>
+        )}
+
         {/* Stats */}
         <div className="mb-6 grid gap-3.5 sm:mb-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
           {statCards.map((stat, i) => {
@@ -142,7 +248,9 @@ export function Dashboard() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 sm:p-5 shadow-xl backdrop-blur-sm"
+                className={`card rounded-2xl border bg-forest-900/80 p-4 sm:p-5 shadow-xl backdrop-blur-sm ${
+                  stat.needsAction ? 'border-amber-500/40' : 'border-forest-700/80'
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <div
@@ -151,10 +259,11 @@ export function Dashboard() {
                     <Icon className={`h-5 w-5 ${stat.color}`} />
                   </div>
                 </div>
+                {/* Show a dash while loading so "0" is never mistaken for real data */}
                 <p className="mt-3 text-2xl font-extrabold text-cream sm:text-3xl tracking-tight">
-                  {stat.value}
+                  {statsLoading ? '—' : stat.value}
                 </p>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-cream-muted sm:text-xs">
+                <p className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
                   {stat.label}
                 </p>
               </motion.div>
@@ -163,50 +272,74 @@ export function Dashboard() {
         </div>
 
         {/* Revenue chart */}
-        {analytics?.revenue_by_day && analytics.revenue_by_day.length > 0 && (
+        {revenueDays.length > 0 && (
           <div className="mb-6 card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:mb-8 sm:p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-brand-blue-300" />
-              <h2 className="font-display text-base font-bold text-cream sm:text-lg">
-                Revenue Trend
-                <span className="ml-1.5 text-xs font-medium text-cream-muted sm:text-sm">
-                  ({analytics.revenue_by_day.length} day
-                  {analytics.revenue_by_day.length !== 1 ? 's' : ''})
-                </span>
-              </h2>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-brand-blue-300" />
+                <h2 className="font-display text-base font-bold text-cream sm:text-lg">
+                  Revenue Trend
+                  <span className="ml-1.5 text-xs font-medium text-cream-muted sm:text-sm">
+                    (last {revenueDays.length} day{revenueDays.length !== 1 ? 's' : ''})
+                  </span>
+                </h2>
+              </div>
+              {/* Readout works on touch, unlike hover tooltips */}
+              <p className="text-xs text-cream-muted sm:text-sm" aria-live="polite">
+                {activeDay ? (
+                  <>
+                    {new Date(activeDay.date + 'T00:00:00').toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                    :{' '}
+                    <span className="font-bold text-brand-blue-200">
+                      {formatCurrency(activeDay.revenue)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    Period total:{' '}
+                    <span className="font-bold text-brand-blue-200">{formatCurrency(periodTotal)}</span>
+                    <span className="hidden sm:inline"> · tap a bar for details</span>
+                  </>
+                )}
+              </p>
             </div>
 
-            {/* Horizontal scroll on mobile */}
             <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
               <div className="flex h-48 items-stretch gap-2 sm:h-56">
-                {analytics.revenue_by_day.map((day) => {
-                  const maxRev = Math.max(
-                    ...analytics.revenue_by_day.map((d) => d.revenue),
-                    1
-                  );
-                  const heightPct = (day.revenue / maxRev) * 100;
+                {revenueDays.map((day) => {
+                  const heightPct = (day.revenue / maxRevenue) * 100;
+                  const isActive = activeBar === day.date;
+                  const dayLabel = new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  });
                   return (
-                    <div
+                    <button
                       key={day.date}
+                      type="button"
+                      onClick={() => setActiveBar(isActive ? null : day.date)}
+                      aria-pressed={isActive}
+                      aria-label={`${dayLabel}: ${formatCurrency(day.revenue)}`}
                       className="flex min-w-[52px] flex-1 flex-col items-center gap-1.5"
                     >
-                      <span className="hidden text-[10px] font-bold text-brand-blue-200 whitespace-nowrap sm:block">
+                      <span className="hidden text-[11px] font-bold text-brand-blue-200 whitespace-nowrap sm:block">
                         {day.revenue > 0 ? formatCurrency(day.revenue) : '—'}
                       </span>
                       <div className="flex w-full flex-1 items-end">
                         <div
-                          className="w-full rounded-t-lg bg-gradient-to-t from-brand-blue-600 via-brand-blue-500 to-brand-blue-400 transition-all hover:from-brand-blue-500 hover:to-brand-blue-300 shadow-sm"
+                          className={`w-full rounded-t-lg bg-gradient-to-t from-brand-blue-600 via-brand-blue-500 to-brand-blue-400 transition-all shadow-sm ${
+                            isActive ? 'ring-2 ring-white/70' : 'hover:from-brand-blue-500 hover:to-brand-blue-300'
+                          }`}
                           style={{ height: `${Math.max(heightPct, 3)}%` }}
-                          title={formatCurrency(day.revenue)}
                         />
                       </div>
-                      <span className="text-[9px] font-medium text-cream-muted whitespace-nowrap sm:text-[10px]">
-                        {new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
+                      <span className="text-[10px] font-medium text-cream-muted whitespace-nowrap sm:text-[11px]">
+                        {dayLabel}
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -218,9 +351,9 @@ export function Dashboard() {
         <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
           <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-display text-base font-bold text-cream sm:text-lg">
-              Bookings Calendar
+              Bookings {view === 'calendar' ? 'Calendar' : 'List'}
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {view === 'calendar' && (
                 <div className="mr-1 flex items-center gap-1 sm:mr-2">
                   <button
@@ -240,11 +373,19 @@ export function Dashboard() {
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
+                  <button
+                    onClick={goToToday}
+                    className="ml-1 rounded-lg border border-forest-600 bg-forest-800/80 px-2.5 py-1.5 text-xs font-semibold text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300"
+                  >
+                    Today
+                  </button>
                 </div>
               )}
-              <div className="flex rounded-xl border border-forest-700 bg-forest-950/60 p-1">
+              <div className="flex rounded-xl border border-forest-700 bg-forest-950/60 p-1" role="group" aria-label="Switch view">
                 <button
                   onClick={() => setView('calendar')}
+                  aria-label="Calendar view"
+                  aria-pressed={view === 'calendar'}
                   className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     view === 'calendar'
                       ? 'bg-brand-blue-500 text-white shadow-glow-blue'
@@ -256,6 +397,8 @@ export function Dashboard() {
                 </button>
                 <button
                   onClick={() => setView('list')}
+                  aria-label="List view"
+                  aria-pressed={view === 'list'}
                   className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     view === 'list'
                       ? 'bg-brand-blue-500 text-white shadow-glow-blue'
@@ -269,16 +412,27 @@ export function Dashboard() {
             </div>
           </div>
 
-          {loadingAnalytics || loadingBookings ? (
+          {/* Only wait for bookings here; analytics has no effect on this section */}
+          {loadingBookings && bookings.length === 0 ? (
             <LoadingSpinner className="py-14" />
           ) : view === 'calendar' ? (
             <div>
+              {/* Status legend */}
+              <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cream-muted">
+                {Object.entries(STATUS_STYLE).map(([key, s]) => (
+                  <span key={key} className="flex items-center gap-1.5">
+                    <span className={`h-2 w-2 rounded-full ${s.dot}`} />
+                    {s.label}
+                  </span>
+                ))}
+              </div>
+
               {/* Calendar header row */}
               <div className="mb-2 grid grid-cols-7 gap-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
                   <div
                     key={d}
-                    className="py-1 text-center text-[10px] font-bold uppercase tracking-wider text-cream-muted sm:py-2 sm:text-xs"
+                    className="py-1 text-center text-[11px] font-bold uppercase tracking-wider text-cream-muted sm:py-2 sm:text-xs"
                   >
                     <span className="hidden sm:inline">{d}</span>
                     <span className="sm:hidden">{d[0]}</span>
@@ -291,24 +445,34 @@ export function Dashboard() {
                 {weeks.flat().map((day) => {
                   const iso = toISODate(day);
                   const dayBookings = bookingsByDate.get(iso) ?? [];
+                  const activeBookings = dayBookings.filter((b) => b.status !== 'cancelled');
+                  const hasPending = dayBookings.some((b) => b.status === 'pending_payment');
                   const isCurrentMonth = day.getMonth() === month;
                   const isToday = iso === todayISO();
                   const isSelected = iso === selectedDate;
+                  const dotStatuses = Array.from(new Set(dayBookings.map((b) => b.status))).slice(0, 3);
+
                   return (
                     <button
                       key={iso}
-                      onClick={() => setSelectedDate(iso)}
+                      onClick={() => selectDate(iso)}
+                      aria-pressed={isSelected}
+                      aria-label={`${formatDate(iso)}: ${activeBookings.length} booking${
+                        activeBookings.length !== 1 ? 's' : ''
+                      }${hasPending ? ', has pending payments' : ''}`}
                       className={`min-h-[56px] rounded-xl border p-1 text-left transition sm:min-h-24 sm:p-2 ${
                         isSelected
                           ? 'border-brand-blue-400 bg-brand-blue-500/20 shadow-glow-blue'
                           : isCurrentMonth
-                            ? 'border-forest-700/80 bg-forest-950/60 hover:border-brand-blue-400/50 hover:bg-forest-800/60'
-                            : 'border-forest-800/50 bg-forest-950/20 opacity-40'
+                            ? hasPending
+                              ? 'border-amber-500/40 bg-forest-950/60 hover:border-amber-400/70'
+                              : 'border-forest-700/80 bg-forest-950/60 hover:border-brand-blue-400/50 hover:bg-forest-800/60'
+                            : 'border-forest-800/50 bg-forest-950/20 opacity-50'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span
-                          className={`text-[10px] font-bold sm:text-xs ${
+                          className={`text-xs font-bold ${
                             isToday
                               ? 'flex h-5 w-5 items-center justify-center rounded-full bg-brand-blue-500 text-white font-black'
                               : 'text-cream'
@@ -316,40 +480,36 @@ export function Dashboard() {
                         >
                           {day.getDate()}
                         </span>
-                        {dayBookings.length > 0 && (
-                          <span className="rounded-full bg-brand-blue-500/30 border border-brand-blue-400/40 px-1.5 py-0.2 text-[8px] font-black text-brand-blue-200 sm:text-[9px]">
-                            {dayBookings.length}
+                        {activeBookings.length > 0 && (
+                          <span className="rounded-full border border-brand-blue-400/40 bg-brand-blue-500/30 px-1.5 text-[10px] font-black text-brand-blue-200">
+                            {activeBookings.length}
                           </span>
                         )}
                       </div>
 
+                      {/* Mobile: status dots instead of unreadable chips */}
+                      <div className="mt-1.5 flex gap-1 sm:hidden">
+                        {dotStatuses.map((s) => (
+                          <span key={s} className={`h-1.5 w-1.5 rounded-full ${statusStyle(s).dot}`} />
+                        ))}
+                      </div>
+
                       {/* Desktop booking chips */}
                       <div className="mt-1 hidden space-y-1 sm:block">
-                        {dayBookings.slice(0, 2).map((b) => {
-                          if (!b) return null;
-                          const firstName = getCustomerFirstName(b);
-                          const startTime = b.slots?.[0]?.start_time
-                            ? formatTimeShort(b.slots[0].start_time)
-                            : '';
+                        {dayBookings.slice(0, 2).map((b, i) => {
+                          const start = firstStart(b) ? formatTimeShort(firstStart(b)) : '';
+                          const first = customerName(b).split(' ')[0];
                           return (
                             <div
-                              key={b.id || Math.random()}
-                              className={`truncate rounded-md px-1.5 py-0.5 text-[9px] font-semibold ${
-                                b.status === 'confirmed'
-                                  ? 'bg-accentGreen-500/25 text-accentGreen-300 border border-accentGreen-400/30'
-                                  : b.status === 'pending_payment'
-                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                    : b.status === 'cancelled'
-                                      ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                                      : 'bg-brand-blue-500/25 text-brand-blue-200 border border-brand-blue-400/30'
-                              }`}
+                              key={bookingKey(b, i)}
+                              className={`truncate rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${statusStyle(b.status).chip}`}
                             >
-                              {startTime} {firstName}
+                              {start} {first}
                             </div>
                           );
                         })}
                         {dayBookings.length > 2 && (
-                          <div className="text-[9px] font-semibold text-brand-blue-300/80 pl-0.5">
+                          <div className="pl-0.5 text-[10px] font-semibold text-brand-blue-300">
                             +{dayBookings.length - 2} more
                           </div>
                         )}
@@ -361,10 +521,16 @@ export function Dashboard() {
 
               {/* Selected date drawer */}
               {selectedDate && (
-                <div className="mt-5 border-t border-forest-700/80 pt-4 sm:mt-6 sm:pt-5">
-                  <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-brand-blue-300 sm:text-sm">
-                    {formatDate(selectedDate)} — {selectedDateBookings.length} booking
-                    {selectedDateBookings.length !== 1 ? 's' : ''}
+                <div
+                  ref={drawerRef}
+                  className="mt-5 scroll-mt-20 border-t border-forest-700/80 pt-4 sm:mt-6 sm:pt-5"
+                >
+                  <h3 className="mb-3 text-sm font-bold text-brand-blue-300">
+                    {formatDate(selectedDate)}
+                    <span className="ml-2 font-medium text-cream-muted">
+                      {selectedDateBookings.length} booking
+                      {selectedDateBookings.length !== 1 ? 's' : ''}
+                    </span>
                   </h3>
                   {selectedDateBookings.length === 0 ? (
                     <p className="py-6 text-center text-xs font-medium text-cream-muted sm:text-sm">
@@ -372,99 +538,114 @@ export function Dashboard() {
                     </p>
                   ) : (
                     <div className="space-y-2.5">
-                      {selectedDateBookings.map((b) => {
-                        if (!b) return null;
-                        const customerName = getCustomerName(b);
-                        const courtName = b.court_name || 'Unknown Court';
-                        const totalAmount = b.total_amount || 0;
-                        const slotDisplay =
-                          b.slots?.map((s) => formatSlotTime(s)).join(', ') || 'No slots';
-                        const startTime = b.slots?.[0]?.start_time
-                          ? formatTimeShort(b.slots[0].start_time)
-                          : 'N/A';
-
-                        return (
-                          <div
-                            key={b.id || Math.random()}
-                            className="flex flex-col gap-2 rounded-xl border border-forest-700/70 bg-forest-950/70 p-3 sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <div className="flex min-w-0 items-center gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand-blue-400/30 bg-brand-blue-500/20 text-xs font-black text-brand-blue-200">
-                                {startTime}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-bold text-cream">
-                                  {customerName}
-                                </p>
-                                <p className="truncate text-xs text-cream-muted">
-                                  {courtName} — {slotDisplay}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between gap-3 sm:justify-end">
-                              <span className="text-sm font-bold text-brand-blue-300">
-                                {formatCurrency(totalAmount)}
-                              </span>
-                              <StatusBadge status={b.status} size="sm" />
-                            </div>
-                          </div>
-                        );
-                      })}
+                      {selectedDateBookings.map((b, i) => (
+                        <BookingRow key={bookingKey(b, i)} booking={b} showDate={false} />
+                      ))}
                     </div>
                   )}
                 </div>
               )}
             </div>
           ) : (
-            <div className="space-y-2.5">
-              {bookings.length === 0 ? (
-                <p className="py-8 text-center text-sm font-medium text-cream-muted">
-                  No bookings registered yet.
-                </p>
-              ) : (
-                bookings.map((b) => {
-                  if (!b) return null;
-                  const customerName = getCustomerName(b);
-                  const courtName = b.court_name || 'Unknown Court';
-                  const totalAmount = b.total_amount || 0;
-                  const referenceCode = b.reference_code || 'No ref';
-                  const startTime = b.slots?.[0]?.start_time
-                    ? formatTimeShort(b.slots[0].start_time)
-                    : 'N/A';
-
+            <div>
+              {/* Status filter */}
+              <div className="no-scrollbar -mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">
+                {STATUS_FILTERS.map((f) => {
+                  const count =
+                    f.key === 'all'
+                      ? bookings.length
+                      : bookings.filter((b) => b?.status === f.key).length;
+                  const active = statusFilter === f.key;
                   return (
-                    <div
-                      key={b.id || Math.random()}
-                      className="flex flex-col gap-2 rounded-xl border border-forest-700/70 bg-forest-950/70 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+                    <button
+                      key={f.key}
+                      onClick={() => setStatusFilter(f.key)}
+                      aria-pressed={active}
+                      className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                        active
+                          ? 'border-brand-blue-400 bg-brand-blue-500 text-white'
+                          : 'border-forest-600 bg-forest-800/80 text-cream-muted hover:text-cream'
+                      }`}
                     >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand-blue-400/30 bg-brand-blue-500/20 text-xs font-black text-brand-blue-200">
-                          {startTime}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-cream">
-                            {customerName}
-                          </p>
-                          <p className="truncate text-xs text-cream-muted">
-                            <span className="font-mono text-brand-blue-300">{referenceCode}</span> ·{' '}
-                            {courtName} · {formatDate(b.date)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 sm:justify-end">
-                        <span className="text-sm font-bold text-brand-blue-300">
-                          {formatCurrency(totalAmount)}
-                        </span>
-                        <StatusBadge status={b.status} size="sm" />
-                      </div>
-                    </div>
+                      {f.label} <span className="opacity-70">({count})</span>
+                    </button>
                   );
-                })
+                })}
+              </div>
+
+              <div className="space-y-2.5">
+                {filteredList.length === 0 ? (
+                  <p className="py-8 text-center text-sm font-medium text-cream-muted">
+                    {bookings.length === 0
+                      ? 'No bookings yet. New reservations will appear here.'
+                      : 'No bookings match this filter.'}
+                  </p>
+                ) : (
+                  filteredList.slice(0, visibleCount).map((b, i) => (
+                    <BookingRow key={bookingKey(b, i)} booking={b} showDate showReference />
+                  ))
+                )}
+              </div>
+
+              {filteredList.length > visibleCount && (
+                <div className="mt-4 text-center">
+                  <button
+                    onClick={() => setVisibleCount((c) => c + LIST_PAGE_SIZE)}
+                    className="rounded-xl border border-forest-600 bg-forest-800/80 px-4 py-2 text-xs font-semibold text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300"
+                  >
+                    Show more ({filteredList.length - visibleCount} left)
+                  </button>
+                </div>
               )}
             </div>
           )}
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+// --------------------------------------------------------
+// SUB-COMPONENTS
+// --------------------------------------------------------
+
+function BookingRow({
+  booking: b,
+  showDate,
+  showReference = false,
+}: {
+  booking: any;
+  showDate: boolean;
+  showReference?: boolean;
+}) {
+  const slotDisplay = b.slots?.map((s: any) => formatSlotTime(s)).join(', ') || 'No slots';
+  const courtName = b.court_name || 'Unknown Court';
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-forest-700/70 bg-forest-950/70 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-10 min-w-[3.5rem] shrink-0 items-center justify-center rounded-xl border border-brand-blue-400/30 bg-brand-blue-500/20 px-2 text-xs font-black text-brand-blue-200">
+          {firstStart(b) ? formatTimeShort(firstStart(b)) : 'N/A'}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-cream">{customerName(b)}</p>
+          <p className="truncate text-xs text-cream-muted">
+            {showReference && (
+              <>
+                <span className="font-mono text-brand-blue-300">{b.reference_code || 'No ref'}</span> ·{' '}
+              </>
+            )}
+            {showDate && <>{formatDate(b.date)} · </>}
+            {courtName} · {slotDisplay}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-3 sm:justify-end">
+        <span className="text-sm font-bold text-brand-blue-300">
+          {formatCurrency(b.total_amount || 0)}
+        </span>
+        <StatusBadge status={b.status} size="sm" />
+      </div>
+    </div>
   );
 }

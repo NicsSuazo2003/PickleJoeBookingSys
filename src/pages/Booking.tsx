@@ -13,6 +13,8 @@ import {
   User,
   Mail,
   Phone,
+  AlertTriangle,
+  Timer,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -21,7 +23,7 @@ import { Input, Textarea } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore, getSelectedSlotItems, getSelectedTotal } from '@/stores/bookingStore';
 import { formatTimeRange, formatCurrency, formatDateLong } from '@/utils/format';
-import { FIXED_SLOT } from '@/utils/constants';
+import { FIXED_SLOT, APP_CONFIG } from '@/utils/constants';
 import type { CustomerDetails } from '@/types';
 
 // Normalize PH mobile: strip spaces/dashes/parens, convert +63/63 → 0
@@ -29,6 +31,9 @@ const normalizePhone = (value: string) =>
   value
     .replace(/[\s\-()]/g, '')
     .replace(/^\+?63/, '0');
+
+const NOTES_MAX = 500;
+const HOLD_MINUTES = Math.round(APP_CONFIG.paymentTimerSeconds / 60);
 
 const customerSchema = z.object({
   name: z
@@ -55,7 +60,12 @@ const customerSchema = z.object({
       message: 'Enter a valid PH mobile number (e.g. 0917 123 4567)',
     }),
 
-  notes: z.string().max(500, 'Notes are too long').optional(),
+  notes: z.string().max(NOTES_MAX, 'Notes are too long').optional(),
+
+  // Must be ticked before a booking is created. Not sent to the store.
+  acceptedPolicy: z
+    .boolean()
+    .refine((v) => v === true, { message: 'Please confirm you understand the no-refund policy' }),
 });
 
 type CustomerForm = z.infer<typeof customerSchema>;
@@ -81,26 +91,21 @@ export function Booking() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
     mode: 'onBlur',
-    defaultValues: useBookingStore.getState().customer,
+    defaultValues: { ...useBookingStore.getState().customer, acceptedPolicy: false },
   });
+
+  const notesLength = (watch('notes') ?? '').length;
 
   useEffect(() => {
     if (courts.length === 0) {
       loadCourts();
     }
   }, [courts.length, loadCourts]);
-
-  useEffect(() => {
-    if (formRef.current) {
-      setTimeout(() => {
-        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
-    }
-  }, []);
 
   const storeState = useBookingStore();
   const selectedSlots = getSelectedSlotItems(storeState);
@@ -130,7 +135,12 @@ export function Booking() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      setCustomer(data);
+      setCustomer({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        notes: data.notes,
+      });
       await createBooking();
 
       const created = useBookingStore.getState().currentBooking;
@@ -146,8 +156,14 @@ export function Booking() {
     }
   };
 
+  // The mobile bar can be tapped while the form is scrolled out of view,
+  // so on invalid input bring the user to the first problem.
+  const onInvalid = () => {
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const handleSummaryButtonClick = () => {
-    handleSubmit(onSubmit)();
+    handleSubmit(onSubmit, onInvalid)();
   };
 
   if (loadingCourts && courts.length === 0) {
@@ -185,11 +201,11 @@ export function Booking() {
     <div className="min-h-screen bg-charcoal text-cream">
       <Navbar />
 
-      <div className="container-page pt-24 pb-28 lg:pb-16">
+      <div className="container-page pt-24 pb-32 lg:pb-16">
         <div className="mb-5 sm:mb-6">
           <h1 className="text-2xl font-bold tracking-tight text-cream sm:text-3xl">Confirm & Book</h1>
           <p className="text-xs text-cream-muted sm:text-sm">
-            Review your selection, then enter your details.
+            Step 1 of 2: review your selection and enter your details. Payment comes next.
           </p>
         </div>
 
@@ -206,11 +222,11 @@ export function Booking() {
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
                   <CalendarDays className="h-3.5 w-3.5 text-brand-blue-300" />
-                  Your Selection ({selectedCourts.length} court{selectedCourts.length > 1 ? 's' : ''})
+                  Your Selection ({selectedCourts.length} court{selectedCourts.length !== 1 ? 's' : ''})
                 </h2>
                 <Link
                   to="/"
-                  className="flex items-center gap-1 text-[11px] font-semibold text-cream-muted underline decoration-dotted transition hover:text-brand-blue-300"
+                  className="flex items-center gap-1 text-xs font-semibold text-cream-muted underline decoration-dotted transition hover:text-brand-blue-300"
                 >
                   <Pencil className="h-3 w-3" />
                   Edit selection
@@ -252,8 +268,8 @@ export function Booking() {
                         <p className="text-sm font-bold text-brand-blue-300">
                           {formatCurrency(courtSlots.reduce((sum, s) => sum + s.price, 0))}
                         </p>
-                        <p className="text-[10px] text-cream-muted">
-                          {courtSlots.length} slot{courtSlots.length > 1 ? 's' : ''}
+                        <p className="text-[11px] text-cream-muted">
+                          {courtSlots.length} slot{courtSlots.length !== 1 ? 's' : ''}
                         </p>
                       </div>
                     </div>
@@ -270,18 +286,18 @@ export function Booking() {
                       key={slot.slot_id}
                       className="flex items-center justify-between rounded-xl border border-forest-700/60 bg-forest-800/80 px-3.5 py-2.5"
                     >
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5 text-brand-blue-300" />
-                        <span className="text-xs font-medium text-cream sm:text-sm">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-brand-blue-300" />
+                        <span className="truncate text-xs font-medium text-cream sm:text-sm">
                           {court?.name || 'Court'} · {formatTimeRange(slot.start_time, slot.end_time)}
                         </span>
                         {slot.type === 'fixed_2hr' && (
-                          <span className="rounded-full bg-brand-blue-500/30 border border-brand-blue-400/40 px-2 py-0.5 text-[9px] font-bold text-brand-blue-200">
+                          <span className="shrink-0 rounded-full border border-brand-blue-400/40 bg-brand-blue-500/30 px-2 py-0.5 text-[10px] font-bold text-brand-blue-200">
                             {FIXED_SLOT.label}
                           </span>
                         )}
                       </div>
-                      <span className="text-xs font-bold text-brand-blue-300 sm:text-sm">
+                      <span className="shrink-0 pl-2 text-xs font-bold text-brand-blue-300 sm:text-sm">
                         {formatCurrency(slot.price)}
                       </span>
                     </div>
@@ -291,7 +307,7 @@ export function Booking() {
 
               <div className="mt-4 flex items-center justify-between border-t border-forest-700/80 pt-3.5">
                 <span className="text-xs text-cream-muted">
-                  {selectedSlots.length} slot{selectedSlots.length > 1 ? 's' : ''} selected
+                  {selectedSlots.length} slot{selectedSlots.length !== 1 ? 's' : ''} selected
                 </span>
                 <span className="font-display text-xl font-extrabold text-brand-blue-300">
                   {formatCurrency(total)}
@@ -307,12 +323,18 @@ export function Booking() {
               <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
                 Your Details
               </h2>
-              <form id="bookingForm" onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+              <form
+                id="bookingForm"
+                onSubmit={handleSubmit(onSubmit, onInvalid)}
+                className="space-y-3.5"
+                noValidate
+              >
                 <div className="grid gap-3.5 sm:grid-cols-2">
                   <Input
                     id="name"
                     label="Full Name"
                     placeholder="Juan Dela Cruz"
+                    autoComplete="name"
                     leftIcon={<User className="h-4 w-4" />}
                     error={errors.name?.message}
                     {...register('name')}
@@ -322,6 +344,7 @@ export function Booking() {
                     label="Phone Number"
                     type="tel"
                     inputMode="numeric"
+                    autoComplete="tel"
                     placeholder="0917 123 4567"
                     leftIcon={<Phone className="h-4 w-4" />}
                     error={errors.phone?.message}
@@ -333,17 +356,68 @@ export function Booking() {
                   label="Email Address"
                   type="email"
                   inputMode="email"
+                  autoComplete="email"
                   placeholder="juan@email.com"
                   leftIcon={<Mail className="h-4 w-4" />}
                   error={errors.email?.message}
                   {...register('email')}
                 />
-                <Textarea
-                  label="Notes (optional)"
-                  rows={2}
-                  placeholder="Any special requests or equipment rental notes..."
-                  {...register('notes')}
-                />
+                <div>
+                  <Textarea
+                    label="Notes (optional)"
+                    rows={2}
+                    placeholder="Any special requests or equipment rental notes..."
+                    {...register('notes')}
+                  />
+                  <p
+                    className={`mt-1 text-right text-[11px] ${
+                      notesLength > NOTES_MAX ? 'text-error' : 'text-cream-muted'
+                    }`}
+                  >
+                    {notesLength}/{NOTES_MAX}
+                  </p>
+                </div>
+
+                {/* What happens next: shown on every screen size, not only desktop */}
+                <div className="flex items-start gap-2.5 rounded-xl border border-brand-blue-500/30 bg-brand-blue-500/10 p-3.5">
+                  <Timer className="mt-0.5 h-4 w-4 shrink-0 text-brand-blue-300" />
+                  <p className="text-xs leading-relaxed text-cream-muted">
+                    <strong className="font-semibold text-brand-blue-200">What happens next:</strong>{' '}
+                    your slots are held for {HOLD_MINUTES} minutes once you continue. Pay and submit
+                    your payment reference within that time, or the hold is released.
+                  </p>
+                </div>
+
+                {/* No-refund acknowledgment */}
+                <div
+                  className={`rounded-xl border p-3.5 ${
+                    errors.acceptedPolicy
+                      ? 'border-error/60 bg-error/10'
+                      : 'border-rose-900/50 bg-rose-950/25'
+                  }`}
+                >
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-rose-500"
+                      aria-invalid={!!errors.acceptedPolicy}
+                      {...register('acceptedPolicy')}
+                    />
+                    <span className="text-xs leading-relaxed text-cream-muted sm:text-sm">
+                      <span className="flex items-center gap-1.5 font-bold text-rose-300">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        No cancellation policy
+                      </span>
+                      I understand that once my booking is confirmed there are no cancellations or
+                      refunds. If I can&apos;t make it, I&apos;ll find someone to take my slot.
+                    </span>
+                  </label>
+                  {errors.acceptedPolicy && (
+                    <p className="mt-2 text-xs font-medium text-error" role="alert">
+                      {errors.acceptedPolicy.message}
+                    </p>
+                  )}
+                </div>
 
                 {submitError && (
                   <p className="rounded-xl border border-error/30 bg-error/10 p-2.5 text-xs font-medium text-error">
@@ -373,13 +447,13 @@ export function Booking() {
                         key={court.id}
                         className="rounded-xl border border-forest-700/60 bg-forest-950/60 p-3"
                       >
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-cream-muted">
                           Court
                         </p>
                         <p className="text-sm font-bold text-cream">{court.name}</p>
-                        <p className="text-[10px] text-cream-muted">{formatDateLong(selectedDate)}</p>
+                        <p className="text-[11px] text-cream-muted">{formatDateLong(selectedDate)}</p>
                         <p className="mt-1.5 text-xs font-semibold text-brand-blue-300">
-                          {courtSlots.length} slot{courtSlots.length > 1 ? 's' : ''} ·{' '}
+                          {courtSlots.length} slot{courtSlots.length !== 1 ? 's' : ''} ·{' '}
                           {formatCurrency(courtSlots.reduce((sum, s) => sum + s.price, 0))}
                         </p>
                       </div>
@@ -406,7 +480,7 @@ export function Booking() {
                               {court?.name || 'Court'} · {formatTimeRange(slot.start_time, slot.end_time)}
                             </p>
                             {slot.type === 'fixed_2hr' && (
-                              <span className="text-[9px] font-bold text-brand-blue-300">
+                              <span className="text-[10px] font-bold text-brand-blue-300">
                                 {FIXED_SLOT.label}
                               </span>
                             )}
@@ -423,7 +497,7 @@ export function Booking() {
                 <div className="mt-4 border-t border-forest-700/80 pt-3.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-cream-muted">
-                      {selectedSlots.length} slot{selectedSlots.length > 1 ? 's' : ''}
+                      {selectedSlots.length} slot{selectedSlots.length !== 1 ? 's' : ''}
                     </span>
                     <span className="font-display text-2xl font-extrabold text-brand-blue-300">
                       {formatCurrency(total)}
@@ -439,15 +513,10 @@ export function Booking() {
                   onClick={handleSummaryButtonClick}
                   rightIcon={<ArrowRight className="h-5 w-5" />}
                 >
-                  Proceed to Checkout
+                  Continue to Payment
                 </Button>
-              </div>
-
-              <div className="rounded-xl border border-forest-700/70 bg-forest-900/60 p-3.5">
-                <p className="text-xs text-cream-muted leading-relaxed">
-                  <span className="font-semibold text-brand-blue-300">Note:</span> Court slots are
-                  temporarily reserved once you proceed to checkout. Complete payment within 15 minutes
-                  to secure your schedule.
+                <p className="mt-2 text-center text-[11px] text-cream-muted">
+                  You won&apos;t be charged yet. Payment is the next step.
                 </p>
               </div>
             </div>
@@ -459,8 +528,8 @@ export function Booking() {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-700/80 bg-forest-950/95 p-3.5 backdrop-blur-md lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] uppercase font-semibold tracking-wider text-cream-muted">
-              {selectedSlots.length} slot{selectedSlots.length > 1 ? 's' : ''} selected
+            <p className="text-[11px] uppercase font-semibold tracking-wider text-cream-muted">
+              {selectedSlots.length} slot{selectedSlots.length !== 1 ? 's' : ''} selected
             </p>
             <p className="text-xl font-extrabold text-brand-blue-300">{formatCurrency(total)}</p>
           </div>
@@ -471,7 +540,7 @@ export function Booking() {
             rightIcon={<ArrowRight className="h-4 w-4" />}
             className="shrink-0 px-6"
           >
-            Checkout
+            Continue
           </Button>
         </div>
         {submitError && (
