@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -17,17 +17,14 @@ import {
   Users,
   UserCircle2,
   AlertTriangle,
-  Hourglass,
-  Layers,
-  X,
-  RefreshCw,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
 import { useOpenPlayStore } from '@/stores/openPlayStore';
-import { APP_CONFIG } from '@/utils/constants';
+import { COURT_IMAGES, APP_CONFIG } from '@/utils/constants';
 import {
   formatCurrency,
   todayISO,
@@ -51,14 +48,6 @@ function getCourtAccent(index: number) {
 
 type CourtAccent = ReturnType<typeof getCourtAccent>;
 
-// TODO: replace with your real hold window once you confirm it with the owner.
-const PENDING_HINT =
-  'Pending: another player reserved this and we are verifying their payment. It may reopen if payment is not confirmed, so check back later.';
-
-const MAPS_URL =
-  'https://www.google.com/maps/search/?api=1&query=' +
-  encodeURIComponent('San Agustin Sur Dawis, Tandag City');
-
 function formatTimeShort(time: string): string {
   if (!time) return '';
   const [hour, minute] = time.split(':').map(Number);
@@ -69,15 +58,6 @@ function formatTimeShort(time: string): string {
 
 function formatTimeRangeShort(start: string, end: string): string {
   return `${formatTimeShort(start)}-${formatTimeShort(end)}`;
-}
-
-function formatPriceShort(price: number): string {
-  return `₱${Math.round(price).toLocaleString('en-PH')}`;
-}
-
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
 }
 
 function isWithinHours(session: OpenPlaySession, hours: number): boolean {
@@ -93,8 +73,7 @@ function isWithinHours(session: OpenPlaySession, hours: number): boolean {
 
 function isWithinNextWeek(session: OpenPlaySession): boolean {
   try {
-    // Parse as local midnight (not UTC) so the day never shifts with timezone.
-    const sessionDate = new Date(`${session.date}T00:00:00`);
+    const sessionDate = new Date(session.date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const weekFromNow = new Date(today);
@@ -105,20 +84,20 @@ function isWithinNextWeek(session: OpenPlaySession): boolean {
   }
 }
 
-/**
- * Number of 7-day windows between today and the target date.
- * The day strip starts on TODAY (not on Sunday), so this uses the same anchor.
- */
 function weeksBetweenToday(isoDate: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(`${isoDate}T00:00:00`);
-  const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  return Math.floor(diffDays / 7);
-}
+  target.setHours(0, 0, 0, 0);
 
-function isSessionFull(s: OpenPlaySession): boolean {
-  return s.status === 'full' || s.current_players >= s.max_players;
+  const todayWeekStart = new Date(today);
+  todayWeekStart.setDate(today.getDate() - today.getDay());
+
+  const targetWeekStart = new Date(target);
+  targetWeekStart.setDate(target.getDate() - target.getDay());
+
+  const diffMs = targetWeekStart.getTime() - todayWeekStart.getTime();
+  return Math.round(diffMs / (1000 * 60 * 60 * 24 * 7));
 }
 
 const SKILL_BADGE: Record<string, string> = {
@@ -128,11 +107,11 @@ const SKILL_BADGE: Record<string, string> = {
   'All Levels': 'bg-court-500/25 text-court-100 border border-court-400/30',
 };
 
-type SelectedSlotInfo = { slot: TimeSlot; courtName: string };
-
 export function Landing() {
   const navigate = useNavigate();
   const bookingSectionRef = useRef<HTMLDivElement>(null);
+
+  const [heroIdx, setHeroIdx] = useState(0);
 
   const {
     courts,
@@ -155,21 +134,19 @@ export function Landing() {
   } = useOpenPlayStore();
 
   const [weekOffset, setWeekOffset] = useState(0);
-  const [activeCourtId, setActiveCourtId] = useState<string | null>(null);
-
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  const monthLabel = (() => {
-    const first = weekDays[0];
-    const last = weekDays[6];
-    const m1 = first.toLocaleDateString('en-US', { month: 'short' });
-    const m2 = last.toLocaleDateString('en-US', { month: 'short' });
-    const y1 = first.getFullYear();
-    const y2 = last.getFullYear();
-    if (y1 !== y2) return `${m1} ${y1} – ${m2} ${y2}`;
-    return m1 === m2 ? `${m1} ${y1}` : `${m1} – ${m2} ${y1}`;
-  })();
+  useEffect(() => {
+    const slides = COURT_IMAGES.heroSlideshow;
+    if (!slides || slides.length <= 1) return;
+
+    const timer = setInterval(() => {
+      setHeroIdx((prev) => (prev + 1) % slides.length);
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (courts.length === 0) {
@@ -184,13 +161,6 @@ export function Landing() {
     }
   }, [selectedDate, courts.length, loadAllCourtsSlots]);
 
-  // Default the mobile court tab to the first court once courts load.
-  useEffect(() => {
-    if (courts.length > 0 && !courts.some((c) => c.id === activeCourtId)) {
-      setActiveCourtId(courts[0].id);
-    }
-  }, [courts, activeCourtId]);
-
   const scrollToBooking = () => {
     bookingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -201,11 +171,6 @@ export function Landing() {
 
     setDate(iso);
     setWeekOffset(Math.max(0, weeksBetweenToday(iso)));
-  };
-
-  const retry = () => {
-    if (courts.length === 0) loadCourts();
-    else loadAllCourtsSlots();
   };
 
   const nextSession = openPlaySessions
@@ -237,6 +202,11 @@ export function Landing() {
     })
     .slice(0, 6);
 
+  const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
   const getOpenPlaySessionForSlot = (
     courtId: string,
     startTime: string,
@@ -263,13 +233,6 @@ export function Landing() {
 
   const handleOpenPlayClick = (session: OpenPlaySession) => {
     navigate('/open-play', { state: { selectedSessionId: session.id } });
-  };
-
-  /** A slot is "passed" when its start time is already behind us today. */
-  const isSlotPassed = (slot: TimeSlot): boolean => {
-    if (selectedDate !== todayISO()) return false;
-    const now = new Date();
-    return timeToMinutes(slot.start_time) <= now.getHours() * 60 + now.getMinutes();
   };
 
   const getTimeIntervalsByPeriod = (slotsList: TimeSlot[]) => {
@@ -303,11 +266,9 @@ export function Landing() {
 
   const { morningTimes, afternoonTimes, eveningTimes } = getTimeIntervalsByPeriod(slots);
 
-  const periods = [
-    { title: 'Morning', icon: <CloudSun className="h-4 w-4 text-court-300" />, times: morningTimes },
-    { title: 'Afternoon', icon: <Sun className="h-4 w-4 text-court-300" />, times: afternoonTimes },
-    { title: 'Evening', icon: <Moon className="h-4 w-4 text-court-300" />, times: eveningTimes },
-  ].filter((p) => p.times.length > 0);
+  const totalSelected = slots
+    .filter((s) => selectedSlotIds.includes(s.id))
+    .reduce((sum, s) => sum + s.price, 0);
 
   const getSlotForCourtAndTime = (courtId: string, startTime: string, endTime: string) => {
     return slots.find(
@@ -317,39 +278,6 @@ export function Landing() {
         s.end_time === endTime
     );
   };
-
-  // Selection summary (only slots for the date currently loaded can be described)
-  const selectedSlots: SelectedSlotInfo[] = useMemo(() => {
-    const courtIndex = new Map(courts.map((c, i) => [c.id, i]));
-    return slots
-      .filter((s) => selectedSlotIds.includes(s.id))
-      .map((slot) => ({
-        slot,
-        courtName: courts.find((c) => c.id === slot.court_id)?.name ?? 'Court',
-      }))
-      .sort((a, b) => {
-        const ca = courtIndex.get(a.slot.court_id) ?? 0;
-        const cb = courtIndex.get(b.slot.court_id) ?? 0;
-        return ca - cb || a.slot.start_time.localeCompare(b.slot.start_time);
-      });
-  }, [slots, selectedSlotIds, courts]);
-
-  const hiddenSelectedCount = selectedSlotIds.length - selectedSlots.length;
-  const totalSelected = selectedSlots.reduce((sum, { slot }) => sum + slot.price, 0);
-
-  const removeSlot = (slotId: string) => toggleSlot(slotId);
-  const clearSelection = () => {
-    // toggleSlot removes an already-selected id, so this clears hidden (other-date) ones too.
-    [...selectedSlotIds].forEach((id) => toggleSlot(id));
-  };
-
-  const selectedCountForCourt = (courtId: string) =>
-    selectedSlots.filter((s) => s.slot.court_id === courtId).length;
-
-  const activeCourt = courts.find((c) => c.id === activeCourtId) ?? courts[0];
-  const activeCourtIndex = activeCourt ? courts.findIndex((c) => c.id === activeCourt.id) : 0;
-
-  const slotsLoading = loadingSlots || loadingCourts || loadingOpenPlay;
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
@@ -410,9 +338,9 @@ export function Landing() {
             <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
               {APP_CONFIG.tagline}
             </p>
-
+            
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
-              3 premium pickleball courts in the city. Beginner-friendly, tournament-ready, and made for everyone who loves the game.
+              Book 3 premium pickleball courts in the city featuring a 7-layer court surface system designed for a playing experience you can actually feel. Beginner-friendly, tournament-ready, and made for everyone who loves the game.
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
@@ -429,23 +357,18 @@ export function Landing() {
                 to="/track"
                 leftIcon={<CalendarDays className="h-5 w-5" />}
               >
-                Already booked? Track it
+                Track My Booking
               </Button>
             </div>
 
             <div className="mt-8 flex flex-wrap items-center gap-4 text-xs text-cream-muted sm:mt-10 sm:gap-6 sm:text-sm">
-              <a
-                href={MAPS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 underline-offset-4 transition hover:text-cream hover:underline"
-              >
+              <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-court-300" />
                 <span>San Agustin Sur Dawis, Tandag City</span>
-              </a>
+              </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="h-4 w-4 text-court-300" />
-                <span>Open 5AM to 12 midnight</span>
+                <span>Open 5AM - 12AM</span>
               </div>
             </div>
           </motion.div>
@@ -466,7 +389,7 @@ export function Landing() {
                   Join a Session This Week
                 </h2>
                 <p className="text-xs text-cream-muted sm:text-sm">
-                  Pay per player and play with others. No need to book a full court. Spots fill fast.
+                  Meet other players and split the court — spots fill fast
                 </p>
               </div>
               <Button
@@ -481,7 +404,9 @@ export function Landing() {
 
             <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
               {weekSessions.map((session, i) => {
-                const isFull = isSessionFull(session);
+                const isFull =
+                  session.status === 'full' ||
+                  session.current_players >= session.max_players;
                 const spotsLeft = Math.max(0, session.max_players - session.current_players);
                 const isToday = session.date === todayISO();
                 return (
@@ -534,7 +459,7 @@ export function Landing() {
                             {session.courts.map((c) => (
                               <span
                                 key={c.id}
-                                className="rounded border border-forest-600 bg-forest-800 px-1.5 py-0.5 text-[11px] text-cream-muted"
+                                className="rounded border border-forest-600 bg-forest-800 px-1.5 py-0.5 text-[10px] text-cream-muted"
                               >
                                 {c.name}
                               </span>
@@ -545,7 +470,7 @@ export function Landing() {
 
                       <div className="mt-4 flex items-center justify-between border-t border-forest-600 pt-3">
                         <div>
-                          <p className="text-[11px] uppercase tracking-wider text-cream-muted">Per player</p>
+                          <p className="text-[10px] uppercase tracking-wider text-cream-muted">Per player</p>
                           <p className="font-display text-base font-bold text-court-300 sm:text-lg">
                             {formatCurrency(session.price_per_player)}
                           </p>
@@ -582,10 +507,10 @@ export function Landing() {
                       Book a <span className="text-court-300">Court</span>
                     </h2>
                     <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
-                      Pick a date, then tap one or more time slots. Slots can be on different courts or times.
+                      Pick a date, then tap any number of available time slots
                     </p>
-                    <p className="mt-1 text-xs text-cream-muted">
-                      * Prices are shown on each slot and may change without prior notice.
+                    <p className="mt-1 text-xs text-cream-muted/70">
+                      * Prices are subject to change without prior notice.
                     </p>
                   </div>
                   <div className="hidden rounded-xl border border-court-500/40 bg-court-600/20 p-2.5 text-court-300 sm:block md:p-3">
@@ -622,16 +547,10 @@ export function Landing() {
                       </h3>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="hidden text-xs font-semibold text-cream-muted sm:inline">
-                        {monthLabel}
-                      </span>
-                      {/* Calendar picker: the invisible native input covers the whole button */}
-                      <div className="relative flex h-9 items-center justify-center gap-1.5 rounded-lg border border-court-400/50 bg-court-600/30 px-2.5 text-court-200 transition hover:border-court-300 hover:bg-court-600/50 active:scale-95">
+                    <div className="flex items-center gap-1.5">
+                      {/* iOS & Android friendly Calendar Picker: Tap target covers the button directly */}
+                      <div className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-court-400/50 bg-court-600/30 text-court-200 transition hover:border-court-300 hover:bg-court-600/50 active:scale-95">
                         <CalendarDays className="pointer-events-none h-4 w-4" />
-                        <span className="pointer-events-none hidden text-xs font-semibold sm:inline">
-                          Calendar
-                        </span>
                         <input
                           type="date"
                           value={selectedDate}
@@ -641,28 +560,24 @@ export function Landing() {
                           className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:dark]"
                         />
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Mobile: month label + week arrows sit right above the strip they control */}
-                  <div className="mb-2 flex items-center justify-between sm:hidden">
-                    <span className="text-xs font-semibold text-cream-muted">{monthLabel}</span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
-                        disabled={weekOffset === 0}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 disabled:opacity-30 active:scale-95"
-                        aria-label="Previous week"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => setWeekOffset((w) => w + 1)}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 active:scale-95"
-                        aria-label="Next week"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1.5 sm:hidden">
+                        <button
+                          onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
+                          disabled={weekOffset === 0}
+                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 disabled:opacity-30 active:scale-95"
+                          aria-label="Previous week"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setWeekOffset((w) => w + 1)}
+                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 active:scale-95"
+                          aria-label="Next week"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -686,20 +601,13 @@ export function Landing() {
                           const dayNumber = day.getDate();
                           const monthName = day.toLocaleDateString('en-US', { month: 'short' });
                           const hasOpenPlay = openPlaySessions.some(
-                            (s) =>
-                              s.date === iso &&
-                              s.is_active &&
-                              s.status !== 'cancelled' &&
-                              s.status !== 'past' &&
-                              !isSessionFull(s)
+                            (s) => s.date === iso && s.is_active && s.status !== 'cancelled'
                           );
 
                           return (
                             <button
                               key={iso}
                               onClick={() => setDate(iso)}
-                              aria-pressed={isSelected}
-                              aria-label={`${formatDateLong(iso)}${hasOpenPlay ? ', open play available' : ''}`}
                               className={`relative flex min-w-[54px] flex-1 snap-center flex-col items-center justify-center rounded-xl border py-2 transition-all ${
                                 isSelected
                                   ? 'border-court-400 bg-court-600 text-white font-bold shadow-glow-court'
@@ -708,7 +616,7 @@ export function Landing() {
                             >
                               {isToday && (
                                 <span
-                                  className={`absolute -top-2 rounded-full px-1.5 py-[1px] text-[9px] font-black tracking-wider ${
+                                  className={`absolute -top-2 rounded-full px-1.5 py-[1px] text-[8px] font-black tracking-wider ${
                                     isSelected
                                       ? 'bg-forest-950 text-court-300'
                                       : 'bg-court-500 text-white'
@@ -719,7 +627,7 @@ export function Landing() {
                               )}
 
                               <span
-                                className={`text-[11px] font-semibold tracking-tight ${
+                                className={`text-[10px] font-semibold tracking-tight ${
                                   isSelected ? 'text-white' : 'text-cream-muted'
                                 }`}
                               >
@@ -731,8 +639,8 @@ export function Landing() {
                               </span>
 
                               <span
-                                className={`text-[10px] uppercase font-medium ${
-                                  isSelected ? 'text-court-200' : 'text-cream-muted'
+                                className={`text-[9px] uppercase font-medium ${
+                                  isSelected ? 'text-court-200' : 'text-cream-muted/70'
                                 }`}
                               >
                                 {monthName}
@@ -759,11 +667,6 @@ export function Landing() {
                       </button>
                     </div>
                   </div>
-
-                  <p className="mt-2 flex items-center gap-1.5 text-[11px] text-cream-muted">
-                    <span className="h-1.5 w-1.5 rounded-full bg-court-300" />
-                    A dot under a day means an Open Play session with spots left.
-                  </p>
                 </div>
 
                 {/* STEP 2: Choose Court and Time */}
@@ -790,210 +693,132 @@ export function Landing() {
                     </span>
                   </div>
 
-                  {/* Legend: swatches match the real slot styles */}
-                  <div className="mb-4 space-y-2 border-b border-forest-700/60 pb-3 text-xs text-cream-muted">
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                      <LegendItem swatch="border-court-500/40 bg-court-600/20" label="Available" />
-                      <LegendItem swatch="border-court-300 bg-court-600" label="Selected" />
-                      <LegendItem
-                        swatch="border-amber-500/40 bg-amber-500/10"
-                        label="Pending"
-                        icon={<Hourglass className="h-2.5 w-2.5 text-amber-300" />}
-                      />
-                      <LegendItem swatch="border-red-500/30 bg-red-500/10" label="Booked" />
-                      <LegendItem
-                        swatch="border-court-400 bg-court-600/35"
-                        label="Open Play"
-                        icon={<Users className="h-2.5 w-2.5 text-court-300" />}
-                      />
+                  {/* Compact Dot Legend */}
+                  <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-forest-700/60 pb-3 text-[11px] text-cream-muted">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full border border-court-400/80 bg-court-500/30" />
+                      <span>Available</span>
                     </div>
-                    <p className="text-[11px] leading-relaxed">
-                      <strong className="font-semibold text-cream">Pending</strong> means someone is paying for it. It may reopen.{' '}
-                      <strong className="font-semibold text-cream">Open Play</strong> is a shared group session. Tap it to join for a per-player fee. To book privately, pick another slot.
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-amber-400" />
+                      <span>Pending</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-red-400" />
+                      <span>Booked</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-court-300" />
+                      <span>Open Play</span>
+                    </div>
                   </div>
 
-                  {slotsLoading ? (
-                    <SlotsSkeleton columns={Math.max(courts.length, 3)} />
+                  {loadingSlots || loadingCourts || loadingOpenPlay ? (
+                    <LoadingSpinner className="py-12 md:py-20" />
                   ) : error ? (
-                    <div className="flex flex-col items-center gap-3 py-10 text-center md:py-16">
-                      <p className="max-w-sm text-sm font-medium text-red-400">
-                        Couldn&apos;t load available slots. {error}
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={retry}
-                        leftIcon={<RefreshCw className="h-4 w-4" />}
-                      >
-                        Try again
-                      </Button>
-                    </div>
+                    <div className="py-8 text-center font-medium text-red-400 md:py-16">{error}</div>
                   ) : courts.length === 0 ? (
                     <div className="py-8 text-center text-sm font-medium text-cream-muted md:py-16">
-                      No courts are available right now. Please check back soon.
-                    </div>
-                  ) : periods.length === 0 ? (
-                    <div className="py-8 text-center text-sm font-medium text-cream-muted md:py-16">
-                      No time slots for this date. Try another day.
+                      No courts found.
                     </div>
                   ) : (
-                    <>
-                      {/* MOBILE: pick a court, then a simple vertical list of times */}
-                      <div className="sm:hidden">
-                        <div
-                          role="tablist"
-                          aria-label="Courts"
-                          className="no-scrollbar -mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1"
-                        >
-                          {courts.map((court, idx) => {
-                            const accent = getCourtAccent(idx);
-                            const isActive = court.id === activeCourt?.id;
-                            const count = selectedCountForCourt(court.id);
-                            return (
-                              <button
-                                key={court.id}
-                                role="tab"
-                                aria-selected={isActive}
-                                onClick={() => setActiveCourtId(court.id)}
-                                className={`flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition ${
-                                  isActive
-                                    ? 'border-court-300 bg-court-600 text-white'
-                                    : 'border-forest-600 bg-forest-800 text-cream-muted'
-                                }`}
-                              >
-                                <span className={`h-2.5 w-2.5 rounded-full ${accent.dot}`} />
-                                {court.name}
-                                {count > 0 && (
-                                  <span className="rounded-full bg-white px-1.5 text-[11px] font-black text-court-600">
-                                    {count}
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {activeCourt && (
-                          <div className="space-y-5">
-                            {periods.map((period) => {
-                              const items = period.times.filter((t) =>
-                                getSlotForCourtAndTime(activeCourt.id, t.start_time, t.end_time)
-                              );
-                              if (items.length === 0) return null;
+                    <div className="block">
+                      <div className="max-h-[75vh] overflow-y-auto overflow-x-auto rounded-2xl border border-forest-700/60 bg-forest-950/40">
+                        <div className="w-full p-4 sm:min-w-[580px]">
+                          {/* Sticky Court Column Headers */}
+                          <div
+                            className="sticky -top-4 z-30 -mx-4 -mt-4 mb-4 border-b border-forest-700 bg-forest-900 px-4 py-3 text-center text-xs font-extrabold uppercase tracking-wider text-court-300 shadow-md backdrop-blur-md"
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: `repeat(${courts.length}, minmax(56px, 1fr))`,
+                              gap: '0.75rem',
+                            }}
+                          >
+                            {courts.map((court, idx) => {
+                              const accent = getCourtAccent(idx);
                               return (
-                                <div key={period.title}>
-                                  <PeriodHeading title={period.title} icon={period.icon} />
-                                  <div className="grid grid-cols-2 gap-2.5">
-                                    {items.map((t) => {
-                                      const slot = getSlotForCourtAndTime(
-                                        activeCourt.id,
-                                        t.start_time,
-                                        t.end_time
-                                      )!;
-                                      const op = getOpenPlaySessionForSlot(
-                                        activeCourt.id,
-                                        t.start_time,
-                                        t.end_time
-                                      );
-                                      return op ? (
-                                        <div key={slot.id} className="col-span-2">
-                                          <OpenPlayPill
-                                            session={op}
-                                            timeLabel={formatTimeRangeShort(t.start_time, t.end_time)}
-                                            onClick={() => handleOpenPlayClick(op)}
-                                          />
-                                        </div>
-                                      ) : (
-                                        <SlotPill
-                                          key={slot.id}
-                                          slot={slot}
-                                          passed={isSlotPassed(slot)}
-                                          isSelected={selectedSlotIds.includes(slot.id)}
-                                          onToggle={() => toggleSlot(slot.id)}
-                                          accent={getCourtAccent(activeCourtIndex)}
-                                        />
-                                      );
-                                    })}
-                                  </div>
+                                <div
+                                  key={court.id}
+                                  className={`flex items-center justify-center gap-2 truncate ${accent.header}`}
+                                >
+                                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${accent.dot}`} />
+                                  <span className="truncate font-bold">{court.name}</span>
                                 </div>
                               );
                             })}
                           </div>
-                        )}
-                      </div>
 
-                      {/* DESKTOP: courts side by side, page scroll only (no nested vertical scroller) */}
-                      <div className="hidden overflow-x-auto rounded-2xl border border-forest-700/60 bg-forest-950/40 sm:block">
-                        <div className="space-y-6 p-4">
-                          {periods.map((period) => (
-                            <DesktopPeriodSection
-                              key={period.title}
-                              title={period.title}
-                              icon={period.icon}
-                              courts={courts}
-                              timeIntervals={period.times}
-                              getSlotForCourtAndTime={getSlotForCourtAndTime}
-                              selectedSlotIds={selectedSlotIds}
-                              onToggleSlot={toggleSlot}
-                              getOpenPlaySession={getOpenPlaySessionForSlot}
-                              onOpenPlayClick={handleOpenPlayClick}
-                              isSlotPassed={isSlotPassed}
-                            />
-                          ))}
+                          {/* Period Sections */}
+                          <div className="space-y-6">
+                            {morningTimes.length > 0 && (
+                              <DesktopPeriodSection
+                                title="MORNING"
+                                icon={<CloudSun className="h-4 w-4 text-court-300" />}
+                                courts={courts}
+                                timeIntervals={morningTimes}
+                                getSlotForCourtAndTime={getSlotForCourtAndTime}
+                                selectedSlotIds={selectedSlotIds}
+                                onToggleSlot={toggleSlot}
+                                getOpenPlaySession={getOpenPlaySessionForSlot}
+                                onOpenPlayClick={handleOpenPlayClick}
+                              />
+                            )}
+                            {afternoonTimes.length > 0 && (
+                              <DesktopPeriodSection
+                                title="AFTERNOON"
+                                icon={<Sun className="h-4 w-4 text-court-300" />}
+                                courts={courts}
+                                timeIntervals={afternoonTimes}
+                                getSlotForCourtAndTime={getSlotForCourtAndTime}
+                                selectedSlotIds={selectedSlotIds}
+                                onToggleSlot={toggleSlot}
+                                getOpenPlaySession={getOpenPlaySessionForSlot}
+                                onOpenPlayClick={handleOpenPlayClick}
+                              />
+                            )}
+                            {eveningTimes.length > 0 && (
+                              <DesktopPeriodSection
+                                title="EVENING"
+                                icon={<Moon className="h-4 w-4 text-court-300" />}
+                                courts={courts}
+                                timeIntervals={eveningTimes}
+                                getSlotForCourtAndTime={getSlotForCourtAndTime}
+                                selectedSlotIds={selectedSlotIds}
+                                onToggleSlot={toggleSlot}
+                                getOpenPlaySession={getOpenPlaySessionForSlot}
+                                onOpenPlayClick={handleOpenPlayClick}
+                              />
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
 
                   {/* Desktop reservation bar */}
-                  <div className="mt-8 hidden rounded-xl border border-forest-600 bg-forest-800/90 p-5 sm:block">
-                    <div className="flex items-center justify-between gap-4">
+                  <div className="mt-8 hidden items-center justify-between gap-4 rounded-xl border border-forest-600 bg-forest-800/90 p-5 sm:flex">
+                    <div>
                       <span className="text-xs font-semibold uppercase tracking-wider text-court-300">
-                        Your selection
+                        Selected Slots
                       </span>
-                      {selectedSlotIds.length > 0 && (
-                        <button
-                          onClick={clearSelection}
-                          className="text-xs font-semibold text-cream-muted underline-offset-4 transition hover:text-cream hover:underline"
-                        >
-                          Clear all
-                        </button>
-                      )}
-                    </div>
-
-                    <SelectionChips
-                      items={selectedSlots}
-                      hiddenCount={hiddenSelectedCount}
-                      onRemove={removeSlot}
-                    />
-
-                    <div className="mt-4 flex items-center justify-between gap-4">
-                      <div>
-                        <div className="text-lg font-bold text-cream">
-                          {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'}
-                          {selectedSlotIds.length > 0 && (
-                            <span className="ml-2 text-base font-semibold text-court-200">
-                              {formatCurrency(totalSelected)}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-cream-muted">
-                          {selectedSlotIds.length === 0
-                            ? 'Select at least one slot to continue.'
-                            : 'No cancellations or refunds once confirmed.'}
-                        </p>
+                      <div className="text-lg font-bold text-cream">
+                        {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
+                        {selectedSlotIds.length > 0 && (
+                          <span className="ml-2 text-base font-semibold text-court-200">
+                            ({formatCurrency(totalSelected)})
+                          </span>
+                        )}
                       </div>
-
-                      <Button
-                        size="md"
-                        onClick={() => navigate('/booking')}
-                        disabled={selectedSlotIds.length === 0}
-                        rightIcon={<ArrowRight className="h-5 w-5" />}
-                      >
-                        Proceed to Reservation
-                      </Button>
                     </div>
+
+                    <Button
+                      size="md"
+                      onClick={() => navigate('/booking')}
+                      disabled={selectedSlotIds.length === 0}
+                      rightIcon={<ArrowRight className="h-5 w-5" />}
+                    >
+                      Proceed to Reservation
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -1005,26 +830,10 @@ export function Landing() {
       {/* Sticky Mobile Reservation Bar */}
       {selectedSlotIds.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-600 bg-charcoal/95 p-3.5 backdrop-blur-md sm:hidden">
-          <div className="mb-2.5 flex items-start gap-2">
-            <div className="min-w-0 flex-1">
-              <SelectionChips
-                items={selectedSlots}
-                hiddenCount={hiddenSelectedCount}
-                onRemove={removeSlot}
-                scrollable
-              />
-            </div>
-            <button
-              onClick={clearSelection}
-              className="shrink-0 pt-1.5 text-xs font-semibold text-cream-muted underline underline-offset-4"
-            >
-              Clear
-            </button>
-          </div>
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-cream-muted">
-                {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} · no refunds once confirmed
+                {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
               </p>
               <p className="text-lg font-bold text-court-300">{formatCurrency(totalSelected)}</p>
             </div>
@@ -1050,7 +859,7 @@ export function Landing() {
             <h2 className="section-title mt-2">Built for Players</h2>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
             {[
               {
                 icon: CalendarPlus,
@@ -1065,12 +874,7 @@ export function Landing() {
               {
                 icon: ShieldCheck,
                 title: 'Admin Verified',
-                desc: 'Every booking is reviewed by our team. Once your payment is verified, your court is secured.',
-              },
-              {
-                icon: Layers,
-                title: '7-Layer Court Surface',
-                desc: 'A surface system built for comfort and consistent bounce, a playing experience you can actually feel.',
+                desc: 'Every booking is reviewed and confirmed by our team. You always get your court.',
               },
             ].map((feat, i) => {
               const Icon = feat.icon;
@@ -1137,7 +941,7 @@ export function Landing() {
         </div>
       </section>
 
-      <div className="h-32 sm:hidden" />
+      <div className="h-20 sm:hidden" />
       <Footer />
     </div>
   );
@@ -1146,101 +950,6 @@ export function Landing() {
 // --------------------------------------------------------
 // SUB-COMPONENTS
 // --------------------------------------------------------
-
-function LegendItem({
-  swatch,
-  label,
-  icon,
-}: {
-  swatch: string;
-  label: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className={`flex h-4 w-6 items-center justify-center rounded border ${swatch}`}>
-        {icon}
-      </span>
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function PeriodHeading({ title, icon }: { title: string; icon: React.ReactNode }) {
-  return (
-    <div className="mb-3 flex items-center gap-2">
-      <span className="h-4 w-4">{icon}</span>
-      <span className="text-xs font-bold uppercase tracking-wider text-court-300">{title}</span>
-      <div className="h-px flex-1 bg-forest-700/80" />
-    </div>
-  );
-}
-
-function SlotsSkeleton({ columns }: { columns: number }) {
-  return (
-    <div
-      className="grid animate-pulse gap-2.5"
-      aria-busy="true"
-      aria-label="Loading time slots"
-    >
-      <div
-        className="grid gap-2.5"
-        style={{ gridTemplateColumns: `repeat(${Math.min(columns, 2)}, minmax(0, 1fr))` }}
-      >
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-14 rounded-xl border border-forest-700/60 bg-forest-800/60" />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SelectionChips({
-  items,
-  hiddenCount,
-  onRemove,
-  scrollable = false,
-}: {
-  items: SelectedSlotInfo[];
-  hiddenCount: number;
-  onRemove: (slotId: string) => void;
-  scrollable?: boolean;
-}) {
-  if (items.length === 0 && hiddenCount === 0) return null;
-
-  return (
-    <div className="mt-2">
-      <div
-        className={
-          scrollable
-            ? 'no-scrollbar flex gap-1.5 overflow-x-auto pb-0.5'
-            : 'flex flex-wrap gap-1.5'
-        }
-      >
-        {items.map(({ slot, courtName }) => (
-          <span
-            key={slot.id}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-court-400/40 bg-court-600/30 py-1 pl-2.5 pr-1 text-xs font-semibold text-court-100"
-          >
-            {courtName} · {formatTimeRangeShort(slot.start_time, slot.end_time)}
-            <button
-              onClick={() => onRemove(slot.id)}
-              aria-label={`Remove ${courtName} ${formatTimeRangeShort(slot.start_time, slot.end_time)}`}
-              className="flex h-5 w-5 items-center justify-center rounded-full text-court-200 transition hover:bg-court-500/40 hover:text-white"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-      </div>
-      {hiddenCount > 0 && (
-        <p className="mt-1.5 text-[11px] text-amber-300">
-          + {hiddenCount} slot{hiddenCount === 1 ? '' : 's'} from another date (not shown or counted in the total above). Use Clear to remove.
-        </p>
-      )}
-    </div>
-  );
-}
 
 function DesktopPeriodSection({
   title,
@@ -1252,7 +961,6 @@ function DesktopPeriodSection({
   onToggleSlot,
   getOpenPlaySession,
   onOpenPlayClick,
-  isSlotPassed,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -1263,28 +971,15 @@ function DesktopPeriodSection({
   onToggleSlot: (slotId: string) => void;
   getOpenPlaySession?: (courtId: string, startTime: string, endTime: string) => OpenPlaySession | undefined;
   onOpenPlayClick?: (session: OpenPlaySession) => void;
-  isSlotPassed: (slot: TimeSlot) => boolean;
 }) {
-  const gridStyle = { gridTemplateColumns: `repeat(${courts.length}, minmax(92px, 1fr))` };
-
   return (
-    <div style={{ minWidth: courts.length * 100 }}>
-      <PeriodHeading title={title} icon={icon} />
-
-      {/* Court names are repeated for every period so they are never out of sight */}
-      <div className="mb-2 grid gap-2.5 text-center text-xs font-bold" style={gridStyle}>
-        {courts.map((court, idx) => {
-          const accent = getCourtAccent(idx);
-          return (
-            <div
-              key={court.id}
-              className={`flex items-center justify-center gap-2 truncate ${accent.header}`}
-            >
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${accent.dot}`} />
-              <span className="truncate">{court.name}</span>
-            </div>
-          );
-        })}
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="h-4 w-4">{icon}</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-court-300">
+          {title}
+        </span>
+        <div className="h-px flex-1 bg-forest-700/80" />
       </div>
 
       <div className="space-y-2.5">
@@ -1292,7 +987,9 @@ function DesktopPeriodSection({
           <div
             key={`${interval.start_time}-${interval.end_time}`}
             className="grid gap-2.5"
-            style={gridStyle}
+            style={{
+              gridTemplateColumns: `repeat(${courts.length}, minmax(80px, 1fr))`,
+            }}
           >
             {courts.map((court, idx) => {
               const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
@@ -1303,10 +1000,9 @@ function DesktopPeriodSection({
                 return (
                   <div
                     key={`${court.id}-${interval.start_time}`}
-                    title="This court has no slot at this time"
-                    className="flex h-14 select-none items-center justify-center rounded-xl border border-dashed border-forest-700/60 text-[11px] text-forest-600"
+                    className="flex h-11 select-none items-center justify-center rounded-xl border border-forest-800/60 bg-forest-950/60 text-xs text-forest-700"
                   >
-                    N/A
+                    —
                   </div>
                 );
               }
@@ -1316,8 +1012,8 @@ function DesktopPeriodSection({
                   <div key={slot.id}>
                     <OpenPlayPill
                       session={openPlaySession}
-                      timeLabel={formatTimeRangeShort(interval.start_time, interval.end_time)}
                       onClick={() => onOpenPlayClick?.(openPlaySession)}
+                      accent={accent}
                     />
                   </div>
                 );
@@ -1327,7 +1023,6 @@ function DesktopPeriodSection({
                 <div key={slot.id}>
                   <SlotPill
                     slot={slot}
-                    passed={isSlotPassed(slot)}
                     isSelected={selectedSlotIds.includes(slot.id)}
                     onToggle={() => onToggleSlot(slot.id)}
                     accent={accent}
@@ -1344,93 +1039,71 @@ function DesktopPeriodSection({
 
 function OpenPlayPill({
   session,
-  timeLabel,
   onClick,
+  accent: _accent,
 }: {
   session: OpenPlaySession;
-  timeLabel: string;
   onClick: () => void;
+  accent: CourtAccent;
 }) {
-  const full = isSessionFull(session);
   return (
     <button
       onClick={onClick}
-      className="group relative flex h-14 w-full flex-col items-center justify-center rounded-xl border-2 border-court-400 bg-court-600/35 px-2 transition-all hover:bg-court-600/55 hover:shadow-[0_0_20px_-4px_rgba(61,114,168,0.6)]"
-      aria-label={`Open Play ${timeLabel}, ${session.current_players} of ${session.max_players} joined. Opens the Open Play page.`}
-      title="Shared group session. Tap to view and join. This time can't be booked privately."
+      className="group relative flex h-11 w-full items-center justify-between rounded-xl border-2 border-court-400 bg-court-600/35 px-3 font-bold transition-all hover:bg-court-600/55 hover:shadow-[0_0_20px_-4px_rgba(61,114,168,0.6)]"
+      title={`Open Play: ${session.current_players}/${session.max_players} players · ${session.skill_level}`}
     >
-      <span className="flex items-center gap-1 text-[11px] font-black text-court-300">
-        <Users className="h-3 w-3" />
-        Open Play · {timeLabel}
-      </span>
+      <span className="text-xs font-black text-court-300">OP</span>
       <span className="text-xs font-semibold text-court-100">
-        {full ? 'Full' : `${session.current_players}/${session.max_players} joined`}
+        {session.current_players}/{session.max_players} joined
       </span>
+
+      <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-forest-500 bg-forest-900 px-3 py-2 text-xs text-cream shadow-xl group-hover:block">
+        <p className="font-semibold text-court-300">Open Play Session</p>
+        <p className="text-[11px] text-cream-muted">
+          {session.current_players}/{session.max_players} players · {session.skill_level}
+        </p>
+        {session.host_name && (
+          <p className="text-[11px] text-cream-muted">Host: {session.host_name}</p>
+        )}
+        <div className="absolute bottom-0 left-1/2 h-2 w-2 -translate-x-1/2 translate-y-1/2 rotate-45 border-b border-r border-forest-500 bg-forest-900" />
+      </div>
     </button>
   );
 }
 
 function SlotPill({
   slot,
-  passed,
   isSelected,
   onToggle,
   accent,
 }: {
   slot: TimeSlot;
-  passed: boolean;
   isSelected: boolean;
   onToggle: () => void;
   accent: CourtAccent;
 }) {
-  const isPending = (slot as unknown as { is_pending?: boolean }).is_pending === true;
-  const isBooked = !slot.is_available && !isPending;
-  const range = formatTimeRangeShort(slot.start_time, slot.end_time);
+  const isAvailable = slot.is_available;
+  const isPending = (slot as unknown as { is_pending?: boolean }).is_pending;
 
   let styleClasses = `${accent.border} ${accent.bg} ${accent.text} ${accent.hoverBorder} ${accent.hoverBg} cursor-pointer`;
-  let subLabel: React.ReactNode = formatPriceShort(slot.price);
-  let title: string | undefined;
-  let disabled = false;
 
-  if (passed) {
-    styleClasses = 'border-forest-700/50 bg-forest-950/50 text-forest-500 cursor-not-allowed';
-    subLabel = 'Passed';
-    title = 'This time has already passed';
-    disabled = true;
+  if (!isAvailable) {
+    styleClasses = 'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
   } else if (isPending) {
-    styleClasses = 'border-amber-500/40 bg-amber-500/10 text-amber-300 cursor-not-allowed';
-    subLabel = (
-      <span className="inline-flex items-center gap-1">
-        <Hourglass className="h-3 w-3" />
-        Pending
-      </span>
-    );
-    title = PENDING_HINT;
-    disabled = true;
-  } else if (isBooked) {
-    styleClasses = 'border-red-500/30 bg-red-500/10 text-red-300/80 cursor-not-allowed';
-    subLabel = 'Booked';
-    title = 'Already booked';
-    disabled = true;
+    styleClasses = 'border-amber-500/30 bg-amber-500/10 text-amber-300/80 cursor-not-allowed';
   } else if (isSelected) {
     styleClasses = 'border-court-300 bg-court-600 text-white font-bold shadow-glow-court';
   }
 
   return (
     <button
-      onClick={disabled ? undefined : onToggle}
-      disabled={disabled}
-      aria-pressed={disabled ? undefined : isSelected}
-      aria-label={`${range}, ${
-        passed ? 'passed' : isPending ? 'pending, not available' : isBooked ? 'booked' : `${formatPriceShort(slot.price)}${isSelected ? ', selected' : ''}`
-      }`}
-      title={title}
-      className={`flex h-14 w-full flex-col items-center justify-center rounded-xl border px-1 transition-all ${styleClasses}`}
+      onClick={isAvailable && !isPending ? onToggle : undefined}
+      disabled={!isAvailable || isPending}
+      className={`flex h-11 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-tight transition-all px-1 ${styleClasses}`}
     >
-      <span className={`text-xs font-semibold tracking-tight ${isBooked ? 'line-through' : ''}`}>
-        {range}
+      <span className="truncate">
+        {formatTimeRangeShort(slot.start_time, slot.end_time)}
       </span>
-      <span className="text-[11px] font-medium opacity-90">{subLabel}</span>
     </button>
   );
 }
