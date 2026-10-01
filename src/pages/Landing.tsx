@@ -84,6 +84,26 @@ function isWithinNextWeek(session: OpenPlaySession): boolean {
   }
 }
 
+/** Friendly "starts in X" label for sessions within 2 hours. */
+function getImminenceLabel(session: OpenPlaySession): string | null {
+  try {
+    const sessionStart = new Date(`${session.date}T${session.start_time}`);
+    const now = new Date();
+    const diffMin = Math.round((sessionStart.getTime() - now.getTime()) / (1000 * 60));
+    if (diffMin <= -60) return null; // past
+    if (diffMin <= 0) return 'Happening now';
+    if (diffMin <= 120) {
+      const h = Math.floor(diffMin / 60);
+      const m = diffMin % 60;
+      if (h === 0) return `Starts in ${m}m`;
+      return `Starts in ${h}h${m > 0 ? ` ${m}m` : ''}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function weeksBetweenToday(isoDate: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -107,6 +127,8 @@ const SKILL_BADGE: Record<string, string> = {
   'All Levels': 'bg-court-500/25 text-court-100 border border-court-400/30',
 };
 
+type BookingMode = 'private' | 'open';
+
 export function Landing() {
   const navigate = useNavigate();
   const bookingSectionRef = useRef<HTMLDivElement>(null);
@@ -125,6 +147,7 @@ export function Landing() {
     setDate,
     toggleSlot,
     loadAllCourtsSlots,
+    clearSlots,
   } = useBookingStore();
 
   const {
@@ -134,6 +157,7 @@ export function Landing() {
   } = useOpenPlayStore();
 
   const [weekOffset, setWeekOffset] = useState(0);
+  const [bookingMode, setBookingMode] = useState<BookingMode>('private');
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -279,6 +303,16 @@ export function Landing() {
     );
   };
 
+  const openPlayForSelectedDate = openPlaySessions
+    .filter(
+      (s) =>
+        s.date === selectedDate &&
+        s.is_active &&
+        s.status !== 'cancelled' &&
+        s.status !== 'past'
+    )
+    .sort((a, b) => `${a.start_time}`.localeCompare(`${b.start_time}`));
+
   return (
     <div className="min-h-screen bg-charcoal text-cream">
       <Navbar />
@@ -319,11 +353,8 @@ export function Landing() {
                 <Users className="h-4 w-4 shrink-0 text-court-300" />
                 <span className="truncate text-xs font-semibold text-court-100 sm:text-sm">
                   Open Play{' '}
-                  {nextSession.status === 'active'
-                    ? 'happening now'
-                    : nextSession.date === todayISO()
-                      ? 'today'
-                      : 'soon'}{' '}
+                  {getImminenceLabel(nextSession) ??
+                    (nextSession.date === todayISO() ? 'today' : 'soon')}{' '}
                   · {nextSession.current_players}/{nextSession.max_players} joined
                 </span>
                 <ArrowRight className="h-4 w-4 shrink-0 text-court-300" />
@@ -338,12 +369,12 @@ export function Landing() {
             <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
               {APP_CONFIG.tagline}
             </p>
-            
+
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
               Book 3 premium pickleball courts in the city featuring a 7-layer court surface system designed for a playing experience you can actually feel. Beginner-friendly, tournament-ready, and made for everyone who loves the game.
             </p>
 
-            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
               <Button
                 size="lg"
                 onClick={scrollToBooking}
@@ -351,6 +382,16 @@ export function Landing() {
               >
                 Book a Court
               </Button>
+              {nextSession && (
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  onClick={() => navigate('/open-play')}
+                  leftIcon={<Users className="h-5 w-5" />}
+                >
+                  Join Open Play
+                </Button>
+              )}
               <Button
                 size="lg"
                 variant="secondary"
@@ -409,6 +450,7 @@ export function Landing() {
                   session.current_players >= session.max_players;
                 const spotsLeft = Math.max(0, session.max_players - session.current_players);
                 const isToday = session.date === todayISO();
+                const imminence = getImminenceLabel(session);
                 return (
                   <motion.div
                     key={session.id}
@@ -421,9 +463,11 @@ export function Landing() {
                     <div className="card flex h-full flex-col p-4">
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <span className="inline-flex items-center rounded-full border border-court-400/30 bg-court-600/25 px-2.5 py-0.5 text-xs font-bold text-court-200">
-                          {isToday
-                            ? 'TODAY'
-                            : formatDateLong(session.date).split(',')[0].toUpperCase()}
+                          {imminence
+                            ? imminence.toUpperCase()
+                            : isToday
+                              ? 'TODAY'
+                              : formatDateLong(session.date).split(',')[0].toUpperCase()}
                         </span>
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
@@ -518,6 +562,32 @@ export function Landing() {
                   </div>
                 </div>
 
+                {/* Booking mode tabs */}
+                <div className="mt-4 inline-flex rounded-xl border border-forest-600 bg-forest-950/80 p-1">
+                  <button
+                    onClick={() => setBookingMode('private')}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                      bookingMode === 'private'
+                        ? 'bg-court-600 text-white shadow-sm'
+                        : 'text-cream-muted hover:text-court-200'
+                    }`}
+                  >
+                    <CalendarPlus className="h-3.5 w-3.5" />
+                    Private Court
+                  </button>
+                  <button
+                    onClick={() => setBookingMode('open')}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                      bookingMode === 'open'
+                        ? 'bg-court-600 text-white shadow-sm'
+                        : 'text-cream-muted hover:text-court-200'
+                    }`}
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    Open Play
+                  </button>
+                </div>
+
                 {/* No Cancellation Policy Card */}
                 <div className="mt-4 flex items-start gap-3 rounded-xl border border-rose-900/50 bg-rose-950/25 p-3.5 sm:gap-4 sm:p-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-800/40 bg-rose-900/40 text-rose-400">
@@ -549,7 +619,10 @@ export function Landing() {
 
                     <div className="flex items-center gap-1.5">
                       {/* iOS & Android friendly Calendar Picker: Tap target covers the button directly */}
-                      <div className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-court-400/50 bg-court-600/30 text-court-200 transition hover:border-court-300 hover:bg-court-600/50 active:scale-95">
+                      <div
+                        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-court-400/50 bg-court-600/30 text-court-200 transition hover:border-court-300 hover:bg-court-600/50 active:scale-95"
+                        title="Pick any date"
+                      >
                         <CalendarDays className="pointer-events-none h-4 w-4" />
                         <input
                           type="date"
@@ -677,7 +750,11 @@ export function Landing() {
                         2
                       </div>
                       <h3 className="text-sm font-bold text-cream sm:text-base">
-                        Choose <span className="text-court-200">Court & Time</span>
+                        {bookingMode === 'open' ? (
+                          <>Join an <span className="text-court-200">Open Play</span> Session</>
+                        ) : (
+                          <>Choose <span className="text-court-200">Court &amp; Time</span></>
+                        )}
                       </h3>
                     </div>
 
@@ -693,30 +770,50 @@ export function Landing() {
                     </span>
                   </div>
 
-                  {/* Compact Dot Legend */}
-                  <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-forest-700/60 pb-3 text-[11px] text-cream-muted">
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full border border-court-400/80 bg-court-500/30" />
-                      <span>Available</span>
+                  {/* Rule hint */}
+                  <p className="mb-4 text-[11px] text-cream-muted sm:text-xs">
+                    {bookingMode === 'open'
+                      ? 'Tap a session to see details and join. Spots are first-come, first-served.'
+                      : 'Tap any open slot to book. A "Open" pill means an Open Play session is running — tap it to join instead.'}
+                  </p>
+
+                  {/* Compact Dot Legend — private mode only */}
+                  {bookingMode === 'private' && (
+                    <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-forest-700/60 pb-3 text-[11px] text-cream-muted">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full border border-court-400/80 bg-court-500/30" />
+                        <span>Available</span>
+                      </div>
+                      <div
+                        className="flex items-center gap-1.5"
+                        title="Another user is currently completing payment"
+                      >
+                        <span className="h-2 w-2 rounded-full bg-amber-400" />
+                        <span>On hold</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-red-400" />
+                        <span>Booked</span>
+                      </div>
+                      <div
+                        className="flex items-center gap-1.5"
+                        title="Tap to join a running Open Play session"
+                      >
+                        <span className="h-2 w-2 rounded-full bg-court-300" />
+                        <span>Open Play — tap to join</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-amber-400" />
-                      <span>Pending</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-red-400" />
-                      <span>Booked</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-court-300" />
-                      <span>Open Play</span>
-                    </div>
-                  </div>
+                  )}
 
                   {loadingSlots || loadingCourts || loadingOpenPlay ? (
                     <LoadingSpinner className="py-12 md:py-20" />
                   ) : error ? (
                     <div className="py-8 text-center font-medium text-red-400 md:py-16">{error}</div>
+                  ) : bookingMode === 'open' ? (
+                    <OpenPlayGrid
+                      sessions={openPlayForSelectedDate}
+                      onSelect={handleOpenPlayClick}
+                    />
                   ) : courts.length === 0 ? (
                     <div className="py-8 text-center text-sm font-medium text-cream-muted md:py-16">
                       No courts found.
@@ -748,78 +845,94 @@ export function Landing() {
                             })}
                           </div>
 
-                          {/* Period Sections */}
+                          {/* Horizontal scroll hint (mobile only) */}
+                          {courts.length > 3 && (
+                            <p className="mb-3 text-center text-[10px] text-cream-muted/70 sm:hidden">
+                              Swipe sideways to see all courts →
+                            </p>
+                          )}
+
+                          {/* Period Sections — always visible; empty ones show a muted placeholder */}
                           <div className="space-y-6">
-                            {morningTimes.length > 0 && (
-                              <DesktopPeriodSection
-                                title="MORNING"
-                                icon={<CloudSun className="h-4 w-4 text-court-300" />}
-                                courts={courts}
-                                timeIntervals={morningTimes}
-                                getSlotForCourtAndTime={getSlotForCourtAndTime}
-                                selectedSlotIds={selectedSlotIds}
-                                onToggleSlot={toggleSlot}
-                                getOpenPlaySession={getOpenPlaySessionForSlot}
-                                onOpenPlayClick={handleOpenPlayClick}
-                              />
-                            )}
-                            {afternoonTimes.length > 0 && (
-                              <DesktopPeriodSection
-                                title="AFTERNOON"
-                                icon={<Sun className="h-4 w-4 text-court-300" />}
-                                courts={courts}
-                                timeIntervals={afternoonTimes}
-                                getSlotForCourtAndTime={getSlotForCourtAndTime}
-                                selectedSlotIds={selectedSlotIds}
-                                onToggleSlot={toggleSlot}
-                                getOpenPlaySession={getOpenPlaySessionForSlot}
-                                onOpenPlayClick={handleOpenPlayClick}
-                              />
-                            )}
-                            {eveningTimes.length > 0 && (
-                              <DesktopPeriodSection
-                                title="EVENING"
-                                icon={<Moon className="h-4 w-4 text-court-300" />}
-                                courts={courts}
-                                timeIntervals={eveningTimes}
-                                getSlotForCourtAndTime={getSlotForCourtAndTime}
-                                selectedSlotIds={selectedSlotIds}
-                                onToggleSlot={toggleSlot}
-                                getOpenPlaySession={getOpenPlaySessionForSlot}
-                                onOpenPlayClick={handleOpenPlayClick}
-                              />
-                            )}
+                            <DesktopPeriodSection
+                              title="MORNING"
+                              icon={<CloudSun className="h-4 w-4 text-court-300" />}
+                              courts={courts}
+                              timeIntervals={morningTimes}
+                              getSlotForCourtAndTime={getSlotForCourtAndTime}
+                              selectedSlotIds={selectedSlotIds}
+                              onToggleSlot={toggleSlot}
+                              getOpenPlaySession={getOpenPlaySessionForSlot}
+                              onOpenPlayClick={handleOpenPlayClick}
+                              emptyLabel="No morning slots for this date"
+                            />
+                            <DesktopPeriodSection
+                              title="AFTERNOON"
+                              icon={<Sun className="h-4 w-4 text-court-300" />}
+                              courts={courts}
+                              timeIntervals={afternoonTimes}
+                              getSlotForCourtAndTime={getSlotForCourtAndTime}
+                              selectedSlotIds={selectedSlotIds}
+                              onToggleSlot={toggleSlot}
+                              getOpenPlaySession={getOpenPlaySessionForSlot}
+                              onOpenPlayClick={handleOpenPlayClick}
+                              emptyLabel="No afternoon slots for this date"
+                            />
+                            <DesktopPeriodSection
+                              title="EVENING"
+                              icon={<Moon className="h-4 w-4 text-court-300" />}
+                              courts={courts}
+                              timeIntervals={eveningTimes}
+                              getSlotForCourtAndTime={getSlotForCourtAndTime}
+                              selectedSlotIds={selectedSlotIds}
+                              onToggleSlot={toggleSlot}
+                              getOpenPlaySession={getOpenPlaySessionForSlot}
+                              onOpenPlayClick={handleOpenPlayClick}
+                              emptyLabel="No evening slots for this date"
+                            />
                           </div>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Desktop reservation bar */}
-                  <div className="mt-8 hidden items-center justify-between gap-4 rounded-xl border border-forest-600 bg-forest-800/90 p-5 sm:flex">
-                    <div>
-                      <span className="text-xs font-semibold uppercase tracking-wider text-court-300">
-                        Selected Slots
-                      </span>
-                      <div className="text-lg font-bold text-cream">
-                        {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
+                  {/* Desktop reservation bar — private mode only */}
+                  {bookingMode === 'private' && (
+                    <div className="mt-8 hidden items-center justify-between gap-4 rounded-xl border border-forest-600 bg-forest-800/90 p-5 sm:flex">
+                      <div>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-court-300">
+                          Selected Slots
+                        </span>
+                        <div className="text-lg font-bold text-cream">
+                          {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
+                          {selectedSlotIds.length > 0 && (
+                            <span className="ml-2 text-base font-semibold text-court-200">
+                              ({formatCurrency(totalSelected)})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
                         {selectedSlotIds.length > 0 && (
-                          <span className="ml-2 text-base font-semibold text-court-200">
-                            ({formatCurrency(totalSelected)})
-                          </span>
+                          <button
+                            onClick={clearSlots}
+                            className="text-xs font-semibold text-cream-muted underline-offset-2 hover:text-court-200 hover:underline"
+                          >
+                            Clear all
+                          </button>
                         )}
+                        <Button
+                          size="md"
+                          onClick={() => navigate('/booking')}
+                          disabled={selectedSlotIds.length === 0}
+                          rightIcon={<ArrowRight className="h-5 w-5" />}
+                        >
+                          Proceed to Reservation
+                        </Button>
                       </div>
                     </div>
-
-                    <Button
-                      size="md"
-                      onClick={() => navigate('/booking')}
-                      disabled={selectedSlotIds.length === 0}
-                      rightIcon={<ArrowRight className="h-5 w-5" />}
-                    >
-                      Proceed to Reservation
-                    </Button>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -827,8 +940,8 @@ export function Landing() {
         </section>
       </div>
 
-      {/* Sticky Mobile Reservation Bar */}
-      {selectedSlotIds.length > 0 && (
+      {/* Sticky Mobile Reservation Bar — private mode only */}
+      {bookingMode === 'private' && selectedSlotIds.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-600 bg-charcoal/95 p-3.5 backdrop-blur-md sm:hidden">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
@@ -837,6 +950,12 @@ export function Landing() {
               </p>
               <p className="text-lg font-bold text-court-300">{formatCurrency(totalSelected)}</p>
             </div>
+            <button
+              onClick={clearSlots}
+              className="shrink-0 rounded-lg border border-forest-600 px-2.5 py-1.5 text-xs font-semibold text-cream-muted"
+            >
+              Clear
+            </button>
             <Button
               size="md"
               onClick={() => navigate('/booking')}
@@ -941,7 +1060,6 @@ export function Landing() {
         </div>
       </section>
 
-      <div className="h-20 sm:hidden" />
       <Footer />
     </div>
   );
@@ -950,6 +1068,104 @@ export function Landing() {
 // --------------------------------------------------------
 // SUB-COMPONENTS
 // --------------------------------------------------------
+
+function OpenPlayGrid({
+  sessions,
+  onSelect,
+}: {
+  sessions: OpenPlaySession[];
+  onSelect: (s: OpenPlaySession) => void;
+}) {
+  if (sessions.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-forest-600 bg-forest-950/40 py-12 text-center text-sm font-medium text-cream-muted md:py-16">
+        No Open Play sessions scheduled for this date.
+        <div className="mt-1 text-xs text-cream-muted/80">
+          Try another date or check back later.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+      {sessions.map((session) => {
+        const isFull =
+          session.status === 'full' ||
+          session.current_players >= session.max_players;
+        const spotsLeft = Math.max(0, session.max_players - session.current_players);
+        const imminence = getImminenceLabel(session);
+
+        return (
+          <div
+            key={session.id}
+            className="card flex h-full flex-col rounded-2xl border border-court-400/40 bg-court-600/15 p-4 shadow-sm transition hover:shadow-md"
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-court-400/40 bg-court-600/25 px-2.5 py-0.5 text-xs font-extrabold tracking-wide text-court-200">
+                <Clock className="h-3.5 w-3.5" />
+                {formatTimeRangeShort(session.start_time, session.end_time)}
+              </span>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                  SKILL_BADGE[session.skill_level] ?? SKILL_BADGE['All Levels']
+                }`}
+              >
+                {session.skill_level}
+              </span>
+            </div>
+
+            <h3 className="truncate font-display text-base font-bold text-cream">
+              {session.title || session.host_name || session.court_name}
+            </h3>
+
+            <div className="mt-2 space-y-1.5 text-xs text-cream-muted">
+              {imminence && (
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-300">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  </span>
+                  {imminence}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Users className="h-3.5 w-3.5 text-court-300" />
+                <span>
+                  {session.current_players}/{session.max_players} · {spotsLeft}{' '}
+                  spot{spotsLeft === 1 ? '' : 's'} left
+                </span>
+              </div>
+              {session.host_name && (
+                <div className="flex items-center gap-2">
+                  <UserCircle2 className="h-3.5 w-3.5 text-court-300" />
+                  <span className="truncate">Hosted by {session.host_name}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between border-t border-forest-600 pt-3">
+              <div>
+                <p className="text-[10px] uppercase font-bold tracking-wider text-cream-muted">Per player</p>
+                <p className="font-display text-base font-extrabold text-court-300 sm:text-lg">
+                  {formatCurrency(session.price_per_player)}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                disabled={isFull}
+                onClick={() => onSelect(session)}
+                rightIcon={<ArrowRight className="h-4 w-4" />}
+              >
+                {isFull ? 'Full' : 'Join'}
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function DesktopPeriodSection({
   title,
@@ -961,6 +1177,7 @@ function DesktopPeriodSection({
   onToggleSlot,
   getOpenPlaySession,
   onOpenPlayClick,
+  emptyLabel,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -971,7 +1188,25 @@ function DesktopPeriodSection({
   onToggleSlot: (slotId: string) => void;
   getOpenPlaySession?: (courtId: string, startTime: string, endTime: string) => OpenPlaySession | undefined;
   onOpenPlayClick?: (session: OpenPlaySession) => void;
+  emptyLabel: string;
 }) {
+  if (timeIntervals.length === 0) {
+    return (
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <span className="h-4 w-4">{icon}</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-cream-muted/70">
+            {title}
+          </span>
+          <div className="h-px flex-1 bg-forest-700/60" />
+        </div>
+        <div className="rounded-xl border border-dashed border-forest-700/60 bg-forest-950/40 px-3 py-4 text-center text-[11px] text-cream-muted/60">
+          {emptyLabel}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
@@ -986,50 +1221,59 @@ function DesktopPeriodSection({
         {timeIntervals.map((interval) => (
           <div
             key={`${interval.start_time}-${interval.end_time}`}
-            className="grid gap-2.5"
-            style={{
-              gridTemplateColumns: `repeat(${courts.length}, minmax(80px, 1fr))`,
-            }}
+            className="flex items-center gap-3"
           >
-            {courts.map((court, idx) => {
-              const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
-              const accent = getCourtAccent(idx);
-              const openPlaySession = getOpenPlaySession?.(court.id, interval.start_time, interval.end_time);
+            {/* Row time label (left) */}
+            <div className="w-14 shrink-0 text-[11px] font-semibold tabular-nums text-cream-muted sm:w-16 sm:text-xs">
+              {formatTimeShort(interval.start_time)}
+            </div>
 
-              if (!slot) {
-                return (
-                  <div
-                    key={`${court.id}-${interval.start_time}`}
-                    className="flex h-11 select-none items-center justify-center rounded-xl border border-forest-800/60 bg-forest-950/60 text-xs text-forest-700"
-                  >
-                    —
-                  </div>
-                );
-              }
+            <div
+              className="grid flex-1 gap-2.5"
+              style={{
+                gridTemplateColumns: `repeat(${courts.length}, minmax(80px, 1fr))`,
+              }}
+            >
+              {courts.map((court, idx) => {
+                const slot = getSlotForCourtAndTime(court.id, interval.start_time, interval.end_time);
+                const accent = getCourtAccent(idx);
+                const openPlaySession = getOpenPlaySession?.(court.id, interval.start_time, interval.end_time);
 
-              if (openPlaySession) {
+                if (!slot) {
+                  return (
+                    <div
+                      key={`${court.id}-${interval.start_time}`}
+                      className="flex h-11 select-none items-center justify-center rounded-xl border border-forest-800/60 bg-forest-950/60 text-xs text-forest-700"
+                    >
+                      —
+                    </div>
+                  );
+                }
+
+                if (openPlaySession) {
+                  return (
+                    <div key={slot.id}>
+                      <OpenPlayPill
+                        session={openPlaySession}
+                        onClick={() => onOpenPlayClick?.(openPlaySession)}
+                        accent={accent}
+                      />
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={slot.id}>
-                    <OpenPlayPill
-                      session={openPlaySession}
-                      onClick={() => onOpenPlayClick?.(openPlaySession)}
+                    <SlotPill
+                      slot={slot}
+                      isSelected={selectedSlotIds.includes(slot.id)}
+                      onToggle={() => onToggleSlot(slot.id)}
                       accent={accent}
                     />
                   </div>
                 );
-              }
-
-              return (
-                <div key={slot.id}>
-                  <SlotPill
-                    slot={slot}
-                    isSelected={selectedSlotIds.includes(slot.id)}
-                    onToggle={() => onToggleSlot(slot.id)}
-                    accent={accent}
-                  />
-                </div>
-              );
-            })}
+              })}
+            </div>
           </div>
         ))}
       </div>
@@ -1049,12 +1293,15 @@ function OpenPlayPill({
   return (
     <button
       onClick={onClick}
-      className="group relative flex h-11 w-full items-center justify-between rounded-xl border-2 border-court-400 bg-court-600/35 px-3 font-bold transition-all hover:bg-court-600/55 hover:shadow-[0_0_20px_-4px_rgba(61,114,168,0.6)]"
+      className="group relative flex h-11 w-full items-center justify-between gap-2 rounded-xl border-2 border-court-400 bg-court-600/35 px-3 font-bold transition-all hover:bg-court-600/55 hover:shadow-[0_0_20px_-4px_rgba(61,114,168,0.6)]"
       title={`Open Play: ${session.current_players}/${session.max_players} players · ${session.skill_level}`}
     >
-      <span className="text-xs font-black text-court-300">OP</span>
+      <span className="inline-flex items-center gap-1 text-[11px] font-black text-court-300">
+        <Users className="h-3.5 w-3.5" />
+        Open
+      </span>
       <span className="text-xs font-semibold text-court-100">
-        {session.current_players}/{session.max_players} joined
+        {session.current_players}/{session.max_players}
       </span>
 
       <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-forest-500 bg-forest-900 px-3 py-2 text-xs text-cream shadow-xl group-hover:block">
@@ -1099,10 +1346,19 @@ function SlotPill({
     <button
       onClick={isAvailable && !isPending ? onToggle : undefined}
       disabled={!isAvailable || isPending}
+      title={
+        !isAvailable
+          ? 'Already booked'
+          : isPending
+            ? 'On hold — another user is completing payment'
+            : `${formatTimeRangeShort(slot.start_time, slot.end_time)} · ${formatCurrency(slot.price)}`
+      }
       className={`flex h-11 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-tight transition-all px-1 ${styleClasses}`}
     >
       <span className="truncate">
-        {formatTimeRangeShort(slot.start_time, slot.end_time)}
+        {isAvailable && !isPending
+          ? formatCurrency(slot.price)
+          : formatTimeRangeShort(slot.start_time, slot.end_time)}
       </span>
     </button>
   );
