@@ -61,11 +61,6 @@ const customerSchema = z.object({
     }),
 
   notes: z.string().max(NOTES_MAX, 'Notes are too long').optional(),
-
-  // Must be ticked before a booking is created. Not sent to the store.
-  acceptedPolicy: z
-    .boolean()
-    .refine((v) => v === true, { message: 'Please confirm you understand the no-refund policy' }),
 });
 
 type CustomerForm = z.infer<typeof customerSchema>;
@@ -96,7 +91,7 @@ export function Booking() {
   } = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
     mode: 'onBlur',
-    defaultValues: { ...useBookingStore.getState().customer, acceptedPolicy: false },
+    defaultValues: { ...useBookingStore.getState().customer },
   });
 
   const notesLength = (watch('notes') ?? '').length;
@@ -388,35 +383,18 @@ export function Booking() {
                   </p>
                 </div>
 
-                {/* No-refund acknowledgment */}
-                <div
-                  className={`rounded-xl border p-3.5 ${
-                    errors.acceptedPolicy
-                      ? 'border-error/60 bg-error/10'
-                      : 'border-rose-900/50 bg-rose-950/25'
-                  }`}
-                >
-                  <label className="flex cursor-pointer items-start gap-3">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-rose-500"
-                      aria-invalid={!!errors.acceptedPolicy}
-                      {...register('acceptedPolicy')}
-                    />
-                    <span className="text-xs leading-relaxed text-cream-muted sm:text-sm">
-                      <span className="flex items-center gap-1.5 font-bold text-rose-300">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        No cancellation policy
-                      </span>
-                      I understand that once my booking is confirmed there are no cancellations or
-                      refunds. If I can&apos;t make it, I&apos;ll find someone to take my slot.
-                    </span>
-                  </label>
-                  {errors.acceptedPolicy && (
-                    <p className="mt-2 text-xs font-medium text-error" role="alert">
-                      {errors.acceptedPolicy.message}
+                {/* No-refund reminder (non-blocking) */}
+                <div className="flex items-start gap-2.5 rounded-xl border border-rose-900/50 bg-rose-950/25 p-3.5">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold uppercase tracking-wider text-rose-400 sm:text-sm">
+                      No cancellation policy
                     </p>
-                  )}
+                    <p className="text-xs leading-relaxed text-cream-muted sm:text-sm">
+                      Once your booking is confirmed, there are no cancellations or refunds. If you
+                      can&apos;t make it, please find someone to take your slot.
+                    </p>
+                  </div>
                 </div>
 
                 {submitError && (
