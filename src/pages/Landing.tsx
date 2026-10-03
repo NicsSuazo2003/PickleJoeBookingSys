@@ -100,6 +100,26 @@ function weeksBetweenToday(isoDate: string): number {
   return Math.round(diffMs / (1000 * 60 * 60 * 24 * 7));
 }
 
+/**
+ * Current hour as a decimal (e.g. 14.5 for 2:30 PM).
+ * Used to hide slots that have already started on the selected date.
+ */
+function getCurrentHourDecimal(): number {
+  const now = new Date();
+  return now.getHours() + now.getMinutes() / 60;
+}
+
+/**
+ * Has this slot's start time already passed?
+ * Only relevant when viewing today's date — future dates always return false.
+ */
+function isSlotPast(slotStartTime: string, isViewingToday: boolean): boolean {
+  if (!isViewingToday) return false;
+  const [hour, minute] = slotStartTime.split(':').map(Number);
+  const slotStart = hour + minute / 60;
+  return slotStart < getCurrentHourDecimal();
+}
+
 const SKILL_BADGE: Record<string, string> = {
   Beginner: 'bg-forest-500/25 text-forest-200 border border-forest-400/30',
   Intermediate: 'bg-court-600/30 text-court-200 border border-court-400/40',
@@ -240,7 +260,12 @@ export function Landing() {
     const afternoonMap = new Map<string, { start_time: string; end_time: string }>();
     const eveningMap = new Map<string, { start_time: string; end_time: string }>();
 
+    const isToday = selectedDate === todayISO();
+
     slotsList.forEach((slot) => {
+      // Skip slots that have already started when viewing today
+      if (isSlotPast(slot.start_time, isToday)) return;
+
       const hour = parseInt(slot.start_time.split(':')[0], 10);
       const key = `${slot.start_time}-${slot.end_time}`;
       const timeObj = { start_time: slot.start_time, end_time: slot.end_time };
@@ -278,6 +303,10 @@ export function Landing() {
         s.end_time === endTime
     );
   };
+
+  // Whether all three periods are empty for the currently selected date
+  const allPeriodsEmpty =
+    morningTimes.length === 0 && afternoonTimes.length === 0 && eveningTimes.length === 0;
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
@@ -338,7 +367,7 @@ export function Landing() {
             <p className="mt-3 text-xl font-medium text-cream-dark sm:mt-4 sm:text-3xl">
               {APP_CONFIG.tagline}
             </p>
-            
+
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
               Book 3 premium pickleball courts in the city featuring a 7-layer court surface system designed for a playing experience you can actually feel. Beginner-friendly, tournament-ready, and made for everyone who loves the game.
             </p>
@@ -720,6 +749,17 @@ export function Landing() {
                   ) : courts.length === 0 ? (
                     <div className="py-8 text-center text-sm font-medium text-cream-muted md:py-16">
                       No courts found.
+                    </div>
+                  ) : allPeriodsEmpty ? (
+                    /* All periods empty — either past closing time today or no slots available */
+                    <div className="rounded-2xl border border-forest-700/60 bg-forest-950/40 p-8 text-center">
+                      <Clock className="mx-auto h-8 w-8 text-court-300/50" />
+                      <p className="mt-3 text-sm font-semibold text-cream">
+                        No more slots available today
+                      </p>
+                      <p className="mt-1 text-xs text-cream-muted">
+                        Pick a future date above to book — we&apos;re open 5 AM to 12 AM daily.
+                      </p>
                     </div>
                   ) : (
                     <div className="block">
