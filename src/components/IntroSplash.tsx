@@ -111,7 +111,8 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
   }, []);
 
   const handleInteraction = () => {
-    if (phase === 'smashing' || phase === 'exited') return;
+    // ONLY allow interaction if the phase is explicitly 'ready'
+    if (phase !== 'ready') return;
     setPhase('smashing');
   };
 
@@ -125,7 +126,10 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.45 }}
-          className="fixed inset-0 z-[100] flex cursor-pointer flex-col items-center justify-center bg-[#132219] select-none overflow-hidden"
+          // Conditionally apply cursor-pointer only when ready
+          className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#132219] select-none overflow-hidden ${
+            phase === 'ready' ? 'cursor-pointer' : ''
+          }`}
           role="button"
           aria-label="Click to smash enter"
         >
@@ -410,27 +414,27 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
             </svg>
 
             {/* Tap Prompt CTA */}
-<motion.div
-  initial={{ opacity: 0 }}
-  animate={
-    isSmashing
-      ? { opacity: 0 }
-      : {
-          opacity: [0.4, 0.9, 0.4],
-          scale: [1, 1.04, 1],
-        }
-  }
-  transition={
-    isSmashing
-      ? { duration: 0.2 }
-      : { delay: 2.2, duration: 1.8, repeat: Infinity }
-  }
-  className="mt-6 flex flex-col items-center gap-1.5"
->
-  <span className="text-xs font-semibold uppercase tracking-[0.32em] text-white/90">
-    TAP YOUR WAY TO GAME TIME
-  </span>
-</motion.div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={
+                isSmashing
+                  ? { opacity: 0 }
+                  : {
+                      opacity: [0.4, 0.9, 0.4],
+                      scale: [1, 1.04, 1],
+                    }
+              }
+              transition={
+                isSmashing
+                  ? { duration: 0.2 }
+                  : { delay: 2.2, duration: 1.8, repeat: Infinity }
+              }
+              className="mt-6 flex flex-col items-center gap-1.5"
+            >
+              <span className="text-xs font-semibold uppercase tracking-[0.32em] text-white/90">
+                TAP YOUR WAY TO GAME TIME
+              </span>
+            </motion.div>
           </motion.div>
 
           {/* Full Screen Impact Flash Transition */}
