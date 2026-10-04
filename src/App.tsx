@@ -6,6 +6,7 @@ import { Booking } from '@/pages/Booking';
 import { Checkout } from '@/pages/Checkout';
 import { Success } from '@/pages/Success';
 import { Track } from '@/pages/Track';
+import { MyBookings } from '@/pages/MyBookings';
 import { Login } from '@/pages/Login';
 import { Dashboard } from '@/pages/admin/Dashboard';
 import { Bookings } from '@/pages/admin/Bookings';
@@ -15,7 +16,7 @@ import { Settings } from '@/pages/admin/Settings';
 import { OpenPlayManagement } from '@/pages/admin/OpenPlayManagement';
 import { StaffBookings } from '@/pages/staff/StaffBookings';
 import { OpenPlay } from '@/pages/OpenPlay';
-import { AdminLayout } from '@/components/layout/AdminLayout'; // ✅ ADD THIS
+import { AdminLayout } from '@/components/layout/AdminLayout';
 import { useAuthStore } from '@/stores/authStore';
 import { IntroSplash } from '@/components/IntroSplash';
 import { isInAppBrowser } from '@/utils/browser';
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/success" element={<Success />} />
         <Route path="/track" element={<Track />} />
+        <Route path="/my-bookings" element={<MyBookings />} />
         <Route path="/open-play" element={<OpenPlay />} />
         <Route path="/login" element={<Login />} />
         

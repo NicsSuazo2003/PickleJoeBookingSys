@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, CalendarPlus, Search, Shield, Phone } from 'lucide-react';
+import { Menu, X, CalendarPlus, Search, Shield, Phone, ListChecks } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { APP_CONFIG } from '@/utils/constants';
@@ -16,13 +16,11 @@ export function Navbar() {
   const settings = useClientStore((state) => state.settings);
   const loadSettings = useClientStore((state) => state.loadSettings);
 
-  // ✅ FIXED: renamed constant + defensive fallback chain so it's always a string.
   const displayNumber =
     settings?.gcash_number ||
     APP_CONFIG.paymentNumber ||
     '09XX XXX XXXX';
 
-  // Safe tel: href — never crashes even if displayNumber is empty.
   const telHref = displayNumber.trim()
     ? `tel:${displayNumber.replace(/\s/g, '')}`
     : '';
@@ -45,6 +43,7 @@ export function Navbar() {
     { label: 'Home', path: '/' },
     { label: 'Open Play', path: '/open-play' },
     { label: 'Book a Court', path: '/booking' },
+    { label: 'My Bookings', path: '/my-bookings' },
     { label: 'Track Booking', path: '/track' },
   ];
 
