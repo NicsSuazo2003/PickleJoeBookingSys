@@ -133,9 +133,7 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
           role="button"
           aria-label="Click to smash enter"
         >
-          <style>
-            {`@import url('https://fonts.googleapis.com/css2?family=Michroma&display=swap');`}
-          </style>
+         
 
           {/* Screen Camera Shake on Smash Impact */}
           <motion.div
