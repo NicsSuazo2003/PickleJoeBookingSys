@@ -20,6 +20,7 @@ import {
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
 import { useClientStore } from '@/stores/clientStore';
 import { bookingService } from '@/services/bookingService';
@@ -53,6 +54,8 @@ export function Checkout() {
   const loadSettings = useClientStore((state) => state.loadSettings);
   const paymentMethods = settings?.payment_methods ?? [];
 
+  const [restoring, setRestoring] = useState(true);
+
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     if (!currentBooking?.payment_expires_at) {
       return APP_CONFIG.paymentTimerSeconds;
@@ -76,14 +79,55 @@ export function Checkout() {
     loadSettings();
   }, [loadSettings]);
 
+  // Restore a pending booking when the store is empty.
+  // This runs on refresh, tab reopen, back→forward after close, or direct URL access.
   useEffect(() => {
-    if (!currentBooking) {
-      navigate('/booking');
+    if (currentBooking) {
+      setRestoring(false);
+      return;
     }
+
+    const savedRef = localStorage.getItem('pendingBookingRef');
+    if (!savedRef) {
+      setRestoring(false);
+      navigate('/booking');
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const booking = await bookingService.trackBooking(savedRef);
+        if (cancelled) return;
+
+        if (booking.status !== 'pending_payment') {
+          // Already paid, expired, cancelled, etc. — nothing to resume.
+          localStorage.removeItem('pendingBookingRef');
+          setRestoring(false);
+          navigate('/booking');
+          return;
+        }
+
+        useBookingStore.setState({ currentBooking: booking });
+        setRestoring(false);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Failed to restore pending booking:', err);
+        localStorage.removeItem('pendingBookingRef');
+        setRestoring(false);
+        navigate('/booking');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [currentBooking, navigate]);
 
   useEffect(() => {
     if (currentBooking?.status === 'expired') {
+      localStorage.removeItem('pendingBookingRef');
       navigate('/booking');
     }
   }, [currentBooking?.status, navigate]);
@@ -106,7 +150,6 @@ export function Checkout() {
     return () => clearInterval(timer);
   }, [currentBooking?.payment_expires_at]);
 
-  // Memoized so the effect below doesn't re-run on every render
   const enabledMethods = useMemo(
     () => paymentMethods.filter((m: PaymentMethod) => m.enabled),
     [paymentMethods]
@@ -117,6 +160,17 @@ export function Checkout() {
       setSelectedMethod(enabledMethods[0]);
     }
   }, [enabledMethods, selectedMethod]);
+
+  // Show a spinner while restoring instead of bouncing
+  if (restoring && !currentBooking) {
+    return (
+      <div className="min-h-screen bg-charcoal">
+        <Navbar />
+        <LoadingSpinner className="pt-32" />
+        <Footer />
+      </div>
+    );
+  }
 
   if (!currentBooking) {
     return null;
@@ -153,6 +207,7 @@ export function Checkout() {
         paymentRef.trim(),
         selectedMethod?.name
       );
+      localStorage.removeItem('pendingBookingRef');
       navigate('/success');
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
@@ -161,7 +216,6 @@ export function Checkout() {
     }
   };
 
-  // Clipboard can be blocked (in-app browsers, non-HTTPS), so never fail silently.
   const copyText = async (text: string, key: CopyKey) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -173,6 +227,7 @@ export function Checkout() {
   };
 
   const releaseAndRestart = () => {
+    localStorage.removeItem('pendingBookingRef');
     reset();
     navigate('/');
   };
@@ -187,7 +242,6 @@ export function Checkout() {
   const IconComponent = ICON_MAP[methodIcon] || Smartphone;
 
   const hasMultipleMethods = enabledMethods.length > 1;
-  // Step numbers stay consecutive whether or not the method picker is shown
   const offset = hasMultipleMethods ? 1 : 0;
 
   const submitHint = isExpired
@@ -289,7 +343,7 @@ export function Checkout() {
               </div>
             </div>
 
-            {/* Expired: visible on every screen size, with a clear way forward */}
+            {/* Expired */}
             {isExpired && (
               <div className="rounded-2xl border border-error/50 bg-error/10 p-4 text-sm">
                 <p className="font-bold text-error">Your reservation hold has ended.</p>
@@ -351,7 +405,7 @@ export function Checkout() {
               </div>
             )}
 
-            {/* Payment Details: amount and account first, instructions second */}
+            {/* Payment Details */}
             {selectedMethod && (
               <div className="card space-y-3.5 rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 shadow-xl backdrop-blur-sm sm:p-5">
                 <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
@@ -419,7 +473,7 @@ export function Checkout() {
                   </div>
                 )}
 
-                {/* Booking code: clearly different from the payment reference below */}
+                {/* Booking code */}
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -444,7 +498,7 @@ export function Checkout() {
                   </p>
                 </div>
 
-                {/* How to pay: collapsed so the key details stay above the fold */}
+                {/* How to pay */}
                 <details className="group rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5 text-xs text-cream-muted">
                   <summary className="flex cursor-pointer list-none items-center justify-between text-[13px] font-semibold text-cream">
                     <span>How to pay</span>
@@ -584,8 +638,7 @@ export function Checkout() {
                       <span className="hidden sm:inline">Drag your receipt here or </span>
                       <span className="sm:hidden">Attach your receipt screenshot</span>
                     </p>
-                    {/* sr-only (not hidden) keeps the input reachable by keyboard */}
-                    <label className="mt-2.5 inline-block cursor-pointer focus-within:ring-2 focus-within:ring-brand-blue-400 rounded-xl">
+                    <label className="mt-2.5 inline-block cursor-pointer rounded-xl focus-within:ring-2 focus-within:ring-brand-blue-400">
                       <span className="block rounded-xl border border-brand-blue-400/40 bg-brand-blue-500/20 px-4 py-2 text-xs font-semibold text-brand-blue-300 transition hover:bg-brand-blue-500 hover:text-white">
                         Browse files
                       </span>
@@ -704,7 +757,6 @@ export function Checkout() {
                   <p className="text-[11px] text-cream-muted">{currentBooking.customer.email}</p>
                 </div>
 
-                {/* Two-step confirm: this discards the booking */}
                 {!confirmRelease ? (
                   <button
                     onClick={() => setConfirmRelease(true)}
