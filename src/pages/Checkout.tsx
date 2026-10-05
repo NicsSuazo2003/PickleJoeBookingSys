@@ -202,13 +202,14 @@ export function Checkout() {
     setUploadError(null);
     try {
       await bookingService.uploadPayment(
-        currentBooking.id,
-        screenshot,
-        paymentRef.trim(),
-        selectedMethod?.name
-      );
-      localStorage.removeItem('pendingBookingRef');
-      navigate('/success');
+  currentBooking.id,
+  screenshot,
+  paymentRef.trim(),
+  selectedMethod?.name
+);
+localStorage.removeItem('pendingBookingRef');
+window.dispatchEvent(new Event('pendingBookingUpdated'));
+navigate('/success');
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -227,11 +228,11 @@ export function Checkout() {
   };
 
   const releaseAndRestart = () => {
-    localStorage.removeItem('pendingBookingRef');
-    reset();
-    navigate('/');
-  };
-
+  localStorage.removeItem('pendingBookingRef');
+  window.dispatchEvent(new Event('pendingBookingUpdated'));
+  reset();
+  navigate('/');
+};
   const isExpired = timeLeft <= 0;
   const canSubmit = !!paymentRef.trim() && !isExpired;
 

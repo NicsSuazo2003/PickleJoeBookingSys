@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, CalendarPlus, Search, Shield, Phone, ListChecks } from 'lucide-react';
+import { Menu, X, CalendarPlus, Search, Shield, Phone } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { APP_CONFIG } from '@/utils/constants';
 import { useClientStore } from '@/stores/clientStore';
+import { bookingService } from '@/services/bookingService';
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -39,11 +41,60 @@ export function Navbar() {
     setIsOpen(false);
   }, [location.pathname]);
 
+  // ─── Pending booking badge ───
+  // Re-checks on every route change and on the `pendingBookingUpdated` custom event.
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkPending = async () => {
+      const savedRef = localStorage.getItem('pendingBookingRef');
+      if (!savedRef) {
+        if (!cancelled) setPendingCount(0);
+        return;
+      }
+
+      try {
+        const booking = await bookingService.trackBooking(savedRef);
+        if (cancelled) return;
+
+        if (booking.status === 'pending_payment') {
+          setPendingCount(1);
+        } else {
+          // Stale ref — clean it up
+          localStorage.removeItem('pendingBookingRef');
+          setPendingCount(0);
+        }
+      } catch {
+        if (cancelled) return;
+        // Treat errors as "nothing pending" — don't show a badge on backend hiccups
+        setPendingCount(0);
+      }
+    };
+
+    checkPending();
+
+    // Re-check when the tab becomes visible again (customer may have paid elsewhere)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') checkPending();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    // Listen for in-app updates (Booking.tsx dispatches this after createBooking)
+    const onUpdate = () => checkPending();
+    window.addEventListener('pendingBookingUpdated', onUpdate);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pendingBookingUpdated', onUpdate);
+    };
+  }, [location.pathname]);
+
   const navLinks = [
     { label: 'Home', path: '/' },
     { label: 'Open Play', path: '/open-play' },
     { label: 'Book a Court', path: '/booking' },
-    { label: 'My Bookings', path: '/my-bookings' },
+    { label: 'My Bookings', path: '/my-bookings', badge: pendingCount },
     { label: 'Track Booking', path: '/track' },
   ];
 
@@ -62,19 +113,30 @@ export function Navbar() {
         <Logo size="nav" />
 
         <div className="hidden items-center gap-1 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.path}
-              to={link.path}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                isActive(link.path)
-                  ? 'text-brand-blue-300 bg-brand-blue-500/15 font-semibold'
-                  : 'text-cream hover:text-brand-blue-300 hover:bg-forest-800/60'
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const hasBadge = 'badge' in link && (link.badge ?? 0) > 0;
+            return (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  isActive(link.path)
+                    ? 'text-brand-blue-300 bg-brand-blue-500/15 font-semibold'
+                    : 'text-cream hover:text-brand-blue-300 hover:bg-forest-800/60'
+                }`}
+              >
+                {link.label}
+                {hasBadge && (
+                  <span
+                    className="ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-none text-white shadow-md"
+                    aria-label={`${link.badge} pending`}
+                  >
+                    {link.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
@@ -108,19 +170,30 @@ export function Navbar() {
             className="overflow-hidden border-t border-forest-800/80 bg-forest-950 md:hidden"
           >
             <div className="container-page flex flex-col gap-1 py-4">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  className={`rounded-lg px-4 py-3 text-sm font-medium transition ${
-                    isActive(link.path)
-                      ? 'text-brand-blue-300 bg-brand-blue-500/15 font-semibold'
-                      : 'text-cream hover:bg-forest-800/60 hover:text-brand-blue-300'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link) => {
+                const hasBadge = 'badge' in link && (link.badge ?? 0) > 0;
+                return (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition ${
+                      isActive(link.path)
+                        ? 'text-brand-blue-300 bg-brand-blue-500/15 font-semibold'
+                        : 'text-cream hover:bg-forest-800/60 hover:text-brand-blue-300'
+                    }`}
+                  >
+                    <span>{link.label}</span>
+                    {hasBadge && (
+                      <span
+                        className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-none text-white"
+                        aria-label={`${link.badge} pending`}
+                      >
+                        {link.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
 
               <a
                 href={telHref}

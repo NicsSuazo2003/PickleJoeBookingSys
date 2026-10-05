@@ -139,11 +139,12 @@ export function Booking() {
       await createBooking();
 
       const created = useBookingStore.getState().currentBooking;
-      if (created?.reference_code) {
-        localStorage.setItem('pendingBookingRef', created.reference_code);
-      }
+if (created?.reference_code) {
+  localStorage.setItem('pendingBookingRef', created.reference_code);
+  window.dispatchEvent(new Event('pendingBookingUpdated'));
+}
 
-      navigate('/checkout');
+navigate('/checkout');
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create booking');
     } finally {

@@ -17,6 +17,8 @@ import {
   Users,
   UserCircle2,
   AlertTriangle,
+  X,
+  AlertCircle,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -24,6 +26,7 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
 import { useOpenPlayStore } from '@/stores/openPlayStore';
+import { bookingService } from '@/services/bookingService';
 import { COURT_IMAGES, APP_CONFIG } from '@/utils/constants';
 import {
   formatCurrency,
@@ -32,7 +35,7 @@ import {
   toISODate,
   addDays,
 } from '@/utils/format';
-import type { TimeSlot, Court, OpenPlaySession } from '@/types';
+import type { TimeSlot, Court, OpenPlaySession, Booking } from '@/types';
 
 // Court palette column accents (Infield Blue & Outfield Green)
 const COURT_ACCENTS = [
@@ -100,19 +103,11 @@ function weeksBetweenToday(isoDate: string): number {
   return Math.round(diffMs / (1000 * 60 * 60 * 24 * 7));
 }
 
-/**
- * Current hour as a decimal (e.g. 14.5 for 2:30 PM).
- * Used to hide slots that have already started on the selected date.
- */
 function getCurrentHourDecimal(): number {
   const now = new Date();
   return now.getHours() + now.getMinutes() / 60;
 }
 
-/**
- * Has this slot's start time already passed?
- * Only relevant when viewing today's date — future dates always return false.
- */
 function isSlotPast(slotStartTime: string, isViewingToday: boolean): boolean {
   if (!isViewingToday) return false;
   const [hour, minute] = slotStartTime.split(':').map(Number);
@@ -132,6 +127,10 @@ export function Landing() {
   const bookingSectionRef = useRef<HTMLDivElement>(null);
 
   const [heroIdx, setHeroIdx] = useState(0);
+
+  // ─── Pending booking banner state ───
+  const [pendingBooking, setPendingBooking] = useState<Booking | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const {
     courts,
@@ -156,6 +155,48 @@ export function Landing() {
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  // ─── Pending booking banner effect ───
+  useEffect(() => {
+    const savedRef = localStorage.getItem('pendingBookingRef');
+    if (!savedRef) return;
+
+    // Respect per-session dismissal
+    const dismissed = sessionStorage.getItem('pendingBannerDismissed');
+    if (dismissed === savedRef) {
+      setBannerDismissed(true);
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const booking = await bookingService.trackBooking(savedRef);
+        if (cancelled) return;
+
+        if (booking.status === 'pending_payment') {
+          setPendingBooking(booking);
+        } else {
+          // Stale ref — clean it up so we don't re-check on every load
+          localStorage.removeItem('pendingBookingRef');
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Failed to load pending booking for banner:', err);
+        localStorage.removeItem('pendingBookingRef');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const dismissBanner = () => {
+    setBannerDismissed(true);
+    const ref = localStorage.getItem('pendingBookingRef');
+    if (ref) sessionStorage.setItem('pendingBannerDismissed', ref);
+  };
 
   useEffect(() => {
     const slides = COURT_IMAGES.heroSlideshow;
@@ -263,7 +304,6 @@ export function Landing() {
     const isToday = selectedDate === todayISO();
 
     slotsList.forEach((slot) => {
-      // Skip slots that have already started when viewing today
       if (isSlotPast(slot.start_time, isToday)) return;
 
       const hour = parseInt(slot.start_time.split(':')[0], 10);
@@ -304,13 +344,60 @@ export function Landing() {
     );
   };
 
-  // Whether all three periods are empty for the currently selected date
   const allPeriodsEmpty =
     morningTimes.length === 0 && afternoonTimes.length === 0 && eveningTimes.length === 0;
+
+  // Show the banner only when there's a pending booking AND the user hasn't dismissed it
+  const showPendingBanner = !!pendingBooking && !bannerDismissed;
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
       <Navbar />
+
+      {/* ─── Pending booking banner ─── */}
+      {showPendingBanner && pendingBooking && (
+        <div className="fixed inset-x-0 top-16 z-40 px-3 sm:top-20 sm:px-4">
+          <div className="container-page">
+            <motion.div
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/50 bg-amber-950/95 p-3 shadow-2xl backdrop-blur-md sm:gap-4 sm:p-4"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-500/40 bg-amber-500/20 text-amber-300">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-amber-200">
+                  You have an unpaid booking
+                </p>
+                <p className="mt-0.5 text-xs text-cream-muted">
+                  {pendingBooking.court_name} ·{' '}
+                  {formatDateLong(pendingBooking.date)} ·{' '}
+                  {formatCurrency(pendingBooking.total_amount)}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/checkout')}
+                  rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
+                >
+                  Pay now
+                </Button>
+                <button
+                  onClick={dismissBanner}
+                  aria-label="Dismiss"
+                  className="rounded-lg border border-forest-700 bg-forest-900/80 p-2 text-cream-muted transition hover:border-amber-500/50 hover:text-amber-300"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="relative flex min-h-[85vh] items-start pt-28 sm:min-h-screen sm:items-center sm:pt-20 overflow-hidden">
@@ -528,7 +615,6 @@ export function Landing() {
           <div className="container-page max-w-7xl">
             <div className="overflow-hidden rounded-2xl border border-forest-600/70 bg-forest-900 shadow-2xl md:rounded-3xl">
 
-              {/* Header Banner */}
               <div className="border-b border-forest-700 bg-forest-950 px-4 py-4 sm:px-6 sm:py-5 md:px-8 md:py-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -547,7 +633,6 @@ export function Landing() {
                   </div>
                 </div>
 
-                {/* No Cancellation Policy Card */}
                 <div className="mt-4 flex items-start gap-3 rounded-xl border border-rose-900/50 bg-rose-950/25 p-3.5 sm:gap-4 sm:p-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-800/40 bg-rose-900/40 text-rose-400">
                     <AlertTriangle className="h-5 w-5" />
@@ -564,7 +649,6 @@ export function Landing() {
               </div>
 
               <div className="p-4 pb-24 sm:p-6 sm:pb-24 md:p-8 md:pb-8">
-                {/* STEP 1: Date Selection */}
                 <div className="mb-6 md:mb-10">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -577,7 +661,6 @@ export function Landing() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      {/* iOS & Android friendly Calendar Picker: Tap target covers the button directly */}
                       <div className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-court-400/50 bg-court-600/30 text-court-200 transition hover:border-court-300 hover:bg-court-600/50 active:scale-95">
                         <CalendarDays className="pointer-events-none h-4 w-4" />
                         <input
@@ -698,7 +781,6 @@ export function Landing() {
                   </div>
                 </div>
 
-                {/* STEP 2: Choose Court and Time */}
                 <div>
                   <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -722,7 +804,6 @@ export function Landing() {
                     </span>
                   </div>
 
-                  {/* Compact Dot Legend */}
                   <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-forest-700/60 pb-3 text-[11px] text-cream-muted">
                     <div className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full border border-court-400/80 bg-court-500/30" />
@@ -751,7 +832,6 @@ export function Landing() {
                       No courts found.
                     </div>
                   ) : allPeriodsEmpty ? (
-                    /* All periods empty — either past closing time today or no slots available */
                     <div className="rounded-2xl border border-forest-700/60 bg-forest-950/40 p-8 text-center">
                       <Clock className="mx-auto h-8 w-8 text-court-300/50" />
                       <p className="mt-3 text-sm font-semibold text-cream">
@@ -765,7 +845,6 @@ export function Landing() {
                     <div className="block">
                       <div className="max-h-[75vh] overflow-y-auto overflow-x-auto rounded-2xl border border-forest-700/60 bg-forest-950/40">
                         <div className="w-full p-4 sm:min-w-[580px]">
-                          {/* Sticky Court Column Headers */}
                           <div
                             className="sticky -top-4 z-30 -mx-4 -mt-4 mb-4 border-b border-forest-700 bg-forest-900 px-4 py-3 text-center text-xs font-extrabold uppercase tracking-wider text-court-300 shadow-md backdrop-blur-md"
                             style={{
@@ -788,7 +867,6 @@ export function Landing() {
                             })}
                           </div>
 
-                          {/* Period Sections */}
                           <div className="space-y-6">
                             {morningTimes.length > 0 && (
                               <DesktopPeriodSection
@@ -835,7 +913,6 @@ export function Landing() {
                     </div>
                   )}
 
-                  {/* Desktop reservation bar */}
                   <div className="mt-8 hidden items-center justify-between gap-4 rounded-xl border border-forest-600 bg-forest-800/90 p-5 sm:flex">
                     <div>
                       <span className="text-xs font-semibold uppercase tracking-wider text-court-300">
@@ -867,7 +944,6 @@ export function Landing() {
         </section>
       </div>
 
-      {/* Sticky Mobile Reservation Bar */}
       {selectedSlotIds.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-600 bg-charcoal/95 p-3.5 backdrop-blur-md sm:hidden">
           <div className="flex items-center gap-3">
@@ -889,7 +965,6 @@ export function Landing() {
         </div>
       )}
 
-      {/* Features Section */}
       <section className="border-b border-forest-700/80 bg-forest-900/60 py-14 sm:py-20">
         <div className="container-page">
           <div className="mb-10 text-center sm:mb-12">
@@ -940,7 +1015,6 @@ export function Landing() {
         </div>
       </section>
 
-      {/* How It Works Section */}
       <section className="py-14 sm:py-20 bg-forest-950/40">
         <div className="container-page">
           <div className="mb-10 text-center sm:mb-12">
