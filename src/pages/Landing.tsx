@@ -968,22 +968,24 @@ export function Landing() {
         </div>
       )}
 
-      {/* ─── Venue Amenities ─── */}
-      <section className="border-b border-forest-700/80 bg-forest-900/60 py-14 sm:py-20">
+           {/* ─── Venue Amenities ─── */}
+      <section className="border-b border-forest-700/80 bg-forest-900/60 py-12 sm:py-20">
         <div className="container-page">
-          <div className="mb-10 text-center sm:mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider text-court-300">
+          <div className="mb-8 text-center sm:mb-12">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-court-300 sm:text-xs">
               Court Specs & Comfort
             </span>
-            <h2 className="section-title mt-2">Venue Amenities</h2>
+            <h2 className="section-title mt-2 text-2xl sm:text-3xl md:text-4xl">
+              Venue Amenities
+            </h2>
             <p className="mt-2 text-xs text-cream-muted sm:text-sm">
               Everything you need for a great game — on and off the court
             </p>
           </div>
 
           {availableAmenities.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-forest-700/60 bg-forest-950/40 p-8 text-center">
-              <Sparkles className="mx-auto h-10 w-10 text-cream-muted/30" />
+            <div className="rounded-2xl border border-dashed border-forest-700/60 bg-forest-950/40 p-6 text-center sm:p-8">
+              <Sparkles className="mx-auto h-9 w-9 text-cream-muted/30 sm:h-10 sm:w-10" />
               <p className="mt-3 text-sm font-semibold text-cream-muted">
                 Amenities coming soon
               </p>
@@ -992,7 +994,7 @@ export function Landing() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
               {availableAmenities.map((amenity, idx) => {
                 const Icon = getAmenityIconForItem(amenity);
                 return (
@@ -1002,16 +1004,16 @@ export function Landing() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: idx * 0.05 }}
-                    className="flex flex-col items-center rounded-2xl border border-forest-700/70 bg-forest-800/80 p-5 text-center transition hover:border-court-400/40 hover:bg-forest-800 sm:p-6"
+                    className="flex flex-col items-center rounded-2xl border border-forest-700/70 bg-forest-800/80 p-3.5 text-center transition hover:border-court-400/40 hover:bg-forest-800 sm:p-6"
                   >
-                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-court-400/30 bg-court-600/30 shadow-inner">
-                      <Icon className="h-6 w-6 text-court-300" />
+                    <div className="mb-2.5 flex h-11 w-11 items-center justify-center rounded-xl border border-court-400/30 bg-court-600/30 shadow-inner sm:mb-3 sm:h-12 sm:w-12">
+                      <Icon className="h-5 w-5 text-court-300 sm:h-6 sm:w-6" />
                     </div>
-                    <h3 className="text-sm font-bold text-cream sm:text-base">
+                    <h3 className="text-xs font-bold leading-tight text-cream sm:text-base">
                       {amenity.name}
                     </h3>
                     {amenity.description && (
-                      <p className="mt-1.5 text-xs leading-relaxed text-cream-muted">
+                      <p className="mt-1.5 text-[10px] leading-snug text-cream-muted sm:mt-2 sm:text-xs sm:leading-relaxed">
                         {amenity.description}
                       </p>
                     )}
