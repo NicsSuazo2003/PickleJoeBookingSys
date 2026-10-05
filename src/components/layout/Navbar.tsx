@@ -8,10 +8,16 @@ import { APP_CONFIG } from '@/utils/constants';
 import { useClientStore } from '@/stores/clientStore';
 import { bookingService } from '@/services/bookingService';
 
+interface NavLink {
+  label: string;
+  path: string;
+  badge?: number;
+}
+
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
+  const [hasPending, setHasPending] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -41,15 +47,14 @@ export function Navbar() {
     setIsOpen(false);
   }, [location.pathname]);
 
-  // ─── Pending booking badge ───
-  // Re-checks on every route change and on the `pendingBookingUpdated` custom event.
+  // ─── Pending booking dot ───
   useEffect(() => {
     let cancelled = false;
 
     const checkPending = async () => {
       const savedRef = localStorage.getItem('pendingBookingRef');
       if (!savedRef) {
-        if (!cancelled) setPendingCount(0);
+        if (!cancelled) setHasPending(false);
         return;
       }
 
@@ -58,28 +63,24 @@ export function Navbar() {
         if (cancelled) return;
 
         if (booking.status === 'pending_payment') {
-          setPendingCount(1);
+          setHasPending(true);
         } else {
-          // Stale ref — clean it up
           localStorage.removeItem('pendingBookingRef');
-          setPendingCount(0);
+          setHasPending(false);
         }
       } catch {
         if (cancelled) return;
-        // Treat errors as "nothing pending" — don't show a badge on backend hiccups
-        setPendingCount(0);
+        setHasPending(false);
       }
     };
 
     checkPending();
 
-    // Re-check when the tab becomes visible again (customer may have paid elsewhere)
     const onVisibility = () => {
       if (document.visibilityState === 'visible') checkPending();
     };
     document.addEventListener('visibilitychange', onVisibility);
 
-    // Listen for in-app updates (Booking.tsx dispatches this after createBooking)
     const onUpdate = () => checkPending();
     window.addEventListener('pendingBookingUpdated', onUpdate);
 
@@ -90,11 +91,11 @@ export function Navbar() {
     };
   }, [location.pathname]);
 
-  const navLinks = [
+  const navLinks: NavLink[] = [
     { label: 'Home', path: '/' },
     { label: 'Open Play', path: '/open-play' },
     { label: 'Book a Court', path: '/booking' },
-    { label: 'My Bookings', path: '/my-bookings', badge: pendingCount },
+    { label: 'My Bookings', path: '/my-bookings', badge: hasPending ? 1 : 0 },
     { label: 'Track Booking', path: '/track' },
   ];
 
@@ -114,7 +115,7 @@ export function Navbar() {
 
         <div className="hidden items-center gap-1 md:flex">
           {navLinks.map((link) => {
-            const hasBadge = 'badge' in link && (link.badge ?? 0) > 0;
+            const showDot = (link.badge ?? 0) > 0;
             return (
               <Link
                 key={link.path}
@@ -126,13 +127,8 @@ export function Navbar() {
                 }`}
               >
                 {link.label}
-                {hasBadge && (
-                  <span
-                    className="ml-1.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-none text-white shadow-md"
-                    aria-label={`${link.badge} pending`}
-                  >
-                    {link.badge}
-                  </span>
+                {showDot && (
+                  <span className="ml-1.5 inline-block h-2 w-2 rounded-full bg-red-500" />
                 )}
               </Link>
             );
@@ -171,7 +167,7 @@ export function Navbar() {
           >
             <div className="container-page flex flex-col gap-1 py-4">
               {navLinks.map((link) => {
-                const hasBadge = 'badge' in link && (link.badge ?? 0) > 0;
+                const showDot = (link.badge ?? 0) > 0;
                 return (
                   <Link
                     key={link.path}
@@ -183,13 +179,8 @@ export function Navbar() {
                     }`}
                   >
                     <span>{link.label}</span>
-                    {hasBadge && (
-                      <span
-                        className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-none text-white"
-                        aria-label={`${link.badge} pending`}
-                      >
-                        {link.badge}
-                      </span>
+                    {showDot && (
+                      <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
                     )}
                   </Link>
                 );
