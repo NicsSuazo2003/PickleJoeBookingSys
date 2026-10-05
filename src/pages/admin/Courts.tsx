@@ -14,15 +14,19 @@ import { useClientStore } from '@/stores/clientStore';
 import type { Court } from '@/types';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 
+// ⭐ Stable empty array — same reference every render, prevents infinite loop
+const EMPTY_AMENITIES: string[] = [];
+
 export function Courts() {
   const courts = useAdminStore((state) => state.courts);
   const loadingCourts = useAdminStore((state) => state.loadingCourts);
   const loadCourts = useAdminStore((state) => state.loadCourts);
   const updateCourt = useAdminStore((state) => state.updateCourt);
 
-    const availableAmenities = useClientStore(
-    (state) => state.settings?.available_amenities ?? []
-  );
+  // ⭐ FIXED — no new array in the selector
+  const availableAmenities = useClientStore(
+    (state) => state.settings?.available_amenities
+  ) ?? EMPTY_AMENITIES;
 
   const [editing, setEditing] = useState<Court | null>(null);
   const [saving, setSaving] = useState(false);
@@ -39,8 +43,6 @@ export function Courts() {
     if (!editing) return;
     setSaving(true);
     try {
-      // Pricing fields (price_per_hour, peak_price_per_hour) are intentionally
-      // NOT sent from here. They are managed exclusively on the Pricing page.
       await updateCourt(editing);
       setEditing(null);
     } catch {
@@ -160,7 +162,6 @@ export function Courts() {
                         )}
                       </div>
 
-                      {/* Read-only info. Pricing is on the Pricing page. */}
                       <div className="mt-4 rounded-xl border border-forest-700/60 bg-forest-950/40 p-3">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">
                           Current Rates
@@ -227,8 +228,6 @@ export function Courts() {
               onChange={(e) => setEditing({ ...editing, description: e.target.value })}
             />
 
-            {/* Operating hours — these stay here because they're about the court,
-                not about money. Pricing fields are intentionally omitted. */}
             <div className="grid gap-3.5 sm:grid-cols-2">
               <Input
                 label="Opening Time"
@@ -259,42 +258,42 @@ export function Courts() {
             />
 
             <div>
-  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cream-muted">
-    Amenities
-  </p>
-  {availableAmenities.length === 0 ? (
-    <p className="rounded-xl border border-forest-700/80 bg-forest-950/40 p-3 text-xs text-cream-muted">
-      No amenities have been set up yet. Add them on the{' '}
-      <Link
-        to="/admin/settings"
-        className="font-semibold text-brand-blue-300 underline hover:text-brand-blue-200"
-      >
-        Settings page
-      </Link>
-      .
-    </p>
-  ) : (
-    <div className="flex flex-wrap gap-2">
-      {availableAmenities.map((a) => {
-        const isSelected = editing?.amenities?.includes(a) || false;
-        return (
-          <button
-            key={a}
-            type="button"
-            onClick={() => toggleAmenity(a)}
-            className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-              isSelected
-                ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue'
-                : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/40 hover:text-cream'
-            }`}
-          >
-            {a}
-          </button>
-        );
-      })}
-    </div>
-  )}
-</div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                Amenities
+              </p>
+              {availableAmenities.length === 0 ? (
+                <p className="rounded-xl border border-forest-700/80 bg-forest-950/40 p-3 text-xs text-cream-muted">
+                  No amenities have been set up yet. Add them on the{' '}
+                  <Link
+                    to="/admin/settings"
+                    className="font-semibold text-brand-blue-300 underline hover:text-brand-blue-200"
+                  >
+                    Settings page
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {availableAmenities.map((a) => {
+                    const isSelected = editing?.amenities?.includes(a) || false;
+                    return (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => toggleAmenity(a)}
+                        className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+                          isSelected
+                            ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue'
+                            : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/40 hover:text-cream'
+                        }`}
+                      >
+                        {a}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center pt-1">
               <label className="flex items-center gap-2 text-xs font-semibold text-cream cursor-pointer">
@@ -317,7 +316,6 @@ export function Courts() {
               </label>
             </div>
 
-            {/* Note about pricing */}
             <div className="rounded-xl border border-brand-blue-500/30 bg-brand-blue-500/10 p-3 text-xs text-cream-muted">
               <strong className="text-brand-blue-200">Pricing is not edited here.</strong>{' '}
               To change rates or add day-based rules, go to the{' '}
