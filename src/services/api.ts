@@ -12,7 +12,7 @@ export class ApiError extends Error {
 }
 
 const BASE_URL = APP_CONFIG.apiUrl;
-const CLIENT_SUBDOMAIN = import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'pickleballcourbookingv2';
+const CLIENT_SUBDOMAIN = import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe';
 
 export async function apiRequest<T>(
   path: string,

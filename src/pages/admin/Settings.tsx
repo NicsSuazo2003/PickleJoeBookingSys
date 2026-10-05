@@ -243,7 +243,7 @@ export function Settings() {
         method: 'POST',
         headers: {
          'X-Client-Subdomain':
-  import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'pickleballcourbookingv2',
+  import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: uploadData,
