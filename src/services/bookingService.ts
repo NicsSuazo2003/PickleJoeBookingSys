@@ -245,7 +245,7 @@ export const bookingService = {
         method: 'POST',
         headers: {
           Authorization: token ? `Bearer ${token}` : '',
-          'X-Client-Subdomain': import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
+          'X-Client-Subdomain': import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'pickleballcourbookingv2',
         },
         body: formData,
       }

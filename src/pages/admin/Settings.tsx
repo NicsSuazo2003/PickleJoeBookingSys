@@ -242,8 +242,8 @@ export function Settings() {
       const response = await fetch(`${baseUrl}/api/files/upload`, {
         method: 'POST',
         headers: {
-          'X-Client-Subdomain':
-            import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
+         'X-Client-Subdomain':
+  import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'pickleballcourbookingv2',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: uploadData,
