@@ -101,12 +101,3 @@ export const COURT_IMAGES = {
   ],
 };
 
-export const AMENITIES_LIST = [
-  'Covered Court',
-  'Tournament Surface',
-  'Lighted',
-  'Parking',
-  'Water Station',
-  'Spectator Seating',
-  'WiFi',
-];

@@ -163,6 +163,7 @@ export interface ClientSettings {
   gcash_number?: string | null;
   gcash_account_name?: string | null;
   payment_methods?: PaymentMethod[];
+  available_amenities?: string[];
 }
 
 export type AdminView = 'calendar' | 'list';

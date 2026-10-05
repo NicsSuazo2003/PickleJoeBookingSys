@@ -9,7 +9,8 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Modal } from '@/components/ui/Modal';
 import { useAdminStore } from '@/stores/adminStore';
 import { formatCurrency } from '@/utils/format';
-import { AMENITIES_LIST } from '@/utils/constants';
+import { useClientStore } from '@/stores/clientStore';
+
 import type { Court } from '@/types';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 
@@ -18,6 +19,10 @@ export function Courts() {
   const loadingCourts = useAdminStore((state) => state.loadingCourts);
   const loadCourts = useAdminStore((state) => state.loadCourts);
   const updateCourt = useAdminStore((state) => state.updateCourt);
+
+    const availableAmenities = useClientStore(
+    (state) => state.settings?.available_amenities ?? []
+  );
 
   const [editing, setEditing] = useState<Court | null>(null);
   const [saving, setSaving] = useState(false);
@@ -254,29 +259,42 @@ export function Courts() {
             />
 
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cream-muted">
-                Amenities
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {AMENITIES_LIST.map((a) => {
-                  const isSelected = editing?.amenities?.includes(a) || false;
-                  return (
-                    <button
-                      key={a}
-                      type="button"
-                      onClick={() => toggleAmenity(a)}
-                      className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-                        isSelected
-                          ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue'
-                          : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/40 hover:text-cream'
-                      }`}
-                    >
-                      {a}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cream-muted">
+    Amenities
+  </p>
+  {availableAmenities.length === 0 ? (
+    <p className="rounded-xl border border-forest-700/80 bg-forest-950/40 p-3 text-xs text-cream-muted">
+      No amenities have been set up yet. Add them on the{' '}
+      <Link
+        to="/admin/settings"
+        className="font-semibold text-brand-blue-300 underline hover:text-brand-blue-200"
+      >
+        Settings page
+      </Link>
+      .
+    </p>
+  ) : (
+    <div className="flex flex-wrap gap-2">
+      {availableAmenities.map((a) => {
+        const isSelected = editing?.amenities?.includes(a) || false;
+        return (
+          <button
+            key={a}
+            type="button"
+            onClick={() => toggleAmenity(a)}
+            className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+              isSelected
+                ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue'
+                : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/40 hover:text-cream'
+            }`}
+          >
+            {a}
+          </button>
+        );
+      })}
+    </div>
+  )}
+</div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center pt-1">
               <label className="flex items-center gap-2 text-xs font-semibold text-cream cursor-pointer">

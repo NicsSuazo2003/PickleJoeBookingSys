@@ -13,7 +13,8 @@ function normalizeClientSettings(raw: any): ClientSettings {
     accent_color: data.accentColor ?? data.accent_color ?? '#C9A94E',
     gcash_number: data.gcashNumber ?? data.gcash_number ?? null,
     gcash_account_name: data.gcashAccountName ?? data.gcash_account_name ?? null,
-    payment_methods: data.paymentMethods ?? data.payment_methods ?? [], // ✅ Already here
+    payment_methods: data.paymentMethods ?? data.payment_methods ?? [], 
+    available_amenities: data.availableAmenities ?? data.available_amenities ?? [],
   };
 }
 function normalizeAnalytics(raw: any): Analytics {
@@ -113,9 +114,10 @@ async updateSettings(payload: {
   name?: string;
   gcash_number?: string;
   gcash_account_name?: string;
-  payment_methods?: PaymentMethod[]; // ✅ Add this
-  rcbc_account_name?: string;        // ✅ Add this
-  rcbc_qr_image?: string;            // ✅ Add this
+  payment_methods?: PaymentMethod[];
+  rcbc_account_name?: string;
+  rcbc_qr_image?: string;
+  available_amenities?: string[];  // ⭐ NEW
 }): Promise<ClientSettings> {
   const res = await apiRequest<any>('/api/admin/settings', {
     method: 'PUT',
@@ -123,13 +125,16 @@ async updateSettings(payload: {
       name: payload.name,
       gcashNumber: payload.gcash_number,
       gcashAccountName: payload.gcash_account_name,
-      paymentMethods: payload.payment_methods, // ✅ Send to backend
+      paymentMethods: payload.payment_methods,
       rcbcAccountName: payload.rcbc_account_name,
       rcbcQrImage: payload.rcbc_qr_image,
+      availableAmenities: payload.available_amenities,  // ⭐ NEW
     }),
   });
   return normalizeClientSettings(res?.data ?? res);
 },
+
+
   async getBookings(filters?: {
     status?: BookingStatus;
     courtId?: string;
