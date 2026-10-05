@@ -31,7 +31,7 @@ export interface Court {
   is_active: boolean;
   status?: string;
   client_id?: string;
-  pricing_rules?: PricingRule[];   // ✅ NEW — day-based pricing rules
+  pricing_rules?: PricingRule[];
 }
 
 export interface TimeSlot {
@@ -102,16 +102,15 @@ export interface BlockedDate {
   endTime?: string | null;
 }
 
-// ✅ NEW — per-court, day-based pricing rule
 export interface PricingRule {
   id: string;
   court_id: string;
   label: string;
-  days: string;            // CSV: "mon,tue,sat" — empty means every day
-  start_time: string;      // "HH:mm"
-  end_time: string;        // "HH:mm"
+  days: string;
+  start_time: string;
+  end_time: string;
   price_per_hour: number;
-  priority: number;        // higher wins on overlap
+  priority: number;
 }
 
 export interface Analytics {
@@ -153,6 +152,13 @@ export interface AdminUser {
   status?: string;
 }
 
+// ⭐ NEW — one amenity card on the Landing page
+export interface AmenityItem {
+  name: string;
+  icon: string;         // Lucide icon key, e.g. "Sparkles", "Car", "Wifi"
+  description?: string; // optional, Landing-only subtitle
+}
+
 export interface ClientSettings {
   id: string;
   name: string;
@@ -163,7 +169,7 @@ export interface ClientSettings {
   gcash_number?: string | null;
   gcash_account_name?: string | null;
   payment_methods?: PaymentMethod[];
-  available_amenities?: string[];
+  available_amenities?: AmenityItem[];  // ⭐ CHANGED — was string[]
 }
 
 export type AdminView = 'calendar' | 'list';

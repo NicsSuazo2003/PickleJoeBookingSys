@@ -10,12 +10,12 @@ import { Modal } from '@/components/ui/Modal';
 import { useAdminStore } from '@/stores/adminStore';
 import { useClientStore } from '@/stores/clientStore';
 import { formatCurrency } from '@/utils/format';
-import { getAmenityIcon } from '@/utils/amenityIcons';
-import type { Court } from '@/types';
+import { getAmenityIcon, getAmenityIconForItem } from '@/utils/amenityIcons';
+import type { Court, AmenityItem } from '@/types';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 
 // ⭐ Stable empty array — prevents infinite render loop in the store selector
-const EMPTY_AMENITIES: string[] = [];
+const EMPTY_AMENITIES: AmenityItem[] = [];
 
 export function Courts() {
   const courts = useAdminStore((state) => state.courts);
@@ -51,14 +51,15 @@ export function Courts() {
     }
   };
 
-  const toggleAmenity = (amenity: string) => {
+  // ⭐ Courts still store amenities as plain names (comma-separated string)
+  const toggleAmenity = (amenityName: string) => {
     if (!editing) return;
-    const has = editing.amenities.includes(amenity);
+    const has = editing.amenities.includes(amenityName);
     setEditing({
       ...editing,
       amenities: has
-        ? editing.amenities.filter((a) => a !== amenity)
-        : [...editing.amenities, amenity],
+        ? editing.amenities.filter((a) => a !== amenityName)
+        : [...editing.amenities, amenityName],
     });
   };
 
@@ -150,17 +151,23 @@ export function Courts() {
                         {court?.description || 'No description provided.'}
                       </p>
 
-                      {/* ⭐ Amenity pills with icons */}
+                      {/* ⭐ Amenity pills — courts store names, so look up the icon
+                          from the client-level amenity list to keep them in sync. */}
                       <div className="mt-3.5 flex flex-wrap gap-1.5">
-                        {(court?.amenities || []).slice(0, 4).map((a) => {
-                          const Icon = getAmenityIcon(a);
+                        {(court?.amenities || []).slice(0, 4).map((name) => {
+                          const match = availableAmenities.find(
+                            (a) => a.name.toLowerCase() === name.toLowerCase()
+                          );
+                          const Icon = match
+                            ? getAmenityIconForItem(match)
+                            : getAmenityIcon(name);
                           return (
                             <span
-                              key={a}
+                              key={name}
                               className="inline-flex items-center gap-1 rounded-lg border border-forest-700/80 bg-forest-950/60 px-2 py-0.5 text-[10px] font-medium text-cream-muted"
                             >
                               <Icon className="h-3 w-3" />
-                              {a}
+                              {name}
                             </span>
                           );
                         })}
@@ -268,7 +275,7 @@ export function Courts() {
               onChange={(e) => setEditing({ ...editing, surface: e.target.value })}
             />
 
-            {/* ⭐ Amenity toggles with icons */}
+            {/* ⭐ Amenity toggles — client-level list, court stores names */}
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cream-muted">
                 Amenities
@@ -286,14 +293,15 @@ export function Courts() {
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {availableAmenities.map((a) => {
-                    const Icon = getAmenityIcon(a);
-                    const isSelected = editing?.amenities?.includes(a) || false;
+                  {availableAmenities.map((amenity) => {
+                    const Icon = getAmenityIconForItem(amenity);
+                    const isSelected =
+                      editing?.amenities?.includes(amenity.name) || false;
                     return (
                       <button
-                        key={a}
+                        key={amenity.name}
                         type="button"
-                        onClick={() => toggleAmenity(a)}
+                        onClick={() => toggleAmenity(amenity.name)}
                         className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
                           isSelected
                             ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue'
@@ -301,7 +309,7 @@ export function Courts() {
                         }`}
                       >
                         <Icon className="h-3.5 w-3.5" />
-                        {a}
+                        {amenity.name}
                       </button>
                     );
                   })}

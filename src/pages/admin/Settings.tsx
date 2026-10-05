@@ -37,14 +37,13 @@ import {
   addDays,
 } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
-import type { ClientSettings, PaymentMethod } from '@/types';
+import type { ClientSettings, PaymentMethod, AmenityItem } from '@/types';
 import { StaffManagement } from '@/components/ui/StaffManagement';
 import { Modal } from '@/components/ui/Modal';
-import { getAmenityIcon } from '@/utils/amenityIcons';
-
-// ─────────────────────────────────────────────────────────────
-// Payment method type options
-// ─────────────────────────────────────────────────────────────
+import {
+  LUCIDE_ICON_OPTIONS,
+  getAmenityIconForItem,
+} from '@/utils/amenityIcons';
 
 const PAYMENT_TYPE_OPTIONS = [
   { value: 'gcash', label: 'GCash', icon: '📱' },
@@ -63,10 +62,6 @@ const ICON_OPTIONS = [
   { value: 'Building2', icon: Building2 },
 ];
 
-// ─────────────────────────────────────────────────────────────
-// Settings Component
-// ─────────────────────────────────────────────────────────────
-
 export function Settings() {
   const { user } = useAuthStore();
 
@@ -81,10 +76,7 @@ export function Settings() {
 
   const { updateProfile, changePassword } = useAuthStore();
 
-  // ───────────────────────────────────────────────────────────
-  // Profile state
-  // ───────────────────────────────────────────────────────────
-
+  // ─── Profile state ───
   const [selectedCourtId, setSelectedCourtId] = useState<string>('');
   const [blockDate, setBlockDate] = useState(toISODate(addDays(new Date(), 7)));
   const [blockReason, setBlockReason] = useState('');
@@ -102,10 +94,7 @@ export function Settings() {
     text: string;
   } | null>(null);
 
-  // ───────────────────────────────────────────────────────────
-  // Password state
-  // ───────────────────────────────────────────────────────────
-
+  // ─── Password state ───
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -116,10 +105,7 @@ export function Settings() {
     text: string;
   } | null>(null);
 
-  // ───────────────────────────────────────────────────────────
-  // Payment Methods State
-  // ───────────────────────────────────────────────────────────
-
+  // ─── Payment methods ───
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -131,28 +117,24 @@ export function Settings() {
     text: string;
   } | null>(null);
 
-  // ───────────────────────────────────────────────────────────
-  // Venue Amenities State
-  // ───────────────────────────────────────────────────────────
-
-  const [amenities, setAmenities] = useState<string[]>([]);
-  const [newAmenity, setNewAmenity] = useState('');
+  // ─── Venue Amenities (⭐ refactored to objects) ───
+  const [amenities, setAmenities] = useState<AmenityItem[]>([]);
+  const [editingAmenityIdx, setEditingAmenityIdx] = useState<number | null>(null);
+  const [draftAmenity, setDraftAmenity] = useState<AmenityItem>({
+    name: '',
+    icon: 'Sparkles',
+    description: '',
+  });
   const [savingAmenities, setSavingAmenities] = useState(false);
   const [amenitiesMsg, setAmenitiesMsg] = useState<{
     type: 'success' | 'error';
     text: string;
   } | null>(null);
 
-  // ───────────────────────────────────────────────────────────
-  // QR Upload state
-  // ───────────────────────────────────────────────────────────
-
+  // ─── QR upload ───
   const [uploadingQR, setUploadingQR] = useState(false);
 
-  // ───────────────────────────────────────────────────────────
-  // Form Data
-  // ───────────────────────────────────────────────────────────
-
+  // ─── Payment method form ───
   const [formData, setFormData] = useState<Partial<PaymentMethod>>({
     name: '',
     type: 'other',
@@ -255,8 +237,7 @@ export function Settings() {
       uploadData.append('file', file);
       const token = localStorage.getItem('admin_token');
 
-      const baseUrl =
-        import.meta.env.VITE_API_BASE_URL ?? APP_CONFIG.apiUrl;
+      const baseUrl = import.meta.env.VITE_API_BASE_URL ?? APP_CONFIG.apiUrl;
 
       const response = await fetch(`${baseUrl}/api/files/upload`, {
         method: 'POST',
@@ -497,14 +478,18 @@ export function Settings() {
     }
   };
 
-  // ───────────────────────────────────────────────────────────
-  // Venue Amenities handlers
-  // ───────────────────────────────────────────────────────────
+  // ─── Venue Amenities handlers ───
+  const resetDraftAmenity = () => {
+    setDraftAmenity({ name: '', icon: 'Sparkles', description: '' });
+  };
 
   const addAmenity = () => {
-    const trimmed = newAmenity.trim();
+    const trimmed = draftAmenity.name.trim();
 
-    if (!trimmed) return;
+    if (!trimmed) {
+      setAmenitiesMsg({ type: 'error', text: 'Amenity name is required.' });
+      return;
+    }
 
     if (trimmed.includes(',')) {
       setAmenitiesMsg({
@@ -514,7 +499,7 @@ export function Settings() {
       return;
     }
 
-    if (amenities.some((a) => a.toLowerCase() === trimmed.toLowerCase())) {
+    if (amenities.some((a) => a.name.toLowerCase() === trimmed.toLowerCase())) {
       setAmenitiesMsg({
         type: 'error',
         text: `"${trimmed}" is already in the list.`,
@@ -522,22 +507,37 @@ export function Settings() {
       return;
     }
 
-    setAmenities([...amenities, trimmed]);
-    setNewAmenity('');
+    setAmenities([
+      ...amenities,
+      {
+        name: trimmed,
+        icon: draftAmenity.icon || 'Sparkles',
+        description: (draftAmenity.description ?? '').trim(),
+      },
+    ]);
+    resetDraftAmenity();
     setAmenitiesMsg(null);
   };
 
-  const removeAmenity = (amenity: string) => {
-    const affected = courts.filter((c) => c.amenities?.includes(amenity));
+  const updateAmenity = (idx: number, patch: Partial<AmenityItem>) => {
+    setAmenities(amenities.map((a, i) => (i === idx ? { ...a, ...patch } : a)));
+  };
+
+  const removeAmenity = (idx: number) => {
+    const amenity = amenities[idx];
+    if (!amenity) return;
+
+    const affected = courts.filter((c) => c.amenities?.includes(amenity.name));
 
     if (affected.length > 0) {
       const confirmed = window.confirm(
-        `Remove "${amenity}"?\n\nIt's currently assigned to ${affected.length} court${affected.length === 1 ? '' : 's'}. Removing it from the master list will also remove it from those courts when you save.`
+        `Remove "${amenity.name}"?\n\nIt's currently assigned to ${affected.length} court${affected.length === 1 ? '' : 's'}. Removing it from the master list will also remove it from those courts when you save.`
       );
       if (!confirmed) return;
     }
 
-    setAmenities(amenities.filter((a) => a !== amenity));
+    setAmenities(amenities.filter((_, i) => i !== idx));
+    if (editingAmenityIdx === idx) setEditingAmenityIdx(null);
     setAmenitiesMsg(null);
   };
 
@@ -581,8 +581,7 @@ export function Settings() {
           <LoadingSpinner className="py-16" />
         ) : (
           <div className="space-y-5 sm:space-y-6">
-
-            {/* ───────────────── Account Info ───────────────── */}
+            {/* ─── Account Info ─── */}
             <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
               <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
                 <SettingsIcon className="h-5 w-5 text-brand-blue-300" />
@@ -636,7 +635,7 @@ export function Settings() {
               </div>
             </div>
 
-            {/* ───────────────── Change Password ───────────────── */}
+            {/* ─── Change Password ─── */}
             <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
               <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
                 <Lock className="h-5 w-5 text-brand-blue-300" />
@@ -694,7 +693,7 @@ export function Settings() {
               </div>
             </div>
 
-            {/* ───────────────── Venue Amenities ───────────────── */}
+            {/* ─── Venue Amenities ─── */}
             {isAdmin && (
               <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
                 <div className="mb-4">
@@ -703,77 +702,205 @@ export function Settings() {
                     Venue Amenities
                   </h2>
                   <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
-                    Master list of amenities you can assign to any court. Courts pick from this list — spellings stay consistent.
+                    Master list of amenities shown on the public landing page. Pick an icon and
+                    add a short description for each — descriptions only appear on the landing page.
                   </p>
                 </div>
 
                 {amenities.length === 0 ? (
                   <div className="rounded-xl border border-forest-700/80 bg-forest-950/60 py-8 text-center">
                     <Sparkles className="mx-auto h-10 w-10 text-cream-muted/30" />
-                    <p className="mt-3 text-sm font-semibold text-cream-muted">No amenities yet.</p>
-                    <p className="mt-0.5 text-xs text-cream-muted/70">Add your first one below.</p>
+                    <p className="mt-3 text-sm font-semibold text-cream-muted">
+                      No amenities yet.
+                    </p>
+                    <p className="mt-0.5 text-xs text-cream-muted/70">
+                      Add your first one below.
+                    </p>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {amenities.map((amenity) => {
-                      const Icon = getAmenityIcon(amenity);
+                  <div className="space-y-2.5">
+                    {amenities.map((amenity, idx) => {
+                      const Icon = getAmenityIconForItem(amenity);
+                      const isEditing = editingAmenityIdx === idx;
+
                       return (
-                        <span
-                          key={amenity}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-brand-blue-400/30 bg-brand-blue-500/15 px-3 py-1.5 text-xs font-semibold text-brand-blue-200"
+                        <div
+                          key={`${amenity.name}-${idx}`}
+                          className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-3"
                         >
-                          <Icon className="h-3.5 w-3.5" />
-                          {amenity}
-                          <button
-                            type="button"
-                            onClick={() => removeAmenity(amenity)}
-                            className="ml-1 rounded-full p-0.5 text-brand-blue-300/70 transition hover:bg-error/20 hover:text-error"
-                            aria-label={`Remove ${amenity}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </span>
+                          {isEditing ? (
+                            <div className="space-y-3">
+                              <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
+                                <Input
+                                  label="Name"
+                                  value={amenity.name}
+                                  onChange={(e) =>
+                                    updateAmenity(idx, { name: e.target.value })
+                                  }
+                                />
+                                <div>
+                                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                                    Icon
+                                  </label>
+                                  <select
+                                    value={amenity.icon}
+                                    onChange={(e) =>
+                                      updateAmenity(idx, { icon: e.target.value })
+                                    }
+                                    className="w-full rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5 text-sm text-cream transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
+                                  >
+                                    {LUCIDE_ICON_OPTIONS.map((opt) => (
+                                      <option
+                                        key={opt.value}
+                                        value={opt.value}
+                                        className="bg-forest-900"
+                                      >
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+
+                              <Textarea
+                                label="Description (landing page only)"
+                                rows={2}
+                                placeholder="e.g. Pro-grade silica surface, low dust, all-weather"
+                                value={amenity.description ?? ''}
+                                onChange={(e) =>
+                                  updateAmenity(idx, { description: e.target.value })
+                                }
+                              />
+
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setEditingAmenityIdx(null)}
+                                >
+                                  Done
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  leftIcon={<Trash2 className="h-4 w-4" />}
+                                  onClick={() => removeAmenity(idx)}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand-blue-400/30 bg-brand-blue-500/15 text-brand-blue-300">
+                                <Icon className="h-5 w-5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-bold text-cream">
+                                  {amenity.name}
+                                </p>
+                                {amenity.description ? (
+                                  <p className="truncate text-xs text-cream-muted">
+                                    {amenity.description}
+                                  </p>
+                                ) : (
+                                  <p className="truncate text-xs italic text-cream-muted/50">
+                                    No description yet
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingAmenityIdx(idx)}
+                                  className="rounded-lg border border-forest-600 bg-forest-800/80 p-2 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
+                                  title="Edit"
+                                >
+                                  <Edit3 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeAmenity(idx)}
+                                  className="rounded-lg border border-forest-600 bg-forest-800/80 p-2 text-cream-muted transition hover:border-error hover:text-error active:scale-95"
+                                  title="Remove"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
                 )}
 
-                {/* Add new amenity with live icon preview */}
-                <div className="mt-4 flex gap-2">
-                  <div className="relative flex-1">
-                    {newAmenity.trim() && (
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-blue-300">
-                        {(() => {
-                          const Icon = getAmenityIcon(newAmenity);
-                          return <Icon className="h-4 w-4" />;
-                        })()}
-                      </span>
-                    )}
-                    <input
-                      type="text"
-                      value={newAmenity}
-                      onChange={(e) => setNewAmenity(e.target.value)}
+                {/* Add new amenity */}
+                <div className="mt-4 space-y-3 rounded-xl border border-dashed border-forest-700/80 bg-forest-950/40 p-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-brand-blue-300">
+                    Add new amenity
+                  </p>
+
+                  <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
+                    <Input
+                      label="Name"
+                      placeholder="e.g. Air Conditioned, Lockers, Pro Shop"
+                      value={draftAmenity.name}
+                      onChange={(e) =>
+                        setDraftAmenity({ ...draftAmenity, name: e.target.value })
+                      }
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
                           addAmenity();
                         }
                       }}
-                      placeholder="e.g. Air Conditioned, Lockers, Pro Shop"
-                      className={`w-full rounded-xl border border-forest-700/80 bg-forest-950/70 py-2.5 pr-3.5 text-sm text-cream placeholder-cream-muted/40 transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20 ${
-                        newAmenity.trim() ? 'pl-10' : 'pl-3.5'
-                      }`}
                     />
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                        Icon
+                      </label>
+                      <select
+                        value={draftAmenity.icon}
+                        onChange={(e) =>
+                          setDraftAmenity({ ...draftAmenity, icon: e.target.value })
+                        }
+                        className="w-full rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5 text-sm text-cream transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
+                      >
+                        {LUCIDE_ICON_OPTIONS.map((opt) => (
+                          <option
+                            key={opt.value}
+                            value={opt.value}
+                            className="bg-forest-900"
+                          >
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <Button
-                    size="sm"
-                    type="button"
-                    onClick={addAmenity}
-                    disabled={!newAmenity.trim()}
-                    leftIcon={<Plus className="h-4 w-4" />}
-                  >
-                    Add
-                  </Button>
+
+                  <Textarea
+                    label="Description (landing page only)"
+                    rows={2}
+                    placeholder="e.g. Pro-grade silica surface, low dust, all-weather"
+                    value={draftAmenity.description ?? ''}
+                    onChange={(e) =>
+                      setDraftAmenity({ ...draftAmenity, description: e.target.value })
+                    }
+                  />
+
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={addAmenity}
+                      disabled={!draftAmenity.name.trim()}
+                      leftIcon={<Plus className="h-4 w-4" />}
+                    >
+                      Add
+                    </Button>
+                  </div>
                 </div>
 
                 {amenitiesMsg && (
@@ -806,7 +933,7 @@ export function Settings() {
               </div>
             )}
 
-            {/* ───────────────── Payment Methods ───────────────── */}
+            {/* ─── Payment Methods ─── */}
             {isAdmin && (
               <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -837,7 +964,9 @@ export function Settings() {
                 ) : paymentMethods.length === 0 ? (
                   <div className="rounded-xl border border-forest-700/80 bg-forest-950/60 py-8 text-center">
                     <Wallet className="mx-auto h-10 w-10 text-cream-muted/30" />
-                    <p className="mt-3 text-sm font-semibold text-cream-muted">No payment methods configured.</p>
+                    <p className="mt-3 text-sm font-semibold text-cream-muted">
+                      No payment methods configured.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -845,7 +974,8 @@ export function Settings() {
                       .sort((a, b) => a.sort_order - b.sort_order)
                       .map((method) => {
                         const IconComponent =
-                          ICON_OPTIONS.find((i) => i.value === method.icon)?.icon || Smartphone;
+                          ICON_OPTIONS.find((i) => i.value === method.icon)?.icon ||
+                          Smartphone;
 
                         return (
                           <div
@@ -922,7 +1052,7 @@ export function Settings() {
               </div>
             )}
 
-            {/* ───────────────── Blocked Dates ───────────────── */}
+            {/* ─── Blocked Dates ─── */}
             {isAdmin && (
               <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
                 <h2 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
@@ -1078,10 +1208,10 @@ export function Settings() {
               </div>
             )}
 
-            {/* ───────────────── Staff Management ───────────────── */}
+            {/* ─── Staff Management ─── */}
             {isAdmin && <StaffManagement />}
 
-            {/* ───────────────── App Info ───────────────── */}
+            {/* ─── App Info ─── */}
             <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
               <h2 className="mb-4 font-display text-base font-bold text-cream sm:text-lg">
                 System Information
@@ -1089,18 +1219,28 @@ export function Settings() {
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">Platform</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">
+                    Platform
+                  </p>
                   <p className="mt-1 text-sm font-bold text-cream">{APP_CONFIG.name}</p>
                 </div>
 
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">Established</p>
-                  <p className="mt-1 text-sm font-bold text-cream">Est. {APP_CONFIG.established}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">
+                    Established
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-cream">
+                    Est. {APP_CONFIG.established}
+                  </p>
                 </div>
 
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">Built By</p>
-                  <p className="mt-1 text-sm font-bold text-cream">{APP_CONFIG.developer}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">
+                    Built By
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-cream">
+                    {APP_CONFIG.developer}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1108,7 +1248,7 @@ export function Settings() {
         )}
       </div>
 
-      {/* ───────────────── Add/Edit Payment Method Modal ───────────────── */}
+      {/* ─── Add/Edit Payment Method Modal ─── */}
       <Modal
         isOpen={showAddModal || !!editingMethod}
         onClose={() => {
@@ -1214,7 +1354,9 @@ export function Settings() {
                         className="h-24 w-24 rounded-lg border border-forest-700 object-contain bg-white p-1"
                       />
                       <div className="min-w-0 text-center sm:text-left">
-                        <p className="text-xs font-bold text-accentGreen-300">QR Code Linked ✓</p>
+                        <p className="text-xs font-bold text-accentGreen-300">
+                          QR Code Linked ✓
+                        </p>
                         <button
                           type="button"
                           onClick={() =>
@@ -1233,7 +1375,9 @@ export function Settings() {
                 ) : (
                   <div className="rounded-xl border-2 border-dashed border-forest-700/80 bg-forest-950/40 p-5 text-center transition hover:border-brand-blue-400/50">
                     <ImageIcon className="mx-auto h-8 w-8 text-cream-muted/40" />
-                    <p className="mt-2 text-xs text-cream-muted">Upload QR code for instant client scans</p>
+                    <p className="mt-2 text-xs text-cream-muted">
+                      Upload QR code for instant client scans
+                    </p>
                     <label className="mt-3 inline-block cursor-pointer">
                       <span className="rounded-xl border border-brand-blue-400/40 bg-brand-blue-500/20 px-3.5 py-1.5 text-xs font-semibold text-brand-blue-300 transition hover:bg-brand-blue-500 hover:text-white">
                         {uploadingQR ? 'Uploading...' : 'Choose QR Image'}

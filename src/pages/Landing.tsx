@@ -30,7 +30,8 @@ import { useOpenPlayStore } from '@/stores/openPlayStore';
 import { useClientStore } from '@/stores/clientStore';
 import { bookingService } from '@/services/bookingService';
 import { COURT_IMAGES, APP_CONFIG } from '@/utils/constants';
-import { getAmenityIcon } from '@/utils/amenityIcons';
+import { getAmenityIconForItem } from '@/utils/amenityIcons';
+import type { AmenityItem } from '@/types';
 import {
   formatCurrency,
   todayISO,
@@ -41,7 +42,7 @@ import {
 import type { TimeSlot, Court, OpenPlaySession, Booking } from '@/types';
 
 // Stable empty array — prevents infinite render loop in the store selector
-const EMPTY_AMENITIES: string[] = [];
+const EMPTY_AMENITIES: AmenityItem[] = [];
 
 const COURT_ACCENTS = [
   { header: 'text-court-200', dot: 'bg-court-400', border: 'border-court-500/40', bg: 'bg-court-600/20', text: 'text-court-100', hoverBorder: 'hover:border-court-300', hoverBg: 'hover:bg-court-600/35' },
@@ -133,7 +134,6 @@ export function Landing() {
 
   const [heroIdx, setHeroIdx] = useState(0);
 
-  // ─── Pending booking banner state ───
   const [pendingBooking, setPendingBooking] = useState<Booking | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
@@ -157,15 +157,14 @@ export function Landing() {
     loadUpcomingSessions,
   } = useOpenPlayStore();
 
-  // ⭐ Read amenities from client settings (same source as admin Settings page)
-  const availableAmenities =
+  // ⭐ Amenities now come as objects from client settings
+  const availableAmenities: AmenityItem[] =
     useClientStore((state) => state.settings?.available_amenities) ?? EMPTY_AMENITIES;
 
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  // ─── Pending booking banner effect ───
   useEffect(() => {
     const savedRef = localStorage.getItem('pendingBookingRef');
     if (!savedRef) return;
@@ -360,7 +359,6 @@ export function Landing() {
     <div className="min-h-screen bg-charcoal text-cream">
       <Navbar />
 
-      {/* ─── Pending booking banner ─── */}
       {showPendingBanner && pendingBooking && (
         <div className="fixed inset-x-0 top-16 z-40 px-3 sm:top-20 sm:px-4">
           <div className="container-page">
@@ -511,8 +509,7 @@ export function Landing() {
                   Join a Session This Week
                 </h2>
                 <p className="text-xs text-cream-muted sm:text-sm">
-                  Meet other players and split the court — spots fill fast
-                </p>
+                  Meet other players and split the court — spots fill fast                </p>
               </div>
               <Button
                 size="sm"
@@ -971,7 +968,7 @@ export function Landing() {
         </div>
       )}
 
-      {/* ───────────────── Venue Amenities ───────────────── */}
+      {/* ─── Venue Amenities ─── */}
       <section className="border-b border-forest-700/80 bg-forest-900/60 py-14 sm:py-20">
         <div className="container-page">
           <div className="mb-10 text-center sm:mb-12">
@@ -995,24 +992,29 @@ export function Landing() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
               {availableAmenities.map((amenity, idx) => {
-                const Icon = getAmenityIcon(amenity);
+                const Icon = getAmenityIconForItem(amenity);
                 return (
                   <motion.div
-                    key={amenity}
+                    key={`${amenity.name}-${idx}`}
                     initial={{ opacity: 0, y: 15 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: idx * 0.05 }}
-                    className="flex flex-col items-center rounded-2xl border border-forest-700/70 bg-forest-800/80 p-4 text-center transition hover:border-court-400/40 hover:bg-forest-800"
+                    className="flex flex-col items-center rounded-2xl border border-forest-700/70 bg-forest-800/80 p-5 text-center transition hover:border-court-400/40 hover:bg-forest-800 sm:p-6"
                   >
-                    <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-court-400/30 bg-court-600/30 shadow-inner">
-                      <Icon className="h-5 w-5 text-court-300" />
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-court-400/30 bg-court-600/30 shadow-inner">
+                      <Icon className="h-6 w-6 text-court-300" />
                     </div>
-                    <h3 className="text-xs font-bold text-cream sm:text-sm">
-                      {amenity}
+                    <h3 className="text-sm font-bold text-cream sm:text-base">
+                      {amenity.name}
                     </h3>
+                    {amenity.description && (
+                      <p className="mt-1.5 text-xs leading-relaxed text-cream-muted">
+                        {amenity.description}
+                      </p>
+                    )}
                   </motion.div>
                 );
               })}

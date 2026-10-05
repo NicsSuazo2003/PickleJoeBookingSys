@@ -1,19 +1,32 @@
-import type { ClientSettings } from '@/types';
+import type { ClientSettings, AmenityItem } from '@/types';
 import { apiRequest } from './api';
 
-function normalizeClientSettings(raw: any): ClientSettings {
+function normalizeAmenity(raw: any): AmenityItem {
+  // Tolerate the legacy shape (plain string) during a partial deploy.
+  if (typeof raw === 'string') {
+    return { name: raw, icon: 'Sparkles', description: '' };
+  }
   return {
-    id: raw.id,
-    name: raw.name,
-    subdomain: raw.subdomain,
-    logo_url: raw.logoUrl ?? raw.logo_url ?? null,
-    primary_color: raw.primaryColor ?? raw.primary_color,
-    accent_color: raw.accentColor ?? raw.accent_color,
-    gcash_number: raw.gcashNumber ?? raw.gcash_number ?? null,
-    gcash_account_name: raw.gcashAccountName ?? raw.gcash_account_name ?? null,
-    payment_methods: raw.paymentMethods ?? raw.payment_methods ?? [],
-    available_amenities:
-      raw.availableAmenities ?? raw.available_amenities ?? [],
+    name: raw?.name ?? '',
+    icon: raw?.icon ?? 'Sparkles',
+    description: raw?.description ?? '',
+  };
+}
+
+function normalizeClientSettings(raw: any): ClientSettings {
+  const data = raw?.data ?? raw;
+  return {
+    id: data.id || '',
+    name: data.name || '',
+    subdomain: data.subdomain || '',
+    logo_url: data.logoUrl ?? data.logo_url ?? null,
+    primary_color: data.primaryColor ?? data.primary_color ?? '#1A2E1A',
+    accent_color: data.accentColor ?? data.accent_color ?? '#C9A94E',
+    gcash_number: data.gcashNumber ?? data.gcash_number ?? null,
+    gcash_account_name: data.gcashAccountName ?? data.gcash_account_name ?? null,
+    payment_methods: data.paymentMethods ?? data.payment_methods ?? [],
+    available_amenities: (data.availableAmenities ?? data.available_amenities ?? [])
+      .map(normalizeAmenity),
   };
 }
 
