@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   X,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -26,8 +27,10 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
 import { useOpenPlayStore } from '@/stores/openPlayStore';
+import { useClientStore } from '@/stores/clientStore';
 import { bookingService } from '@/services/bookingService';
 import { COURT_IMAGES, APP_CONFIG } from '@/utils/constants';
+import { getAmenityIcon } from '@/utils/amenityIcons';
 import {
   formatCurrency,
   todayISO,
@@ -37,7 +40,9 @@ import {
 } from '@/utils/format';
 import type { TimeSlot, Court, OpenPlaySession, Booking } from '@/types';
 
-// Court palette column accents (Infield Blue & Outfield Green)
+// Stable empty array — prevents infinite render loop in the store selector
+const EMPTY_AMENITIES: string[] = [];
+
 const COURT_ACCENTS = [
   { header: 'text-court-200', dot: 'bg-court-400', border: 'border-court-500/40', bg: 'bg-court-600/20', text: 'text-court-100', hoverBorder: 'hover:border-court-300', hoverBg: 'hover:bg-court-600/35' },
   { header: 'text-forest-200', dot: 'bg-forest-400', border: 'border-forest-500/40', bg: 'bg-forest-600/20', text: 'text-forest-100', hoverBorder: 'hover:border-forest-300', hoverBg: 'hover:bg-forest-600/35' },
@@ -152,6 +157,10 @@ export function Landing() {
     loadUpcomingSessions,
   } = useOpenPlayStore();
 
+  // ⭐ Read amenities from client settings (same source as admin Settings page)
+  const availableAmenities =
+    useClientStore((state) => state.settings?.available_amenities) ?? EMPTY_AMENITIES;
+
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -161,7 +170,6 @@ export function Landing() {
     const savedRef = localStorage.getItem('pendingBookingRef');
     if (!savedRef) return;
 
-    // Respect per-session dismissal
     const dismissed = sessionStorage.getItem('pendingBannerDismissed');
     if (dismissed === savedRef) {
       setBannerDismissed(true);
@@ -177,7 +185,6 @@ export function Landing() {
         if (booking.status === 'pending_payment') {
           setPendingBooking(booking);
         } else {
-          // Stale ref — clean it up so we don't re-check on every load
           localStorage.removeItem('pendingBookingRef');
         }
       } catch (err) {
@@ -347,7 +354,6 @@ export function Landing() {
   const allPeriodsEmpty =
     morningTimes.length === 0 && afternoonTimes.length === 0 && eveningTimes.length === 0;
 
-  // Show the banner only when there's a pending booking AND the user hasn't dismissed it
   const showPendingBanner = !!pendingBooking && !bannerDismissed;
 
   return (
@@ -965,56 +971,57 @@ export function Landing() {
         </div>
       )}
 
+      {/* ───────────────── Venue Amenities ───────────────── */}
       <section className="border-b border-forest-700/80 bg-forest-900/60 py-14 sm:py-20">
         <div className="container-page">
           <div className="mb-10 text-center sm:mb-12">
             <span className="text-xs font-bold uppercase tracking-wider text-court-300">
-              Why CenterCourt
+              Court Specs & Comfort
             </span>
-            <h2 className="section-title mt-2">Built for Players</h2>
+            <h2 className="section-title mt-2">Venue Amenities</h2>
+            <p className="mt-2 text-xs text-cream-muted sm:text-sm">
+              Everything you need for a great game — on and off the court
+            </p>
           </div>
 
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
-            {[
-              {
-                icon: CalendarPlus,
-                title: 'Instant Booking',
-                desc: 'Select your court, date, and time slots in under a minute. No phone calls, no waiting.',
-              },
-              {
-                icon: Wallet,
-                title: 'Flexible Payment',
-                desc: 'Pay securely using your chosen payment method. Upload your receipt and get confirmed in minutes.',
-              },
-              {
-                icon: ShieldCheck,
-                title: 'Admin Verified',
-                desc: 'Every booking is reviewed and confirmed by our team. You always get your court.',
-              },
-            ].map((feat, i) => {
-              const Icon = feat.icon;
-              return (
-                <motion.div
-                  key={feat.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="card rounded-2xl border border-forest-700/70 bg-forest-800/80 p-5 shadow-lg backdrop-blur-sm sm:p-6 hover:border-forest-600 transition"
-                >
-                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-court-400/30 bg-court-600/30 shadow-inner">
-                    <Icon className="h-6 w-6 text-court-300" />
-                  </div>
-
-                  <h3 className="text-base font-bold text-cream sm:text-lg">{feat.title}</h3>
-                  <p className="mt-2 text-xs leading-relaxed text-cream-muted sm:text-sm">{feat.desc}</p>
-                </motion.div>
-              );
-            })}
-          </div>
+          {availableAmenities.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-forest-700/60 bg-forest-950/40 p-8 text-center">
+              <Sparkles className="mx-auto h-10 w-10 text-cream-muted/30" />
+              <p className="mt-3 text-sm font-semibold text-cream-muted">
+                Amenities coming soon
+              </p>
+              <p className="mt-1 text-xs text-cream-muted/70">
+                Check back shortly for our full list of on-site facilities.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {availableAmenities.map((amenity, idx) => {
+                const Icon = getAmenityIcon(amenity);
+                return (
+                  <motion.div
+                    key={amenity}
+                    initial={{ opacity: 0, y: 15 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="flex flex-col items-center rounded-2xl border border-forest-700/70 bg-forest-800/80 p-4 text-center transition hover:border-court-400/40 hover:bg-forest-800"
+                  >
+                    <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-court-400/30 bg-court-600/30 shadow-inner">
+                      <Icon className="h-5 w-5 text-court-300" />
+                    </div>
+                    <h3 className="text-xs font-bold text-cream sm:text-sm">
+                      {amenity}
+                    </h3>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
+      {/* How It Works Section */}
       <section className="py-14 sm:py-20 bg-forest-950/40">
         <div className="container-page">
           <div className="mb-10 text-center sm:mb-12">
