@@ -1,7 +1,7 @@
 export const APP_CONFIG = {
   name: import.meta.env.VITE_APP_NAME ?? 'Center Court',
   demoMode: (import.meta.env.VITE_DEMO_MODE ?? 'false') === 'true',
-  apiUrl: import.meta.env.VITE_API_BASE_URL ?? 'https://pickleballcourbookingv2.onrender.com',
+  apiUrl: import.meta.env.VITE_API_BASE_URL ?? 'https://pickleballcourbookingv2-e064.onrender.com',
   tagline: 'Book Your Court. Play Your Game.',
   established: '2026',
   paymentNumber: '09XX XXX XXXX',
@@ -100,4 +100,5 @@ export const COURT_IMAGES = {
     '/images/bg3.jpg',
   ],
 };
+
 
