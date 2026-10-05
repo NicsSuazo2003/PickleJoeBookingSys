@@ -8,24 +8,15 @@ import { Input, Textarea } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Modal } from '@/components/ui/Modal';
 import { useAdminStore } from '@/stores/adminStore';
-import { useClientStore } from '@/stores/clientStore';
 import { formatCurrency } from '@/utils/format';
-import { getAmenityIcon, getAmenityIconForItem } from '@/utils/amenityIcons';
-import type { Court, AmenityItem } from '@/types';
+import type { Court } from '@/types';
 import { ImageUpload } from '@/components/ui/ImageUpload';
-
-// ⭐ Stable empty array — prevents infinite render loop in the store selector
-const EMPTY_AMENITIES: AmenityItem[] = [];
 
 export function Courts() {
   const courts = useAdminStore((state) => state.courts);
   const loadingCourts = useAdminStore((state) => state.loadingCourts);
   const loadCourts = useAdminStore((state) => state.loadCourts);
   const updateCourt = useAdminStore((state) => state.updateCourt);
-
-  const availableAmenities =
-    useClientStore((state) => state.settings?.available_amenities) ??
-    EMPTY_AMENITIES;
 
   const [editing, setEditing] = useState<Court | null>(null);
   const [saving, setSaving] = useState(false);
@@ -51,18 +42,6 @@ export function Courts() {
     }
   };
 
-  // ⭐ Courts still store amenities as plain names (comma-separated string)
-  const toggleAmenity = (amenityName: string) => {
-    if (!editing) return;
-    const has = editing.amenities.includes(amenityName);
-    setEditing({
-      ...editing,
-      amenities: has
-        ? editing.amenities.filter((a) => a !== amenityName)
-        : [...editing.amenities, amenityName],
-    });
-  };
-
   const getImageUrl = (court: Court): string => {
     return (
       court?.image ||
@@ -79,7 +58,7 @@ export function Courts() {
             Courts Management
           </h1>
           <p className="mt-1 text-xs text-cream-muted sm:text-sm">
-            Manage court details, operating hours, and amenities. Pricing is on the{' '}
+            Manage court details, operating hours, and images. Pricing is on the{' '}
             <Link
               to="/admin/pricing"
               className="text-brand-blue-300 underline hover:text-brand-blue-200"
@@ -150,33 +129,6 @@ export function Courts() {
                       <p className="mt-1 line-clamp-2 text-xs text-cream-muted leading-relaxed">
                         {court?.description || 'No description provided.'}
                       </p>
-
-                      {/* ⭐ Amenity pills — courts store names, so look up the icon
-                          from the client-level amenity list to keep them in sync. */}
-                      <div className="mt-3.5 flex flex-wrap gap-1.5">
-                        {(court?.amenities || []).slice(0, 4).map((name) => {
-                          const match = availableAmenities.find(
-                            (a) => a.name.toLowerCase() === name.toLowerCase()
-                          );
-                          const Icon = match
-                            ? getAmenityIconForItem(match)
-                            : getAmenityIcon(name);
-                          return (
-                            <span
-                              key={name}
-                              className="inline-flex items-center gap-1 rounded-lg border border-forest-700/80 bg-forest-950/60 px-2 py-0.5 text-[10px] font-medium text-cream-muted"
-                            >
-                              <Icon className="h-3 w-3" />
-                              {name}
-                            </span>
-                          );
-                        })}
-                        {(court?.amenities || []).length > 4 && (
-                          <span className="rounded-lg border border-forest-700/80 bg-forest-950/60 px-2 py-0.5 text-[10px] font-semibold text-brand-blue-300">
-                            +{(court?.amenities || []).length - 4} more
-                          </span>
-                        )}
-                      </div>
 
                       <div className="mt-4 rounded-xl border border-forest-700/60 bg-forest-950/40 p-3">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-cream-muted">
@@ -274,48 +226,6 @@ export function Courts() {
               value={editing?.surface || ''}
               onChange={(e) => setEditing({ ...editing, surface: e.target.value })}
             />
-
-            {/* ⭐ Amenity toggles — client-level list, court stores names */}
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cream-muted">
-                Amenities
-              </p>
-              {availableAmenities.length === 0 ? (
-                <p className="rounded-xl border border-forest-700/80 bg-forest-950/40 p-3 text-xs text-cream-muted">
-                  No amenities have been set up yet. Add them on the{' '}
-                  <Link
-                    to="/admin/settings"
-                    className="font-semibold text-brand-blue-300 underline hover:text-brand-blue-200"
-                  >
-                    Settings page
-                  </Link>
-                  .
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {availableAmenities.map((amenity) => {
-                    const Icon = getAmenityIconForItem(amenity);
-                    const isSelected =
-                      editing?.amenities?.includes(amenity.name) || false;
-                    return (
-                      <button
-                        key={amenity.name}
-                        type="button"
-                        onClick={() => toggleAmenity(amenity.name)}
-                        className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-                          isSelected
-                            ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue'
-                            : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/40 hover:text-cream'
-                        }`}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                        {amenity.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center pt-1">
               <label className="flex items-center gap-2 text-xs font-semibold text-cream cursor-pointer">
