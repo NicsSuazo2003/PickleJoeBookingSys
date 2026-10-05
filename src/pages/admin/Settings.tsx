@@ -19,7 +19,7 @@ import {
   Edit3,
   Image as ImageIcon,
   Loader2,
-  Sparkles,  // ⭐ NEW
+  Sparkles,
 } from 'lucide-react';
 
 import { AdminLayout } from '@/components/layout/AdminLayout';
@@ -40,6 +40,7 @@ import { APP_CONFIG } from '@/utils/constants';
 import type { ClientSettings, PaymentMethod } from '@/types';
 import { StaffManagement } from '@/components/ui/StaffManagement';
 import { Modal } from '@/components/ui/Modal';
+import { getAmenityIcon } from '@/utils/amenityIcons';
 
 // ─────────────────────────────────────────────────────────────
 // Payment method type options
@@ -52,10 +53,6 @@ const PAYMENT_TYPE_OPTIONS = [
   { value: 'e_wallet', label: 'E-Wallet', icon: '💳' },
   { value: 'other', label: 'Other', icon: '🔗' },
 ];
-
-// ─────────────────────────────────────────────────────────────
-// Icon options
-// ─────────────────────────────────────────────────────────────
 
 const ICON_OPTIONS = [
   { value: 'Smartphone', icon: Smartphone },
@@ -83,14 +80,6 @@ export function Settings() {
   const removeBlockedDate = useAdminStore((state) => state.removeBlockedDate);
 
   const { updateProfile, changePassword } = useAuthStore();
-
-  const [amenities, setAmenities] = useState<string[]>([]);
-const [newAmenity, setNewAmenity] = useState('');
-const [savingAmenities, setSavingAmenities] = useState(false);
-const [amenitiesMsg, setAmenitiesMsg] = useState<{
-  type: 'success' | 'error';
-  text: string;
-} | null>(null);
 
   // ───────────────────────────────────────────────────────────
   // Profile state
@@ -143,6 +132,18 @@ const [amenitiesMsg, setAmenitiesMsg] = useState<{
   } | null>(null);
 
   // ───────────────────────────────────────────────────────────
+  // Venue Amenities State
+  // ───────────────────────────────────────────────────────────
+
+  const [amenities, setAmenities] = useState<string[]>([]);
+  const [newAmenity, setNewAmenity] = useState('');
+  const [savingAmenities, setSavingAmenities] = useState(false);
+  const [amenitiesMsg, setAmenitiesMsg] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  // ───────────────────────────────────────────────────────────
   // QR Upload state
   // ───────────────────────────────────────────────────────────
 
@@ -178,7 +179,7 @@ const [amenitiesMsg, setAmenitiesMsg] = useState<{
       try {
         const settings = await adminService.getSettings();
         setClientSettings(settings);
-        setAmenities(settings.available_amenities ?? []);  
+        setAmenities(settings.available_amenities ?? []);
       } catch (err) {
         console.error('Failed to load client settings:', err);
       } finally {
@@ -254,15 +255,22 @@ const [amenitiesMsg, setAmenitiesMsg] = useState<{
       uploadData.append('file', file);
       const token = localStorage.getItem('admin_token');
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/files/upload`, {
+      const baseUrl =
+        import.meta.env.VITE_API_BASE_URL ?? APP_CONFIG.apiUrl;
+
+      const response = await fetch(`${baseUrl}/api/files/upload`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          'X-Client-Subdomain':
+            import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: uploadData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Upload failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Upload failed: ${response.status}`);
       }
 
       const data = await response.json();
@@ -457,64 +465,6 @@ const [amenitiesMsg, setAmenitiesMsg] = useState<{
     }
   };
 
-  const addAmenity = () => {
-  const trimmed = newAmenity.trim();
-
-  if (!trimmed) return;
-
-  if (trimmed.includes(',')) {
-    setAmenitiesMsg({
-      type: 'error',
-      text: 'Amenity names cannot contain commas.',
-    });
-    return;
-  }
-
-  if (amenities.some((a) => a.toLowerCase() === trimmed.toLowerCase())) {
-    setAmenitiesMsg({
-      type: 'error',
-      text: `"${trimmed}" is already in the list.`,
-    });
-    return;
-  }
-
-  setAmenities([...amenities, trimmed]);
-  setNewAmenity('');
-  setAmenitiesMsg(null);
-};
-
-const removeAmenity = (amenity: string) => {
-  const affected = courts.filter((c) => c.amenities?.includes(amenity));
-
-  if (affected.length > 0) {
-    const confirmed = window.confirm(
-      `Remove "${amenity}"?\n\nIt's currently assigned to ${affected.length} court${affected.length === 1 ? '' : 's'}. Removing it from the master list will also remove it from those courts when you save.`
-    );
-    if (!confirmed) return;
-  }
-
-  setAmenities(amenities.filter((a) => a !== amenity));
-  setAmenitiesMsg(null);
-};
-
-const saveAmenities = async () => {
-  setSavingAmenities(true);
-  setAmenitiesMsg(null);
-  try {
-    await adminService.updateSettings({ available_amenities: amenities });
-    setAmenitiesMsg({ type: 'success', text: 'Amenities saved.' });
-    // Refresh courts so any cascade-removed amenities disappear from the UI immediately
-    await loadCourts();
-  } catch (err) {
-    setAmenitiesMsg({
-      type: 'error',
-      text: err instanceof Error ? err.message : 'Failed to save amenities.',
-    });
-  } finally {
-    setSavingAmenities(false);
-  }
-};
-
   const handleChangePassword = async () => {
     setPasswordMsg(null);
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -544,6 +494,67 @@ const saveAmenities = async () => {
       });
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────
+  // Venue Amenities handlers
+  // ───────────────────────────────────────────────────────────
+
+  const addAmenity = () => {
+    const trimmed = newAmenity.trim();
+
+    if (!trimmed) return;
+
+    if (trimmed.includes(',')) {
+      setAmenitiesMsg({
+        type: 'error',
+        text: 'Amenity names cannot contain commas.',
+      });
+      return;
+    }
+
+    if (amenities.some((a) => a.toLowerCase() === trimmed.toLowerCase())) {
+      setAmenitiesMsg({
+        type: 'error',
+        text: `"${trimmed}" is already in the list.`,
+      });
+      return;
+    }
+
+    setAmenities([...amenities, trimmed]);
+    setNewAmenity('');
+    setAmenitiesMsg(null);
+  };
+
+  const removeAmenity = (amenity: string) => {
+    const affected = courts.filter((c) => c.amenities?.includes(amenity));
+
+    if (affected.length > 0) {
+      const confirmed = window.confirm(
+        `Remove "${amenity}"?\n\nIt's currently assigned to ${affected.length} court${affected.length === 1 ? '' : 's'}. Removing it from the master list will also remove it from those courts when you save.`
+      );
+      if (!confirmed) return;
+    }
+
+    setAmenities(amenities.filter((a) => a !== amenity));
+    setAmenitiesMsg(null);
+  };
+
+  const saveAmenities = async () => {
+    setSavingAmenities(true);
+    setAmenitiesMsg(null);
+    try {
+      await adminService.updateSettings({ available_amenities: amenities });
+      setAmenitiesMsg({ type: 'success', text: 'Amenities saved.' });
+      await loadCourts();
+    } catch (err) {
+      setAmenitiesMsg({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to save amenities.',
+      });
+    } finally {
+      setSavingAmenities(false);
     }
   };
 
@@ -684,99 +695,116 @@ const saveAmenities = async () => {
             </div>
 
             {/* ───────────────── Venue Amenities ───────────────── */}
-{isAdmin && (
-  <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
-    <div className="mb-4">
-      <h2 className="flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
-        <Sparkles className="h-5 w-5 text-brand-blue-300" />
-        Venue Amenities
-      </h2>
-      <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
-        Master list of amenities you can assign to any court. Courts pick from this list — spellings stay consistent.
-      </p>
-    </div>
+            {isAdmin && (
+              <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
+                <div className="mb-4">
+                  <h2 className="flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
+                    <Sparkles className="h-5 w-5 text-brand-blue-300" />
+                    Venue Amenities
+                  </h2>
+                  <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
+                    Master list of amenities you can assign to any court. Courts pick from this list — spellings stay consistent.
+                  </p>
+                </div>
 
-    {amenities.length === 0 ? (
-      <div className="rounded-xl border border-forest-700/80 bg-forest-950/60 py-8 text-center">
-        <Sparkles className="mx-auto h-10 w-10 text-cream-muted/30" />
-        <p className="mt-3 text-sm font-semibold text-cream-muted">No amenities yet.</p>
-        <p className="mt-0.5 text-xs text-cream-muted/70">Add your first one below.</p>
-      </div>
-    ) : (
-      <div className="flex flex-wrap gap-2">
-        {amenities.map((amenity) => (
-          <span
-            key={amenity}
-            className="group inline-flex items-center gap-1.5 rounded-xl border border-brand-blue-400/30 bg-brand-blue-500/15 px-3 py-1.5 text-xs font-semibold text-brand-blue-200"
-          >
-            {amenity}
-            <button
-              type="button"
-              onClick={() => removeAmenity(amenity)}
-              className="rounded-full p-0.5 text-brand-blue-300/70 transition hover:bg-error/20 hover:text-error"
-              aria-label={`Remove ${amenity}`}
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-      </div>
-    )}
+                {amenities.length === 0 ? (
+                  <div className="rounded-xl border border-forest-700/80 bg-forest-950/60 py-8 text-center">
+                    <Sparkles className="mx-auto h-10 w-10 text-cream-muted/30" />
+                    <p className="mt-3 text-sm font-semibold text-cream-muted">No amenities yet.</p>
+                    <p className="mt-0.5 text-xs text-cream-muted/70">Add your first one below.</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {amenities.map((amenity) => {
+                      const Icon = getAmenityIcon(amenity);
+                      return (
+                        <span
+                          key={amenity}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-brand-blue-400/30 bg-brand-blue-500/15 px-3 py-1.5 text-xs font-semibold text-brand-blue-200"
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {amenity}
+                          <button
+                            type="button"
+                            onClick={() => removeAmenity(amenity)}
+                            className="ml-1 rounded-full p-0.5 text-brand-blue-300/70 transition hover:bg-error/20 hover:text-error"
+                            aria-label={`Remove ${amenity}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
 
-    <div className="mt-4 flex gap-2">
-      <input
-        type="text"
-        value={newAmenity}
-        onChange={(e) => setNewAmenity(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            addAmenity();
-          }
-        }}
-        placeholder="e.g. Air Conditioned, Lockers, Pro Shop"
-        className="flex-1 rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5 text-sm text-cream placeholder-cream-muted/40 transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
-      />
-      <Button
-        size="sm"
-        type="button"
-        onClick={addAmenity}
-        disabled={!newAmenity.trim()}
-        leftIcon={<Plus className="h-4 w-4" />}
-      >
-        Add
-      </Button>
-    </div>
+                {/* Add new amenity with live icon preview */}
+                <div className="mt-4 flex gap-2">
+                  <div className="relative flex-1">
+                    {newAmenity.trim() && (
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-blue-300">
+                        {(() => {
+                          const Icon = getAmenityIcon(newAmenity);
+                          return <Icon className="h-4 w-4" />;
+                        })()}
+                      </span>
+                    )}
+                    <input
+                      type="text"
+                      value={newAmenity}
+                      onChange={(e) => setNewAmenity(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addAmenity();
+                        }
+                      }}
+                      placeholder="e.g. Air Conditioned, Lockers, Pro Shop"
+                      className={`w-full rounded-xl border border-forest-700/80 bg-forest-950/70 py-2.5 pr-3.5 text-sm text-cream placeholder-cream-muted/40 transition focus:border-brand-blue-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20 ${
+                        newAmenity.trim() ? 'pl-10' : 'pl-3.5'
+                      }`}
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    type="button"
+                    onClick={addAmenity}
+                    disabled={!newAmenity.trim()}
+                    leftIcon={<Plus className="h-4 w-4" />}
+                  >
+                    Add
+                  </Button>
+                </div>
 
-    {amenitiesMsg && (
-      <div
-        className={`mt-3 flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold ${
-          amenitiesMsg.type === 'success'
-            ? 'border-accentGreen-400/40 bg-accentGreen-500/15 text-accentGreen-300'
-            : 'border-error/40 bg-error/15 text-error'
-        }`}
-      >
-        {amenitiesMsg.type === 'success' ? (
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-        ) : (
-          <AlertCircle className="h-4 w-4 shrink-0" />
-        )}
-        {amenitiesMsg.text}
-      </div>
-    )}
+                {amenitiesMsg && (
+                  <div
+                    className={`mt-3 flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold ${
+                      amenitiesMsg.type === 'success'
+                        ? 'border-accentGreen-400/40 bg-accentGreen-500/15 text-accentGreen-300'
+                        : 'border-error/40 bg-error/15 text-error'
+                    }`}
+                  >
+                    {amenitiesMsg.type === 'success' ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                    )}
+                    {amenitiesMsg.text}
+                  </div>
+                )}
 
-    <div className="mt-4 flex justify-end border-t border-forest-700/80 pt-4">
-      <Button
-        size="md"
-        isLoading={savingAmenities}
-        leftIcon={<Save className="h-4 w-4" />}
-        onClick={saveAmenities}
-      >
-        Save Amenities
-      </Button>
-    </div>
-  </div>
-)}
+                <div className="mt-4 flex justify-end border-t border-forest-700/80 pt-4">
+                  <Button
+                    size="md"
+                    isLoading={savingAmenities}
+                    leftIcon={<Save className="h-4 w-4" />}
+                    onClick={saveAmenities}
+                  >
+                    Save Amenities
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* ───────────────── Payment Methods ───────────────── */}
             {isAdmin && (
@@ -860,7 +888,6 @@ const saveAmenities = async () => {
                             </div>
 
                             <div className="flex items-center justify-end gap-3 sm:justify-start">
-                              {/* Toggle switch with high-contrast accent */}
                               <label className="relative inline-flex cursor-pointer items-center">
                                 <input
                                   type="checkbox"
@@ -907,7 +934,6 @@ const saveAmenities = async () => {
                   Block specific courts for private tournaments, holidays, or maintenance
                 </p>
 
-                {/* Court picker pills */}
                 <div className="mb-4">
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-cream-muted">
                     Filter By Court
@@ -937,7 +963,6 @@ const saveAmenities = async () => {
                   </div>
                 </div>
 
-                {/* Add block form */}
                 <div className="mb-5 grid gap-3.5 sm:grid-cols-2 md:grid-cols-4">
                   <Input
                     label="Date to Block"
@@ -1002,7 +1027,6 @@ const saveAmenities = async () => {
                   </Button>
                 </div>
 
-                {/* Blocked items list */}
                 <div className="space-y-2.5 border-t border-forest-700/80 pt-4">
                   <p className="text-xs font-bold uppercase tracking-wider text-brand-blue-300">
                     {selectedCourt ? `${selectedCourt.name} — ` : ''}Active Blocks
@@ -1172,12 +1196,13 @@ const saveAmenities = async () => {
               />
             )}
 
-            {/* QR Code Upload Section */}
             {(formData.type === 'qr_ph' || formData.type === 'gcash') && (
               <div className="space-y-2">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-cream-muted">
                   QR Code Image
-                  {uploadingQR && <Loader2 className="ml-2 inline h-4 w-4 animate-spin text-brand-blue-300" />}
+                  {uploadingQR && (
+                    <Loader2 className="ml-2 inline h-4 w-4 animate-spin text-brand-blue-300" />
+                  )}
                 </label>
 
                 {formData.config?.qr_image_url ? (

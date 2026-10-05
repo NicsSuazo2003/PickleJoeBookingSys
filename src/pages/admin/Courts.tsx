@@ -8,13 +8,13 @@ import { Input, Textarea } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Modal } from '@/components/ui/Modal';
 import { useAdminStore } from '@/stores/adminStore';
-import { formatCurrency } from '@/utils/format';
 import { useClientStore } from '@/stores/clientStore';
-
+import { formatCurrency } from '@/utils/format';
+import { getAmenityIcon } from '@/utils/amenityIcons';
 import type { Court } from '@/types';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 
-// ⭐ Stable empty array — same reference every render, prevents infinite loop
+// ⭐ Stable empty array — prevents infinite render loop in the store selector
 const EMPTY_AMENITIES: string[] = [];
 
 export function Courts() {
@@ -23,10 +23,9 @@ export function Courts() {
   const loadCourts = useAdminStore((state) => state.loadCourts);
   const updateCourt = useAdminStore((state) => state.updateCourt);
 
-  // ⭐ FIXED — no new array in the selector
-  const availableAmenities = useClientStore(
-    (state) => state.settings?.available_amenities
-  ) ?? EMPTY_AMENITIES;
+  const availableAmenities =
+    useClientStore((state) => state.settings?.available_amenities) ??
+    EMPTY_AMENITIES;
 
   const [editing, setEditing] = useState<Court | null>(null);
   const [saving, setSaving] = useState(false);
@@ -80,7 +79,10 @@ export function Courts() {
           </h1>
           <p className="mt-1 text-xs text-cream-muted sm:text-sm">
             Manage court details, operating hours, and amenities. Pricing is on the{' '}
-            <Link to="/admin/pricing" className="text-brand-blue-300 underline hover:text-brand-blue-200">
+            <Link
+              to="/admin/pricing"
+              className="text-brand-blue-300 underline hover:text-brand-blue-200"
+            >
               Pricing page
             </Link>
             .
@@ -93,7 +95,9 @@ export function Courts() {
           <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/60 py-12 text-center shadow-xl backdrop-blur-sm">
             <Building2 className="mx-auto h-12 w-12 text-cream-muted/40" />
             <p className="mt-4 text-sm font-medium text-cream-muted">No courts found.</p>
-            <p className="text-xs text-cream-muted/60">Configure your venue courts to get started.</p>
+            <p className="text-xs text-cream-muted/60">
+              Configure your venue courts to get started.
+            </p>
           </div>
         ) : (
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -146,15 +150,20 @@ export function Courts() {
                         {court?.description || 'No description provided.'}
                       </p>
 
+                      {/* ⭐ Amenity pills with icons */}
                       <div className="mt-3.5 flex flex-wrap gap-1.5">
-                        {(court?.amenities || []).slice(0, 4).map((a) => (
-                          <span
-                            key={a}
-                            className="rounded-lg border border-forest-700/80 bg-forest-950/60 px-2 py-0.5 text-[10px] font-medium text-cream-muted"
-                          >
-                            {a}
-                          </span>
-                        ))}
+                        {(court?.amenities || []).slice(0, 4).map((a) => {
+                          const Icon = getAmenityIcon(a);
+                          return (
+                            <span
+                              key={a}
+                              className="inline-flex items-center gap-1 rounded-lg border border-forest-700/80 bg-forest-950/60 px-2 py-0.5 text-[10px] font-medium text-cream-muted"
+                            >
+                              <Icon className="h-3 w-3" />
+                              {a}
+                            </span>
+                          );
+                        })}
                         {(court?.amenities || []).length > 4 && (
                           <span className="rounded-lg border border-forest-700/80 bg-forest-950/60 px-2 py-0.5 text-[10px] font-semibold text-brand-blue-300">
                             +{(court?.amenities || []).length - 4} more
@@ -168,7 +177,9 @@ export function Courts() {
                         </p>
                         <p className="mt-1 text-sm font-extrabold text-brand-blue-300">
                           {formatCurrency(court?.price_per_hour || 0)}
-                          <span className="text-[10px] font-normal text-cream-muted">/hr base</span>
+                          <span className="text-[10px] font-normal text-cream-muted">
+                            /hr base
+                          </span>
                         </p>
                         <Link
                           to="/admin/pricing"
@@ -257,6 +268,7 @@ export function Courts() {
               onChange={(e) => setEditing({ ...editing, surface: e.target.value })}
             />
 
+            {/* ⭐ Amenity toggles with icons */}
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cream-muted">
                 Amenities
@@ -275,18 +287,20 @@ export function Courts() {
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {availableAmenities.map((a) => {
+                    const Icon = getAmenityIcon(a);
                     const isSelected = editing?.amenities?.includes(a) || false;
                     return (
                       <button
                         key={a}
                         type="button"
                         onClick={() => toggleAmenity(a)}
-                        className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+                        className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
                           isSelected
                             ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue'
                             : 'border-forest-700/80 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/40 hover:text-cream'
                         }`}
                       >
+                        <Icon className="h-3.5 w-3.5" />
                         {a}
                       </button>
                     );
@@ -300,7 +314,9 @@ export function Courts() {
                 <input
                   type="checkbox"
                   checked={editing?.is_indoor || false}
-                  onChange={(e) => setEditing({ ...editing, is_indoor: e.target.checked })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, is_indoor: e.target.checked })
+                  }
                   className="h-4 w-4 rounded border-forest-600 bg-forest-950 accent-brand-blue-500 cursor-pointer"
                 />
                 Indoor Court
@@ -309,7 +325,9 @@ export function Courts() {
                 <input
                   type="checkbox"
                   checked={editing?.is_active || false}
-                  onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, is_active: e.target.checked })
+                  }
                   className="h-4 w-4 rounded border-forest-600 bg-forest-950 accent-brand-blue-500 cursor-pointer"
                 />
                 Active (Bookable by public)
