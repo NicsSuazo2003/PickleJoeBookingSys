@@ -8,6 +8,11 @@ export const APP_CONFIG = {
   paymentAccountName: 'Center Court',
   developer: 'Astravex Systems',
   paymentTimerSeconds: 15 * 60,
+  /**
+   * ⭐ NEW — Fallback max advance booking window (days) used before the
+   * client's real setting loads from the API. 0 = unlimited.
+   */
+  defaultMaxAdvanceBookingDays: 90,
 };
 
 export const FIXED_SLOT = {
@@ -100,5 +105,3 @@ export const COURT_IMAGES = {
     '/images/bg3.jpg',
   ],
 };
-
-

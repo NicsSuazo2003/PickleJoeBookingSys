@@ -37,6 +37,12 @@ function normalizeClientSettings(raw: any): ClientSettings {
     payment_methods: data.paymentMethods ?? data.payment_methods ?? [],
     available_amenities: (data.availableAmenities ?? data.available_amenities ?? [])
       .map(normalizeAmenity),
+    // ⭐ NEW
+    max_advance_booking_days: Number(
+      data.maxAdvanceBookingDays ??
+        data.max_advance_booking_days ??
+        90
+    ),
   };
 }
 
@@ -131,6 +137,7 @@ export const adminService = {
     rcbc_account_name?: string;
     rcbc_qr_image?: string;
     available_amenities?: AmenityItem[];
+    max_advance_booking_days?: number;   // ⭐ NEW
   }): Promise<ClientSettings> {
     const res = await apiRequest<any>('/api/admin/settings', {
       method: 'PUT',
@@ -142,6 +149,7 @@ export const adminService = {
         rcbcAccountName: payload.rcbc_account_name,
         rcbcQrImage: payload.rcbc_qr_image,
         availableAmenities: payload.available_amenities,
+        maxAdvanceBookingDays: payload.max_advance_booking_days,   // ⭐ NEW
       }),
     });
     return normalizeClientSettings(res?.data ?? res);

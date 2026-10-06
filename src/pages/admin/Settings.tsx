@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings as SettingsIcon,
   CalendarOff,
+  CalendarDays,   // ⭐ NEW
   Plus,
   Trash2,
   Save,
@@ -35,6 +36,7 @@ import {
   todayISO,
   toISODate,
   addDays,
+  describeAdvanceWindow,   // ⭐ NEW
 } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
 import type { ClientSettings, PaymentMethod, AmenityItem } from '@/types';
@@ -117,7 +119,7 @@ export function Settings() {
     text: string;
   } | null>(null);
 
-  // ─── Venue Amenities (⭐ refactored to objects) ───
+  // ─── Venue Amenities ───
   const [amenities, setAmenities] = useState<AmenityItem[]>([]);
   const [editingAmenityIdx, setEditingAmenityIdx] = useState<number | null>(null);
   const [draftAmenity, setDraftAmenity] = useState<AmenityItem>({
@@ -127,6 +129,14 @@ export function Settings() {
   });
   const [savingAmenities, setSavingAmenities] = useState(false);
   const [amenitiesMsg, setAmenitiesMsg] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  // ─── Booking Window ⭐ NEW ───
+  const [maxAdvanceDays, setMaxAdvanceDays] = useState<number>(90);
+  const [savingBookingWindow, setSavingBookingWindow] = useState(false);
+  const [bookingWindowMsg, setBookingWindowMsg] = useState<{
     type: 'success' | 'error';
     text: string;
   } | null>(null);
@@ -162,6 +172,7 @@ export function Settings() {
         const settings = await adminService.getSettings();
         setClientSettings(settings);
         setAmenities(settings.available_amenities ?? []);
+        setMaxAdvanceDays(settings.max_advance_booking_days ?? 90);   // ⭐ NEW
       } catch (err) {
         console.error('Failed to load client settings:', err);
       } finally {
@@ -242,8 +253,8 @@ export function Settings() {
       const response = await fetch(`${baseUrl}/api/files/upload`, {
         method: 'POST',
         headers: {
-         'X-Client-Subdomain':
-  import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
+          'X-Client-Subdomain':
+            import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: uploadData,
@@ -555,6 +566,25 @@ export function Settings() {
       });
     } finally {
       setSavingAmenities(false);
+    }
+  };
+
+  // ⭐ NEW — save the max advance booking window
+  const saveBookingWindow = async () => {
+    setSavingBookingWindow(true);
+    setBookingWindowMsg(null);
+    try {
+      await adminService.updateSettings({
+        max_advance_booking_days: maxAdvanceDays,
+      });
+      setBookingWindowMsg({ type: 'success', text: 'Booking window saved.' });
+    } catch (err) {
+      setBookingWindowMsg({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to save booking window.',
+      });
+    } finally {
+      setSavingBookingWindow(false);
     }
   };
 
@@ -928,6 +958,80 @@ export function Settings() {
                     onClick={saveAmenities}
                   >
                     Save Amenities
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* ─── Booking Window ⭐ NEW ─── */}
+            {isAdmin && (
+              <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
+                <div className="mb-4">
+                  <h2 className="flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
+                    <CalendarDays className="h-5 w-5 text-brand-blue-300" />
+                    Booking Window
+                  </h2>
+                  <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
+                    How far in advance customers can book. Use{' '}
+                    <strong className="text-cream">0</strong> for no limit.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:max-w-md">
+                  <Input
+                    label="Max Advance Booking (days)"
+                    type="number"
+                    min={0}
+                    max={365}
+                    value={String(maxAdvanceDays)}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setMaxAdvanceDays(Number.isNaN(v) ? 0 : Math.max(0, Math.min(365, v)));
+                    }}
+                    hint="e.g. 90 = customers can book up to ~3 months ahead. 0 = unlimited."
+                  />
+                </div>
+
+                {/* Live preview of the human-readable description */}
+                <p className="mt-3 text-xs text-cream-muted">
+                  Currently: <span className="font-semibold text-brand-blue-300">
+                    {describeAdvanceWindow(maxAdvanceDays)}
+                  </span>
+                  {maxAdvanceDays > 0 && (
+                    <>
+                      {' '}· Last bookable date:{' '}
+                      <span className="font-mono text-cream">
+                        {toISODate(addDays(new Date(), maxAdvanceDays))}
+                      </span>
+                    </>
+                  )}
+                </p>
+
+                {bookingWindowMsg && (
+                  <div
+                    className={`mt-4 flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold ${
+                      bookingWindowMsg.type === 'success'
+                        ? 'border-accentGreen-400/40 bg-accentGreen-500/15 text-accentGreen-300'
+                        : 'border-error/40 bg-error/15 text-error'
+                    }`}
+                  >
+                    {bookingWindowMsg.type === 'success' ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                    )}
+                    {bookingWindowMsg.text}
+                  </div>
+                )}
+
+                <div className="mt-4 flex justify-end border-t border-forest-700/80 pt-4">
+                  <Button
+                    size="md"
+                    isLoading={savingBookingWindow}
+                    leftIcon={<Save className="h-4 w-4" />}
+                    onClick={saveBookingWindow}
+                  >
+                    Save Booking Window
                   </Button>
                 </div>
               </div>

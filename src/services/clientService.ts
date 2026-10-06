@@ -2,7 +2,6 @@ import type { ClientSettings, AmenityItem } from '@/types';
 import { apiRequest } from './api';
 
 function normalizeAmenity(raw: any): AmenityItem {
-  // Tolerate the legacy shape (plain string) during a partial deploy.
   if (typeof raw === 'string') {
     return { name: raw, icon: 'Sparkles', description: '' };
   }
@@ -27,6 +26,12 @@ function normalizeClientSettings(raw: any): ClientSettings {
     payment_methods: data.paymentMethods ?? data.payment_methods ?? [],
     available_amenities: (data.availableAmenities ?? data.available_amenities ?? [])
       .map(normalizeAmenity),
+    // ⭐ NEW
+    max_advance_booking_days: Number(
+      data.maxAdvanceBookingDays ??
+        data.max_advance_booking_days ??
+        90
+    ),
   };
 }
 

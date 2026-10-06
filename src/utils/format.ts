@@ -1,5 +1,4 @@
 export function formatTime(time?: string | null): string {
-  // "05:00" -> "5:00 AM"
   if (!time) return '?';
   const [h, m] = time.split(':').map(Number);
   if (Number.isNaN(h) || Number.isNaN(m)) return '?';
@@ -12,6 +11,7 @@ export function formatTimeRange(start?: string | null, end?: string | null): str
   if (!start || !end) return 'Time TBD';
   return `${formatTime(start)} - ${formatTime(end)}`;
 }
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-PH', {
     style: 'currency',
@@ -70,6 +70,34 @@ export function addDays(date: Date, days: number): Date {
 
 export function isSameDate(a: string, b: string): boolean {
   return a === b;
+}
+
+/**
+ * ⭐ NEW — Compute the latest selectable ISO date (YYYY-MM-DD) given a
+ * max advance booking setting in days.
+ *
+ *   0 or negative → null (no limit, don't clamp)
+ *   N > 0         → ISO string for today + N days
+ *
+ * Use this with `<input type="date" max={...} />`, or with any
+ * calendar component's maxDate / toDate prop.
+ */
+export function getMaxSelectableDate(maxAdvanceDays: number): string | null {
+  if (!maxAdvanceDays || maxAdvanceDays <= 0) return null;
+  return toISODate(addDays(new Date(), maxAdvanceDays));
+}
+
+/**
+ * ⭐ NEW — Human-readable helper for showing "Book up to 3 months ahead" etc.
+ */
+export function describeAdvanceWindow(maxAdvanceDays: number): string {
+  if (!maxAdvanceDays || maxAdvanceDays <= 0) return 'Any future date';
+  if (maxAdvanceDays === 1) return 'Up to 1 day ahead';
+  if (maxAdvanceDays < 30) return `Up to ${maxAdvanceDays} days ahead`;
+  if (maxAdvanceDays < 60) return 'Up to about 1 month ahead';
+  if (maxAdvanceDays < 120) return 'Up to about 3 months ahead';
+  if (maxAdvanceDays < 365) return 'Up to about 6 months ahead';
+  return 'Up to 1 year ahead';
 }
 
 export function generateReferenceCode(): string {

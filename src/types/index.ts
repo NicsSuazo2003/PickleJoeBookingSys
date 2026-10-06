@@ -152,11 +152,11 @@ export interface AdminUser {
   status?: string;
 }
 
-// ⭐ NEW — one amenity card on the Landing page
+// ⭐ Amenity card on the Landing page
 export interface AmenityItem {
   name: string;
-  icon: string;         // Lucide icon key, e.g. "Sparkles", "Car", "Wifi"
-  description?: string; // optional, Landing-only subtitle
+  icon: string;
+  description?: string;
 }
 
 export interface ClientSettings {
@@ -169,7 +169,12 @@ export interface ClientSettings {
   gcash_number?: string | null;
   gcash_account_name?: string | null;
   payment_methods?: PaymentMethod[];
-  available_amenities?: AmenityItem[];  // ⭐ CHANGED — was string[]
+  available_amenities?: AmenityItem[];
+  /**
+   * ⭐ NEW — Max days ahead customers can book.
+   * 0 = unlimited. Default 90 (~3 months).
+   */
+  max_advance_booking_days: number;
 }
 
 export type AdminView = 'calendar' | 'list';

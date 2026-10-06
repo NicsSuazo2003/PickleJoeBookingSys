@@ -38,10 +38,10 @@ import {
   formatDateLong,
   toISODate,
   addDays,
+  getMaxSelectableDate,
 } from '@/utils/format';
 import type { TimeSlot, Court, OpenPlaySession, Booking } from '@/types';
 
-// Stable empty array — prevents infinite render loop in the store selector
 const EMPTY_AMENITIES: AmenityItem[] = [];
 
 const COURT_ACCENTS = [
@@ -157,13 +157,25 @@ export function Landing() {
     loadUpcomingSessions,
   } = useOpenPlayStore();
 
-  // ⭐ Amenities now come as objects from client settings
   const availableAmenities: AmenityItem[] =
     useClientStore((state) => state.settings?.available_amenities) ?? EMPTY_AMENITIES;
+
+  // ⭐ NEW — read the max-advance limit from the client store
+  const maxAdvanceDays = useClientStore(
+    (state) => state.settings?.max_advance_booking_days ?? APP_CONFIG.defaultMaxAdvanceBookingDays
+  );
+  const maxSelectableDate = getMaxSelectableDate(maxAdvanceDays);
 
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  // ⭐ NEW — is the next week button disabled because we'd go past the limit?
+  const isNextWeekDisabled = (() => {
+    if (!maxSelectableDate) return false;
+    const nextWeekStart = addDays(new Date(), (weekOffset + 1) * 7);
+    return toISODate(nextWeekStart) > maxSelectableDate;
+  })();
 
   useEffect(() => {
     const savedRef = localStorage.getItem('pendingBookingRef');
@@ -232,13 +244,27 @@ export function Landing() {
     bookingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // ⭐ UPDATED — clamp incoming date values to the limit
   const handleCalendarPick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const iso = e.target.value;
+    let iso = e.target.value;
     if (!iso) return;
+
+    // Clamp to today if somehow past
+    const today = todayISO();
+    if (iso < today) iso = today;
+
+    // Clamp to the max selectable date
+    if (maxSelectableDate && iso > maxSelectableDate) {
+      iso = maxSelectableDate;
+    }
 
     setDate(iso);
     setWeekOffset(Math.max(0, weeksBetweenToday(iso)));
   };
+
+  // ⭐ NEW — helper used by day-cell buttons
+  const isDayBeyondLimit = (iso: string) =>
+    !!maxSelectableDate && iso > maxSelectableDate;
 
   const nextSession = openPlaySessions
     .filter(
@@ -670,6 +696,7 @@ export function Landing() {
                           type="date"
                           value={selectedDate}
                           min={todayISO()}
+                          max={maxSelectableDate ?? undefined}   /* ⭐ NEW */
                           onChange={handleCalendarPick}
                           aria-label="Pick a date from calendar"
                           className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:dark]"
@@ -687,7 +714,8 @@ export function Landing() {
                         </button>
                         <button
                           onClick={() => setWeekOffset((w) => w + 1)}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 active:scale-95"
+                          disabled={isNextWeekDisabled}   /* ⭐ NEW */
+                          className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 disabled:opacity-30 active:scale-95"
                           aria-label="Next week"
                         >
                           <ChevronRight className="h-4 w-4" />
@@ -718,15 +746,20 @@ export function Landing() {
                           const hasOpenPlay = openPlaySessions.some(
                             (s) => s.date === iso && s.is_active && s.status !== 'cancelled'
                           );
+                          const beyondLimit = isDayBeyondLimit(iso);   /* ⭐ NEW */
 
                           return (
                             <button
                               key={iso}
                               onClick={() => setDate(iso)}
+                              disabled={beyondLimit}   /* ⭐ NEW */
+                              title={beyondLimit ? `Bookings open up to ${maxAdvanceDays} days ahead` : undefined}   /* ⭐ NEW */
                               className={`relative flex min-w-[54px] flex-1 snap-center flex-col items-center justify-center rounded-xl border py-2 transition-all ${
-                                isSelected
-                                  ? 'border-court-400 bg-court-600 text-white font-bold shadow-glow-court'
-                                  : 'border-forest-700/80 bg-forest-800/90 text-cream-muted hover:border-court-400/50 hover:text-cream'
+                                beyondLimit
+                                  ? 'cursor-not-allowed border-forest-800/50 bg-forest-950/50 opacity-40 text-cream-muted/50'   /* ⭐ NEW */
+                                  : isSelected
+                                    ? 'border-court-400 bg-court-600 text-white font-bold shadow-glow-court'
+                                    : 'border-forest-700/80 bg-forest-800/90 text-cream-muted hover:border-court-400/50 hover:text-cream'
                               }`}
                             >
                               {isToday && (
@@ -761,7 +794,7 @@ export function Landing() {
                                 {monthName}
                               </span>
 
-                              {hasOpenPlay && (
+                              {hasOpenPlay && !beyondLimit && (
                                 <span
                                   className={`mt-1 h-1.5 w-1.5 rounded-full ${
                                     isSelected ? 'bg-white' : 'bg-court-300'
@@ -775,7 +808,9 @@ export function Landing() {
 
                       <button
                         onClick={() => setWeekOffset((w) => w + 1)}
-                        className="hidden h-14 w-10 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 sm:flex"
+                        disabled={isNextWeekDisabled}   /* ⭐ NEW */
+                        title={isNextWeekDisabled ? `Bookings open up to ${maxAdvanceDays} days ahead` : undefined}   /* ⭐ NEW */
+                        className="hidden h-14 w-10 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 disabled:opacity-30 sm:flex"
                         aria-label="Next week"
                       >
                         <ChevronRight className="h-5 w-5" />
@@ -968,7 +1003,7 @@ export function Landing() {
         </div>
       )}
 
-           {/* ─── Venue Amenities ─── */}
+      {/* ─── Venue Amenities ─── */}
       <section className="border-b border-forest-700/80 bg-forest-900/60 py-12 sm:py-20">
         <div className="container-page">
           <div className="mb-8 text-center sm:mb-12">
