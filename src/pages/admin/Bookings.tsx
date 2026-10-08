@@ -19,8 +19,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
+  CalendarClock,
 } from 'lucide-react';
 import { StaffCreateBookingModal } from './StaffCreateBookingModal';
+import { RescheduleBookingModal } from './RescheduleBookingModal';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { StaffLayout } from '@/components/layout/StaffLayout';
 import { Button } from '@/components/ui/Button';
@@ -36,7 +38,7 @@ import {
   formatDateLong,
   formatDateTime,
 } from '@/utils/format';
-import type { Booking, BookingStatus } from '@/types';
+import type { Booking, BookingStatus, RescheduleBookingResult } from '@/types';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /* Config                                                                     */
@@ -289,6 +291,12 @@ export function Bookings() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<BookingStatus | null>(null);
 
+  // ✅ Reschedule flow
+  const [rescheduleTarget, setRescheduleTarget] = useState<Booking | null>(null);
+  const [pendingAdjustments, setPendingAdjustments] = useState<
+    Record<string, { balance_due: number; refund_due: number }>
+  >({});
+
   const [pendingAction, setPendingAction] = useState<{ booking: Booking; action: ActionDef } | null>(
     null
   );
@@ -403,8 +411,6 @@ export function Bookings() {
   const handleStatusUpdate = async (booking: Booking, status: BookingStatus, why?: string) => {
     setUpdatingStatus(status);
     try {
-      // `reason` is passed as an optional 3rd argument. If your store's
-      // updateBookingStatus only accepts (id, status), add the param there.
       await (
         updateBookingStatus as unknown as (
           id: string,
@@ -465,6 +471,32 @@ export function Bookings() {
   const openDetails = (b: Booking) => {
     setCopied(false);
     setSelectedBooking(b);
+  };
+
+  // ✅ Open the reschedule modal (closes details first so they never stack)
+  const openReschedule = (b: Booking) => {
+    setSelectedBooking(null);
+    setRescheduleTarget(b);
+  };
+
+  // ✅ Remember the delta so the row can show a persistent badge
+  const handleRescheduled = async (result: RescheduleBookingResult) => {
+    if (result.balance_due > 0 || result.refund_due > 0) {
+      setPendingAdjustments((prev) => ({
+        ...prev,
+        [result.booking.id]: {
+          balance_due: result.balance_due,
+          refund_due: result.refund_due,
+        },
+      }));
+    }
+
+    setToast({
+      type: 'success',
+      message: `Booking ${result.booking.reference_code} rescheduled.`,
+    });
+
+    await fetchBookings();
   };
 
   /* ── Derived for modal ────────────────────────────────────────────────── */
@@ -668,6 +700,7 @@ export function Bookings() {
                 <tbody className="divide-y divide-forest-800/80">
                   {pageItems.map((b) => {
                     const needsReview = b.status === 'payment_submitted';
+                    const adjust = pendingAdjustments[b.id];
                     return (
                       <tr
                         key={b.id}
@@ -677,9 +710,23 @@ export function Bookings() {
                         }`}
                       >
                         <td className="px-4 py-3.5">
-                          <span className="font-mono font-bold text-brand-blue-300 tracking-wide">
-                            {b.reference_code || 'N/A'}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-mono font-bold text-brand-blue-300 tracking-wide">
+                              {b.reference_code || 'N/A'}
+                            </span>
+                            {adjust?.refund_due > 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/40 bg-purple-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-200">
+                                <RotateCcw className="h-3 w-3" />
+                                Refund {formatCurrency(adjust.refund_due)}
+                              </span>
+                            )}
+                            {adjust?.balance_due > 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+                                <AlertTriangle className="h-3 w-3" />
+                                Balance {formatCurrency(adjust.balance_due)}
+                              </span>
+                            )}
+                          </div>
                           {b.payment_reference && (
                             <p className="mt-0.5 text-[11px] text-cream-muted">
                               Pay ref:{' '}
@@ -753,6 +800,7 @@ export function Bookings() {
               </button>
               {pageItems.map((b) => {
                 const needsReview = b.status === 'payment_submitted';
+                const adjust = pendingAdjustments[b.id];
                 return (
                   <div
                     key={b.id}
@@ -766,6 +814,24 @@ export function Bookings() {
                       </span>
                       <StatusBadge status={b.status} size="sm" />
                     </div>
+
+                    {(adjust?.refund_due > 0 || adjust?.balance_due > 0) && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {adjust?.refund_due > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/40 bg-purple-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-200">
+                            <RotateCcw className="h-3 w-3" />
+                            Refund {formatCurrency(adjust.refund_due)}
+                          </span>
+                        )}
+                        {adjust?.balance_due > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+                            <AlertTriangle className="h-3 w-3" />
+                            Balance {formatCurrency(adjust.balance_due)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <div>
                       <p className="text-sm font-bold text-cream">{b.customer?.name || 'Unknown'}</p>
                       {b.customer?.email && (
@@ -1005,6 +1071,20 @@ export function Bookings() {
                   Actions
                 </p>
 
+                {/* ✅ Reschedule entry point, shown for non-terminal statuses */}
+                {!TERMINAL_STATUSES.includes(selectedBooking.status) && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="mb-3 w-full sm:w-auto"
+                    leftIcon={<CalendarClock className="h-4 w-4" />}
+                    onClick={() => openReschedule(selectedBooking)}
+                    disabled={updatingStatus !== null}
+                  >
+                    Reschedule booking
+                  </Button>
+                )}
+
                 {modalActions.length > 0 && (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {modalActions.map((action) => {
@@ -1175,6 +1255,14 @@ export function Bookings() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreated={() => fetchBookings()}
+      />
+
+      {/* ✅ Reschedule modal */}
+      <RescheduleBookingModal
+        isOpen={!!rescheduleTarget}
+        booking={rescheduleTarget}
+        onClose={() => setRescheduleTarget(null)}
+        onRescheduled={handleRescheduled}
       />
     </Layout>
   );

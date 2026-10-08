@@ -180,20 +180,34 @@ export const courtService = {
     }
   },
 
-  async getAvailability(courtId: string, date: string): Promise<TimeSlot[]> {
-    // If mock mode is enabled, return mock slots
+   // ✅ UPDATED — accepts an optional excludeBookingId so the reschedule
+  //    modal can see the booking's own current slots as selectable.
+  async getAvailability(
+    courtId: string,
+    date: string,
+    excludeBookingId?: string
+  ): Promise<TimeSlot[]> {
     if (USE_MOCK_DATA) {
       console.warn('🔧 Using mock slot data (development mode)');
       return generateMockSlots(courtId, date);
     }
 
     try {
-      console.log(`📡 Fetching availability for court ${courtId} on ${date}...`);
-      const res = await apiRequest<any>(`/api/courts/${courtId}/availability?date=${date}`);
+      const params = new URLSearchParams({ date });
+      if (excludeBookingId) params.set('excludeBookingId', excludeBookingId);
+
+      console.log(
+        `📡 Fetching availability for court ${courtId} on ${date}` +
+          (excludeBookingId ? ` (excluding booking ${excludeBookingId})` : '') +
+          '...'
+      );
+      const res = await apiRequest<any>(
+        `/api/courts/${courtId}/availability?${params.toString()}`
+      );
       console.log('📡 Availability response:', res);
-      
+
       const rawList = Array.isArray(res) ? res : res?.data || res?.slots || [];
-      
+
       if (rawList.length === 0) {
         console.warn('⚠️ No slots found in backend');
         if (import.meta.env.DEV) {
@@ -202,16 +216,15 @@ export const courtService = {
         }
         return [];
       }
-      
-      // ✅ Add court_id to each slot (backend doesn't include it in response)
+
       const slots = rawList.map((item: any) => {
         const normalized = normalizeSlot(item, date);
         return {
           ...normalized,
-          court_id: courtId // ✅ Force the court_id from the request
+          court_id: courtId,
         };
       });
-      
+
       console.log(`✅ Loaded ${slots.length} slots from backend`);
       return slots;
     } catch (error) {

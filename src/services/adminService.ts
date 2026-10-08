@@ -8,6 +8,8 @@ import type {
   PaymentMethod,
   PricingRule,
   AmenityItem,
+  RescheduleBookingPayload,      // ← add
+  RescheduleBookingResult,       // ← add
 } from '@/types';
 import { apiRequest } from './api';
 import { normalizeCourt, buildCourtPayload } from './courtService';
@@ -313,6 +315,50 @@ export const adminService = {
       }),
     });
     return normalizeBooking(res?.data ?? res);
+  },
+    // ✅ Move an existing booking to a different court / date / time
+  async rescheduleBooking(
+    bookingId: string,
+    payload: RescheduleBookingPayload
+  ): Promise<RescheduleBookingResult> {
+    const res = await apiRequest<any>(`/api/admin/bookings/${bookingId}/reschedule`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        courtId: payload.court_id ?? null,
+        date: payload.date ?? null,
+        slots: payload.slots.map((s) => ({
+          startTime: s.start_time,
+          endTime: s.end_time,
+        })),
+        reason: payload.reason ?? null,
+        staffNotes: payload.staff_notes ?? null,
+      }),
+    });
+
+    const data = res?.data ?? res;
+
+    return {
+      booking: normalizeBooking(data.booking ?? data.Booking ?? data),
+      previous_slots: (data.previousSlots ?? data.previous_slots ?? []).map((s: any) => ({
+        id: s.id || '',
+        slot_id: s.slotId ?? s.slot_id ?? s.id ?? '',
+        start_time: s.startTime ?? s.start_time ?? '',
+        end_time: s.endTime ?? s.end_time ?? '',
+        date: s.date ?? '',
+        type: s.type ?? 'standard',
+        price: Number(s.price ?? 0),
+        is_peak: s.isPeak ?? s.is_peak ?? false,
+      })),
+      previous_date: data.previousDate ?? data.previous_date ?? '',
+      previous_court_id: data.previousCourtId ?? data.previous_court_id ?? '',
+      previous_court_name: data.previousCourtName ?? data.previous_court_name ?? '',
+      previous_total_amount: Number(
+        data.previousTotalAmount ?? data.previous_total_amount ?? 0
+      ),
+      new_total_amount: Number(data.newTotalAmount ?? data.new_total_amount ?? 0),
+      balance_due: Number(data.balanceDue ?? data.balance_due ?? 0),
+      refund_due: Number(data.refundDue ?? data.refund_due ?? 0),
+    };
   },
 
   async getPricingRules(courtId: string): Promise<PricingRule[]> {

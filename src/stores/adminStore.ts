@@ -7,6 +7,8 @@ import type {
   BlockedDate,
   PaymentMethod,
   PricingRule,
+  RescheduleBookingPayload,
+  RescheduleBookingResult,
 } from '@/types';
 import { adminService } from '@/services/adminService';
 
@@ -45,8 +47,12 @@ interface AdminStoreState {
     search?: string;
   }) => Promise<void>;
   updateBookingStatus: (bookingId: string, status: BookingStatus) => Promise<void>;
-  // ✅ NEW: staff/admin manual booking
   createManualBooking: (payload: ManualBookingPayload) => Promise<Booking>;
+  // ✅ NEW — reschedule a booking to a different court / date / time
+  rescheduleBooking: (
+    bookingId: string,
+    payload: RescheduleBookingPayload
+  ) => Promise<RescheduleBookingResult>;
   loadCourts: () => Promise<void>;
   updateCourt: (court: Court) => Promise<void>;
   loadBlockedDates: (courtId?: string) => Promise<void>;
@@ -55,7 +61,7 @@ interface AdminStoreState {
   loadPaymentMethods: () => Promise<void>;
   updatePaymentMethods: (methods: PaymentMethod[]) => Promise<void>;
 
-  // ✅ NEW: per-court, day-based pricing rules
+  // ✅ Per-court, day-based pricing rules
   loadPricingRules: (courtId: string) => Promise<PricingRule[]>;
   addPricingRule: (
     courtId: string,
@@ -118,16 +124,32 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
     }
   },
 
-  // ✅ NEW: Create a booking on behalf of a customer (admin or staff)
   createManualBooking: async (payload) => {
     try {
       const booking = await adminService.createManualBooking(payload);
-      // Prepend so it shows up first in the list
       set((state) => ({ bookings: [booking, ...state.bookings] }));
       return booking;
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to create booking',
+      });
+      throw err;
+    }
+  },
+
+  // ✅ NEW — reschedule a booking to a different court / date / time
+  rescheduleBooking: async (bookingId, payload) => {
+    try {
+      const result = await adminService.rescheduleBooking(bookingId, payload);
+      set((state) => ({
+        bookings: state.bookings.map((b) =>
+          b.id === bookingId ? result.booking : b
+        ),
+      }));
+      return result;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Failed to reschedule booking',
       });
       throw err;
     }
@@ -146,14 +168,9 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
     }
   },
 
-  // ✅ UPDATED: optimistic update + merge server response + re-throw on error.
-  // This makes the UI reflect the change instantly and stay in sync with the
-  // backend's canonical values once the PUT resolves.
   updateCourt: async (court) => {
     const previous = get().courts;
 
-    // 1. Optimistically apply the user's values right away so the UI updates
-    //    without waiting for the network round-trip.
     set((state) => ({
       courts: state.courts.map((c) => (c.id === court.id ? { ...c, ...court } : c)),
     }));
@@ -161,16 +178,12 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
     try {
       const updated = await adminService.updateCourt(court);
 
-      // 2. Reconcile with the server response. Merge order matters:
-      //    start from existing state -> overlay submitted values -> overlay
-      //    server values so the backend is authoritative on conflict.
       set((state) => ({
         courts: state.courts.map((c) =>
           c.id === court.id ? { ...c, ...court, ...(updated ?? {}) } : c
         ),
       }));
     } catch (err) {
-      // 3. Roll back on failure so the UI isn't left showing a lie.
       set({
         courts: previous,
         error: err instanceof Error ? err.message : 'Failed to update court',
@@ -237,7 +250,7 @@ export const useAdminStore = create<AdminStoreState>((set, get) => ({
   },
 
   // ─────────────────────────────────────────────────────────────
-  // ✅ NEW — Pricing Rules (per-court, day-based)
+  // ✅ Pricing Rules (per-court, day-based)
   // ─────────────────────────────────────────────────────────────
 
   loadPricingRules: async (courtId) => {
