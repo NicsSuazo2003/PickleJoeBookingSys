@@ -6,16 +6,35 @@ export default {
       colors: {
         // True Court Infield Acrylic Blue (Calibrated to real court photo)
         court: {
-          950: '#0c1827', // Deepest surface shadow
-          900: '#14253a', // Court base in low light
-          800: '#193350', // Court in indirect evening light
-          700: '#1e3f66', // Deep court angle
-          600: '#224870', // ⭐ EXACT COURT INFIELD BLUE (True daylight match)
-          500: '#2b5888', // Court directly under dome lights
-          400: '#3d72a8', // Crisp accent / border tone
-          300: '#6497cb', // Primary text highlight (Readable on dark green)
-          200: '#9ec1e5', // Light UI text / active badges
-          100: '#d1e3f5', // Pill backgrounds / subtle glow
+          950: '#0c1827',
+          900: '#14253a',
+          800: '#193350',
+          700: '#1e3f66',
+          600: '#224870', // ⭐ EXACT COURT INFIELD BLUE
+          500: '#2b5888',
+          400: '#3d72a8',
+          300: '#6497cb',
+          200: '#9ec1e5',
+          100: '#d1e3f5',
+          50:  '#f0f6fc',
+        },
+
+        // ✅ NEW — alias for `brand-blue-*` classes used throughout the app.
+        // Button, Input, Modal, AdminLayout, Dashboard, Bookings, and many
+        // other components reference `brand-blue-*`, but the color was never
+        // defined, so all of those classes silently rendered nothing. This
+        // gives them real values (identical to `court-*`).
+        'brand-blue': {
+          950: '#0c1827',
+          900: '#14253a',
+          800: '#193350',
+          700: '#1e3f66',
+          600: '#224870',
+          500: '#2b5888',
+          400: '#3d72a8',
+          300: '#6497cb',
+          200: '#9ec1e5',
+          100: '#d1e3f5',
           50:  '#f0f6fc',
         },
 
@@ -44,7 +63,7 @@ export default {
 
         // Court White Boundary Lines
         cream: {
-          DEFAULT: '#F4F6F2', // Crisp line paint
+          DEFAULT: '#F4F6F2',
           dark: '#E2E6DF',
           muted: '#9FA99D',
         },
@@ -55,7 +74,6 @@ export default {
       },
 
       boxShadow: {
-        // Matches the authentic deep-blue surface glow
         'glow-court': '0 0 0 1px rgba(61, 114, 168, 0.6), 0 8px 25px rgba(34, 72, 112, 0.5)',
         'glow-accent': '0 0 0 1px rgba(232, 93, 38, 0.5), 0 8px 24px rgba(232, 93, 38, 0.25)',
       },
