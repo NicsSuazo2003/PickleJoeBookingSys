@@ -6,13 +6,27 @@
   * {
     border-color: theme('colors.forest.500');
   }
+
   html {
     scroll-behavior: smooth;
   }
+
   body {
     @apply bg-charcoal text-cream font-sans antialiased;
     font-feature-settings: 'cv11', 'ss01';
+    /* Mobile consistency across iOS / Android */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
+
+  /* Display headings default to Oswald wherever used */
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+
   ::selection {
     @apply bg-court-600 text-cream;
   }
@@ -22,19 +36,22 @@
   .container-page {
     @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
   }
+
   .card {
     @apply rounded-2xl border border-forest-500 bg-forest-700;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
   }
+
   .input-field {
     @apply w-full rounded-xl border border-forest-500 bg-forest-800 px-4 py-3 text-cream placeholder-cream-muted transition focus:border-court-400 focus:outline-none focus:ring-2 focus:ring-court-400/30;
   }
+
   .badge {
     @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold;
   }
+
   .section-title {
-    font-family: 'Oswald', 'Inter', sans-serif;
-    @apply text-3xl font-bold tracking-tight text-cream sm:text-4xl;
+    @apply font-display text-3xl font-bold tracking-tight text-cream sm:text-4xl;
   }
 }
 
@@ -42,16 +59,19 @@
   .text-balance {
     text-wrap: balance;
   }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   .bg-grid {
-    background-image: linear-gradient(rgba(58,74,58,0.15) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(58,74,58,0.15) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(58, 74, 58, 0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(58, 74, 58, 0.15) 1px, transparent 1px);
     background-size: 48px 48px;
   }
 }
