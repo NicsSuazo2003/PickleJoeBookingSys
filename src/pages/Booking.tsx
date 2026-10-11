@@ -1,3 +1,4 @@
+// src/pages/Booking.tsx
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,6 +16,8 @@ import {
   Phone,
   AlertTriangle,
   Timer,
+  FileText,
+  RotateCcw,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -139,12 +142,12 @@ export function Booking() {
       await createBooking();
 
       const created = useBookingStore.getState().currentBooking;
-if (created?.reference_code) {
-  localStorage.setItem('pendingBookingRef', created.reference_code);
-  window.dispatchEvent(new Event('pendingBookingUpdated'));
-}
+      if (created?.reference_code) {
+        localStorage.setItem('pendingBookingRef', created.reference_code);
+        window.dispatchEvent(new Event('pendingBookingUpdated'));
+      }
 
-navigate('/checkout');
+      navigate('/checkout');
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create booking');
     } finally {
@@ -199,7 +202,9 @@ navigate('/checkout');
 
       <div className="container-page pt-24 pb-32 lg:pb-16">
         <div className="mb-5 sm:mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-cream sm:text-3xl">Confirm & Book</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-cream sm:text-3xl">
+            Confirm & Book
+          </h1>
           <p className="text-xs text-cream-muted sm:text-sm">
             Step 1 of 2: review your selection and enter your details. Payment comes next.
           </p>
@@ -218,7 +223,8 @@ navigate('/checkout');
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
                   <CalendarDays className="h-3.5 w-3.5 text-brand-blue-300" />
-                  Your Selection ({selectedCourts.length} court{selectedCourts.length !== 1 ? 's' : ''})
+                  Your Selection ({selectedCourts.length} court
+                  {selectedCourts.length !== 1 ? 's' : ''})
                 </h2>
                 <Link
                   to="/"
@@ -285,7 +291,8 @@ navigate('/checkout');
                       <div className="flex min-w-0 items-center gap-2">
                         <Clock className="h-3.5 w-3.5 shrink-0 text-brand-blue-300" />
                         <span className="truncate text-xs font-medium text-cream sm:text-sm">
-                          {court?.name || 'Court'} · {formatTimeRange(slot.start_time, slot.end_time)}
+                          {court?.name || 'Court'} ·{' '}
+                          {formatTimeRange(slot.start_time, slot.end_time)}
                         </span>
                         {slot.type === 'fixed_2hr' && (
                           <span className="shrink-0 rounded-full border border-brand-blue-400/40 bg-brand-blue-500/30 px-2 py-0.5 text-[10px] font-bold text-brand-blue-200">
@@ -374,11 +381,13 @@ navigate('/checkout');
                   </p>
                 </div>
 
-                {/* What happens next: shown on every screen size, not only desktop */}
+                {/* What happens next */}
                 <div className="flex items-start gap-2.5 rounded-xl border border-brand-blue-500/30 bg-brand-blue-500/10 p-3.5">
                   <Timer className="mt-0.5 h-4 w-4 shrink-0 text-brand-blue-300" />
                   <p className="text-xs leading-relaxed text-cream-muted">
-                    <strong className="font-semibold text-brand-blue-200">What happens next:</strong>{' '}
+                    <strong className="font-semibold text-brand-blue-200">
+                      What happens next:
+                    </strong>{' '}
                     your slots are held for {HOLD_MINUTES} minutes once you continue. Pay and submit
                     your payment reference within that time, or the hold is released.
                   </p>
@@ -387,7 +396,7 @@ navigate('/checkout');
                 {/* No-refund reminder (non-blocking) */}
                 <div className="flex items-start gap-2.5 rounded-xl border border-rose-900/50 bg-rose-950/25 p-3.5">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     <p className="text-xs font-bold uppercase tracking-wider text-rose-400 sm:text-sm">
                       No cancellation policy
                     </p>
@@ -395,6 +404,26 @@ navigate('/checkout');
                       Once your booking is confirmed, there are no cancellations or refunds. If you
                       can&apos;t make it, please find someone to take your slot.
                     </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 pt-0.5">
+                      <Link
+                        to="/terms"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand-blue-300 underline"
+                      >
+                        <FileText className="h-3 w-3" />
+                        Read full terms
+                      </Link>
+                      <Link
+                        to="/refund-policy"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand-blue-300 underline"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Refund policy
+                      </Link>
+                    </div>
                   </div>
                 </div>
 
@@ -430,7 +459,9 @@ navigate('/checkout');
                           Court
                         </p>
                         <p className="text-sm font-bold text-cream">{court.name}</p>
-                        <p className="text-[11px] text-cream-muted">{formatDateLong(selectedDate)}</p>
+                        <p className="text-[11px] text-cream-muted">
+                          {formatDateLong(selectedDate)}
+                        </p>
                         <p className="mt-1.5 text-xs font-semibold text-brand-blue-300">
                           {courtSlots.length} slot{courtSlots.length !== 1 ? 's' : ''} ·{' '}
                           {formatCurrency(courtSlots.reduce((sum, s) => sum + s.price, 0))}
@@ -456,7 +487,8 @@ navigate('/checkout');
                         >
                           <div className="min-w-0 flex-1 pr-2">
                             <p className="truncate font-medium text-cream">
-                              {court?.name || 'Court'} · {formatTimeRange(slot.start_time, slot.end_time)}
+                              {court?.name || 'Court'} ·{' '}
+                              {formatTimeRange(slot.start_time, slot.end_time)}
                             </p>
                             {slot.type === 'fixed_2hr' && (
                               <span className="text-[10px] font-bold text-brand-blue-300">
@@ -496,6 +528,37 @@ navigate('/checkout');
                 </Button>
                 <p className="mt-2 text-center text-[11px] text-cream-muted">
                   You won&apos;t be charged yet. Payment is the next step.
+                </p>
+
+                <p className="mt-3 text-center text-[11px] text-cream-muted">
+                  By continuing, you agree to our{' '}
+                  <Link
+                    to="/terms"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-brand-blue-300 underline"
+                  >
+                    Terms
+                  </Link>
+                  ,{' '}
+                  <Link
+                    to="/privacy"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-brand-blue-300 underline"
+                  >
+                    Privacy Policy
+                  </Link>
+                  , and{' '}
+                  <Link
+                    to="/refund-policy"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-brand-blue-300 underline"
+                  >
+                    No Refund Policy
+                  </Link>
+                  .
                 </p>
               </div>
             </div>

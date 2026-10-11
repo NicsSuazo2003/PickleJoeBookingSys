@@ -1,3 +1,4 @@
+// src/pages/Checkout.tsx
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -16,6 +17,7 @@ import {
   Banknote,
   CreditCard,
   Building2,
+  ShieldCheck,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -74,13 +76,13 @@ export function Checkout() {
   const [showDetails, setShowDetails] = useState(false);
   const [confirmRelease, setConfirmRelease] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
 
   // Restore a pending booking when the store is empty.
-  // This runs on refresh, tab reopen, back→forward after close, or direct URL access.
   useEffect(() => {
     if (currentBooking) {
       setRestoring(false);
@@ -102,7 +104,6 @@ export function Checkout() {
         if (cancelled) return;
 
         if (booking.status !== 'pending_payment') {
-          // Already paid, expired, cancelled, etc. — nothing to resume.
           localStorage.removeItem('pendingBookingRef');
           setRestoring(false);
           navigate('/booking');
@@ -197,19 +198,23 @@ export function Checkout() {
       setUploadError('Reference number is required');
       return;
     }
+    if (!agreedToTerms) {
+      setUploadError('Please agree to the Terms & Conditions before submitting.');
+      return;
+    }
 
     setUploading(true);
     setUploadError(null);
     try {
       await bookingService.uploadPayment(
-  currentBooking.id,
-  screenshot,
-  paymentRef.trim(),
-  selectedMethod?.name
-);
-localStorage.removeItem('pendingBookingRef');
-window.dispatchEvent(new Event('pendingBookingUpdated'));
-navigate('/success');
+        currentBooking.id,
+        screenshot,
+        paymentRef.trim(),
+        selectedMethod?.name
+      );
+      localStorage.removeItem('pendingBookingRef');
+      window.dispatchEvent(new Event('pendingBookingUpdated'));
+      navigate('/success');
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -228,13 +233,13 @@ navigate('/success');
   };
 
   const releaseAndRestart = () => {
-  localStorage.removeItem('pendingBookingRef');
-  window.dispatchEvent(new Event('pendingBookingUpdated'));
-  reset();
-  navigate('/');
-};
+    localStorage.removeItem('pendingBookingRef');
+    window.dispatchEvent(new Event('pendingBookingUpdated'));
+    reset();
+    navigate('/');
+  };
   const isExpired = timeLeft <= 0;
-  const canSubmit = !!paymentRef.trim() && !isExpired;
+  const canSubmit = !!paymentRef.trim() && !isExpired && agreedToTerms;
 
   const displayNumber = selectedMethod?.config?.account_number || '';
   const displayAccountName = selectedMethod?.config?.account_name || '';
@@ -249,9 +254,19 @@ navigate('/success');
     ? 'Time expired. Start over to book again.'
     : !paymentRef.trim()
       ? 'Enter your payment reference number to submit.'
-      : null;
+      : !agreedToTerms
+        ? 'Please agree to the Terms & Conditions to continue.'
+        : null;
 
-  const CopyButton = ({ k, onClick, label }: { k: CopyKey; onClick: () => void; label: string }) => (
+  const CopyButton = ({
+    k,
+    onClick,
+    label,
+  }: {
+    k: CopyKey;
+    onClick: () => void;
+    label: string;
+  }) => (
     <button
       onClick={onClick}
       aria-label={label}
@@ -299,8 +314,8 @@ navigate('/success');
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
                 <span>
                   You&apos;re viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. Tap{' '}
-                  <strong>⋯</strong> (top right) and choose <strong>&quot;Open in Browser&quot;</strong> for
-                  easier payment and receipt upload.
+                  <strong>⋯</strong> (top right) and choose{' '}
+                  <strong>&quot;Open in Browser&quot;</strong> for easier payment and receipt upload.
                 </span>
               </div>
             )}
@@ -349,8 +364,11 @@ navigate('/success');
               <div className="rounded-2xl border border-error/50 bg-error/10 p-4 text-sm">
                 <p className="font-bold text-error">Your reservation hold has ended.</p>
                 <p className="mt-1 text-xs leading-relaxed text-cream-muted">
-                  The slots may be available again. If you already sent payment, don&apos;t pay twice. Keep
-                  your booking code <span className="font-mono font-bold text-brand-blue-300">{currentBooking.reference_code}</span>{' '}
+                  The slots may be available again. If you already sent payment, don&apos;t pay
+                  twice. Keep your booking code{' '}
+                  <span className="font-mono font-bold text-brand-blue-300">
+                    {currentBooking.reference_code}
+                  </span>{' '}
                   and contact us, or check{' '}
                   <Link to="/track" className="font-semibold text-brand-blue-300 underline">
                     Track My Booking
@@ -369,7 +387,11 @@ navigate('/success');
                 <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-cream-muted">
                   Step 1 · Choose your payment method
                 </p>
-                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Payment method">
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="radiogroup"
+                  aria-label="Payment method"
+                >
                   {enabledMethods.map((method: PaymentMethod) => {
                     const Icon = ICON_MAP[method.icon] || Smartphone;
                     const isSelected = selectedMethod?.id === method.id;
@@ -401,8 +423,8 @@ navigate('/success');
             {enabledMethods.length === 0 && (
               <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-200">
                 Payment details are not available right now. Please contact us with your booking code{' '}
-                <span className="font-mono font-bold">{currentBooking.reference_code}</span> before sending any
-                money.
+                <span className="font-mono font-bold">{currentBooking.reference_code}</span> before
+                sending any money.
               </div>
             )}
 
@@ -417,7 +439,9 @@ navigate('/success');
                 {/* Amount box */}
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 px-4 py-3">
                   <div>
-                    <span className="text-xs font-medium text-cream-muted">Exact amount to send</span>
+                    <span className="text-xs font-medium text-cream-muted">
+                      Exact amount to send
+                    </span>
                     <p className="font-display text-xl font-extrabold text-brand-blue-300">
                       {formatCurrency(currentBooking.total_amount)}
                     </p>
@@ -439,7 +463,9 @@ navigate('/success');
                         {displayNumber}
                       </p>
                       {displayAccountName && (
-                        <p className="text-xs font-medium text-brand-blue-200">{displayAccountName}</p>
+                        <p className="text-xs font-medium text-brand-blue-200">
+                          {displayAccountName}
+                        </p>
                       )}
                     </div>
                     <CopyButton
@@ -455,7 +481,9 @@ navigate('/success');
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-cream-muted">
                       Account name
                     </p>
-                    <p className="font-display text-base font-bold text-cream">{displayAccountName}</p>
+                    <p className="font-display text-base font-bold text-cream">
+                      {displayAccountName}
+                    </p>
                   </div>
                 )}
 
@@ -494,8 +522,8 @@ navigate('/success');
                     <Link to="/track" className="font-semibold text-brand-blue-300 underline">
                       Track My Booking
                     </Link>
-                    . It is <strong className="text-cream">not</strong> the reference number from your
-                    payment receipt.
+                    . It is <strong className="text-cream">not</strong> the reference number from
+                    your payment receipt.
                   </p>
                 </div>
 
@@ -520,7 +548,8 @@ navigate('/success');
                       {displayAccountName ? (
                         <>
                           {' '}
-                          (account name: <strong className="text-cream">{displayAccountName}</strong>)
+                          (account name:{' '}
+                          <strong className="text-cream">{displayAccountName}</strong>)
                         </>
                       ) : null}
                       .
@@ -530,7 +559,8 @@ navigate('/success');
                       won&apos;t be accepted.
                     </li>
                     <li>
-                      Copy the <strong className="text-cream">reference number</strong> from your receipt.
+                      Copy the <strong className="text-cream">reference number</strong> from your
+                      receipt.
                     </li>
                     <li>
                       Paste it in the field below, optionally attach a screenshot, and tap{' '}
@@ -538,8 +568,8 @@ navigate('/success');
                     </li>
                   </ol>
                   <p className="mt-3 border-t border-forest-700/60 pt-2.5 leading-relaxed">
-                    These account details belong to CenterCourt. If anything looks different from what
-                    you were told, contact us before sending money.
+                    These account details belong to CenterCourt. If anything looks different from
+                    what you were told, contact us before sending money.
                   </p>
                 </details>
 
@@ -563,7 +593,8 @@ navigate('/success');
                 htmlFor="paymentRef"
                 className="mb-2 block text-xs font-bold uppercase tracking-wider text-brand-blue-300"
               >
-                Step {2 + offset} · Payment receipt reference number <span className="text-error">*</span>
+                Step {2 + offset} · Payment receipt reference number{' '}
+                <span className="text-error">*</span>
               </label>
 
               <input
@@ -623,7 +654,9 @@ navigate('/success');
                       className="h-16 w-16 rounded-lg border border-forest-700 bg-forest-950 object-contain"
                     />
                     <div className="flex-1 text-left">
-                      <p className="text-xs font-bold text-accentGreen-300">Receipt attached ✓</p>
+                      <p className="text-xs font-bold text-accentGreen-300">
+                        Receipt attached ✓
+                      </p>
                       <button
                         onClick={() => setScreenshot(null)}
                         className="mt-1 text-xs text-cream-muted underline transition hover:text-error"
@@ -664,6 +697,53 @@ navigate('/success');
                 </div>
               )}
 
+              {/* Terms agreement checkbox */}
+              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5">
+                <input
+                  type="checkbox"
+                  id="agree-terms"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-forest-600 bg-forest-900 text-brand-blue-500 accent-brand-blue-500 focus:ring-2 focus:ring-brand-blue-500/40"
+                />
+                <label
+                  htmlFor="agree-terms"
+                  className="cursor-pointer text-xs leading-relaxed text-cream-muted"
+                >
+                  <span className="inline-flex items-center gap-1 font-semibold text-cream">
+                    <ShieldCheck className="h-3.5 w-3.5 text-court-300" />
+                    I have read and agree to the{' '}
+                  </span>
+                  <Link
+                    to="/terms"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-brand-blue-300 underline"
+                  >
+                    Terms & Conditions
+                  </Link>
+                  ,{' '}
+                  <Link
+                    to="/privacy"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-brand-blue-300 underline"
+                  >
+                    Privacy Policy
+                  </Link>
+                  , and{' '}
+                  <Link
+                    to="/refund-policy"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-brand-blue-300 underline"
+                  >
+                    No Refund Policy
+                  </Link>
+                  . I understand that all bookings are final.
+                </label>
+              </div>
+
               <Button
                 size="lg"
                 fullWidth
@@ -701,7 +781,11 @@ navigate('/success');
                   <span className="text-sm font-bold text-brand-blue-300">
                     {formatCurrency(currentBooking.total_amount)}
                   </span>
-                  {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  {showDetails ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
                 </div>
               </button>
 
@@ -717,7 +801,9 @@ navigate('/success');
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-cream-muted">Date</span>
-                    <span className="font-semibold text-cream">{formatDateLong(currentBooking.date)}</span>
+                    <span className="font-semibold text-cream">
+                      {formatDateLong(currentBooking.date)}
+                    </span>
                   </div>
                   {selectedMethod && (
                     <div className="flex items-center justify-between text-xs">
@@ -736,7 +822,9 @@ navigate('/success');
                       key={slot.id}
                       className="flex items-center justify-between rounded-lg bg-forest-800/70 px-3 py-2 text-xs"
                     >
-                      <span className="text-cream">{formatTimeRange(slot.start_time, slot.end_time)}</span>
+                      <span className="text-cream">
+                        {formatTimeRange(slot.start_time, slot.end_time)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -758,6 +846,47 @@ navigate('/success');
                   <p className="text-[11px] text-cream-muted">{currentBooking.customer.email}</p>
                 </div>
 
+                {/* Legal links quick access */}
+                <div className="rounded-xl border border-forest-800 bg-forest-950/40 p-3 text-xs">
+                  <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-cream-muted">
+                    Policies
+                  </p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    <Link
+                      to="/terms"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-brand-blue-300 underline hover:text-brand-blue-200"
+                    >
+                      Terms
+                    </Link>
+                    <Link
+                      to="/privacy"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-brand-blue-300 underline hover:text-brand-blue-200"
+                    >
+                      Privacy
+                    </Link>
+                    <Link
+                      to="/refund-policy"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-brand-blue-300 underline hover:text-brand-blue-200"
+                    >
+                      Refunds
+                    </Link>
+                    <Link
+                      to="/payment-policy"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-brand-blue-300 underline hover:text-brand-blue-200"
+                    >
+                      Payments
+                    </Link>
+                  </div>
+                </div>
+
                 {!confirmRelease ? (
                   <button
                     onClick={() => setConfirmRelease(true)}
@@ -769,8 +898,8 @@ navigate('/success');
                   <div className="rounded-xl border border-error/40 bg-error/10 p-3 text-xs">
                     <p className="font-semibold text-error">Release these slots?</p>
                     <p className="mt-1 text-cream-muted">
-                      Only do this if you have <strong className="text-cream">not</strong> sent payment. You&apos;ll
-                      need to pick your slots again.
+                      Only do this if you have <strong className="text-cream">not</strong> sent
+                      payment. You&apos;ll need to pick your slots again.
                     </p>
                     <div className="mt-2.5 flex gap-2">
                       <button
@@ -803,9 +932,7 @@ navigate('/success');
         )}
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-cream-muted">
-              {submitHint ?? `via ${methodName}`}
-            </p>
+            <p className="text-xs text-cream-muted">{submitHint ?? `via ${methodName}`}</p>
             <p className="text-sm font-bold text-brand-blue-300">
               {formatCurrency(currentBooking.total_amount)}
             </p>

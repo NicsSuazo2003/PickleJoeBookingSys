@@ -16,6 +16,7 @@ import { Settings } from '@/pages/admin/Settings';
 import { OpenPlayManagement } from '@/pages/admin/OpenPlayManagement';
 import { StaffBookings } from '@/pages/staff/StaffBookings';
 import { OpenPlay } from '@/pages/OpenPlay';
+import { Terms, Privacy, RefundPolicy, PaymentPolicy } from '@/pages/legal';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { useAuthStore } from '@/stores/authStore';
 import { IntroSplash } from '@/components/IntroSplash';
@@ -68,22 +69,28 @@ export default function App() {
         <Route path="/my-bookings" element={<MyBookings />} />
         <Route path="/open-play" element={<OpenPlay />} />
         <Route path="/login" element={<Login />} />
-        
+
+        {/* Legal Pages */}
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/refund-policy" element={<RefundPolicy />} />
+        <Route path="/payment-policy" element={<PaymentPolicy />} />
+
         {/* Admin Routes */}
         <Route path="/admin" element={<Dashboard />} />
         <Route path="/admin/bookings" element={<Bookings />} />
         <Route path="/admin/courts" element={<Courts />} />
         <Route path="/admin/pricing" element={<Pricing />} />
-        <Route 
-          path="/admin/open-play" 
+        <Route
+          path="/admin/open-play"
           element={
             <AdminLayout>
               <OpenPlayManagement />
             </AdminLayout>
-          } 
+          }
         />
         <Route path="/admin/settings" element={<Settings />} />
-        
+
         {/* Staff Routes */}
         <Route path="/staff" element={<Navigate to="/staff/bookings" replace />} />
         <Route path="/staff/bookings" element={<StaffBookings />} />

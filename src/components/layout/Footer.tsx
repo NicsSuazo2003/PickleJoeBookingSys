@@ -1,5 +1,17 @@
+// src/components/layout/Footer.tsx
 import { Link } from 'react-router-dom';
-import { Shield, MapPin, Phone, Clock, Instagram, Facebook } from 'lucide-react';
+import {
+  MapPin,
+  Phone,
+  Clock,
+  Instagram,
+  Facebook,
+  FileText,
+  Lock,
+  RotateCcw,
+  Wallet,
+  UserCog,
+} from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { APP_CONFIG } from '@/utils/constants';
 import { useClientStore } from '@/stores/clientStore';
@@ -36,7 +48,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-4">
           {/* Quick Links */}
           <div>
             <h4 className="mb-3 font-display text-xs font-bold uppercase tracking-wider text-brand-blue-300 sm:mb-4 sm:text-sm">
@@ -49,23 +61,73 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/booking" className="text-cream-muted transition hover:text-brand-blue-300">
+                <Link
+                  to="/booking"
+                  className="text-cream-muted transition hover:text-brand-blue-300"
+                >
                   Book a Court
                 </Link>
               </li>
               <li>
-                <Link to="/open-play" className="text-cream-muted transition hover:text-brand-blue-300">
+                <Link
+                  to="/open-play"
+                  className="text-cream-muted transition hover:text-brand-blue-300"
+                >
                   Open Play
                 </Link>
               </li>
               <li>
-                <Link to="/track" className="text-cream-muted transition hover:text-brand-blue-300">
+                <Link
+                  to="/track"
+                  className="text-cream-muted transition hover:text-brand-blue-300"
+                >
                   Track Booking
                 </Link>
               </li>
+            </ul>
+          </div>
+
+          {/* Legal Links */}
+          <div>
+            <h4 className="mb-3 flex items-center gap-1.5 font-display text-xs font-bold uppercase tracking-wider text-brand-blue-300 sm:mb-4 sm:text-sm">
+              <FileText className="h-3.5 w-3.5" />
+              Legal
+            </h4>
+            <ul className="space-y-2 text-xs sm:space-y-2.5 sm:text-sm">
               <li>
-                <Link to="/admin" className="text-cream-muted transition hover:text-brand-blue-300">
-                  Admin Portal
+                <Link
+                  to="/terms"
+                  className="inline-flex items-center gap-1.5 text-cream-muted transition hover:text-brand-blue-300"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Terms & Conditions
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/privacy"
+                  className="inline-flex items-center gap-1.5 text-cream-muted transition hover:text-brand-blue-300"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/refund-policy"
+                  className="inline-flex items-center gap-1.5 text-cream-muted transition hover:text-brand-blue-300"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Refund Policy
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/payment-policy"
+                  className="inline-flex items-center gap-1.5 text-cream-muted transition hover:text-brand-blue-300"
+                >
+                  <Wallet className="h-3.5 w-3.5" />
+                  Payment Policy
                 </Link>
               </li>
             </ul>
@@ -83,7 +145,9 @@ export function Footer() {
               </li>
               <li className="flex items-start gap-2.5">
                 <MapPin className="h-4 w-4 shrink-0 text-brand-blue-300 mt-0.5" />
-                <span className="leading-snug">San Agustin Sur "Dawis", Tandag City, Surigao del Sur</span>
+                <span className="leading-snug">
+                  San Agustin Sur "Dawis", Tandag City, Surigao del Sur
+                </span>
               </li>
             </ul>
           </div>
@@ -103,7 +167,7 @@ export function Footer() {
               to="/admin"
               className="mt-4 inline-flex items-center gap-2 rounded-lg border border-forest-700/80 bg-forest-900/50 px-3 py-1.5 text-xs font-semibold text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300"
             >
-              <Shield className="h-3.5 w-3.5" />
+              <UserCog className="h-3.5 w-3.5" />
               Staff Login
             </Link>
           </div>
