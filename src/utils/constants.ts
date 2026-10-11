@@ -105,3 +105,22 @@ export const COURT_IMAGES = {
     '/images/bg3.jpg',
   ],
 };
+
+export const BOOKING_COPY = {
+  policyTitle: "Important Booking Policy",
+  policyDesc: "All bookings are final and non-refundable. Can't make it? You are welcome to find a replacement player to take your slot and settle payment with them directly.",
+  policyLinkText: "Read our Refund Policy",
+  priceDisclaimer: "* Prices may vary based on peak hours, weekends, and court selection.",
+  bookingInstructions: "Select a date, then choose your preferred time slots.",
+  howItWorks: {
+    step03Title: "Secure Your Slot",
+    step03Desc: "Complete payment via your preferred method and upload the proof of payment.",
+    step04Title: "Get Confirmed",
+    step04Desc: "We’ll quickly verify your payment and send your booking confirmation. See you on the court!",
+  },
+  emptyState: {
+    titleToday: "No slots available today",
+    titleFuture: "No slots available for this date",
+    description: "Try selecting a different date above. We're open 5 AM to 12 AM daily.",
+  }
+};

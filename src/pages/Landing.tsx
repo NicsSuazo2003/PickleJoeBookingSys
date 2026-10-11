@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // 👈 Added Link
 import { motion } from 'framer-motion';
 import {
   CalendarPlus,
@@ -29,7 +29,7 @@ import { useBookingStore } from '@/stores/bookingStore';
 import { useOpenPlayStore } from '@/stores/openPlayStore';
 import { useClientStore } from '@/stores/clientStore';
 import { bookingService } from '@/services/bookingService';
-import { COURT_IMAGES, APP_CONFIG } from '@/utils/constants';
+import { COURT_IMAGES, APP_CONFIG, BOOKING_COPY } from '@/utils/constants'; // 👈 Added BOOKING_COPY
 import { getAmenityIconForItem } from '@/utils/amenityIcons';
 import type { AmenityItem } from '@/types';
 import {
@@ -132,7 +132,7 @@ export function Landing() {
   const navigate = useNavigate();
   const bookingSectionRef = useRef<HTMLDivElement>(null);
 
-  const [heroIdx, setHeroIdx] = useState(0);
+  // 👈 REMOVED: Unused heroIdx state and slideshow useEffect
 
   const [pendingBooking, setPendingBooking] = useState<Booking | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -160,7 +160,6 @@ export function Landing() {
   const availableAmenities: AmenityItem[] =
     useClientStore((state) => state.settings?.available_amenities) ?? EMPTY_AMENITIES;
 
-  // ⭐ NEW — read the max-advance limit from the client store
   const maxAdvanceDays = useClientStore(
     (state) => state.settings?.max_advance_booking_days ?? APP_CONFIG.defaultMaxAdvanceBookingDays
   );
@@ -170,7 +169,6 @@ export function Landing() {
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  // ⭐ NEW — is the next week button disabled because we'd go past the limit?
   const isNextWeekDisabled = (() => {
     if (!maxSelectableDate) return false;
     const nextWeekStart = addDays(new Date(), (weekOffset + 1) * 7);
@@ -217,17 +215,6 @@ export function Landing() {
   };
 
   useEffect(() => {
-    const slides = COURT_IMAGES.heroSlideshow;
-    if (!slides || slides.length <= 1) return;
-
-    const timer = setInterval(() => {
-      setHeroIdx((prev) => (prev + 1) % slides.length);
-    }, 5000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
     if (courts.length === 0) {
       loadCourts();
     }
@@ -244,16 +231,13 @@ export function Landing() {
     bookingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // ⭐ UPDATED — clamp incoming date values to the limit
   const handleCalendarPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     let iso = e.target.value;
     if (!iso) return;
 
-    // Clamp to today if somehow past
     const today = todayISO();
     if (iso < today) iso = today;
 
-    // Clamp to the max selectable date
     if (maxSelectableDate && iso > maxSelectableDate) {
       iso = maxSelectableDate;
     }
@@ -262,7 +246,6 @@ export function Landing() {
     setWeekOffset(Math.max(0, weeksBetweenToday(iso)));
   };
 
-  // ⭐ NEW — helper used by day-cell buttons
   const isDayBeyondLimit = (iso: string) =>
     !!maxSelectableDate && iso > maxSelectableDate;
 
@@ -486,7 +469,7 @@ export function Landing() {
             </p>
 
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-cream-muted sm:mt-6 sm:text-lg">
-              Book 3 premium pickleball courts in the city featuring a 7-layer court surface system designed for a playing experience you can actually feel. Beginner-friendly, tournament-ready, and made for everyone who loves the game.
+              Book 3 premium pickleball courts in Tandag City featuring a 7-layer court surface system designed for a playing experience you can actually feel. Beginner-friendly, tournament-ready, and made for everyone who loves the game.
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
@@ -535,7 +518,8 @@ export function Landing() {
                   Join a Session This Week
                 </h2>
                 <p className="text-xs text-cream-muted sm:text-sm">
-                  Meet other players and split the court — spots fill fast                </p>
+                  Meet other players and split the court — spots fill fast
+                </p>
               </div>
               <Button
                 size="sm"
@@ -651,10 +635,10 @@ export function Landing() {
                       Book a <span className="text-court-300">Court</span>
                     </h2>
                     <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
-                      Pick a date, then tap any number of available time slots
+                      {BOOKING_COPY.bookingInstructions}
                     </p>
                     <p className="mt-1 text-xs text-cream-muted/70">
-                      * Prices are subject to change without prior notice.
+                      {BOOKING_COPY.priceDisclaimer}
                     </p>
                   </div>
                   <div className="hidden rounded-xl border border-court-500/40 bg-court-600/20 p-2.5 text-court-300 sm:block md:p-3">
@@ -668,10 +652,13 @@ export function Landing() {
                   </div>
                   <div className="space-y-0.5">
                     <h4 className="text-xs font-black tracking-widest text-rose-400 uppercase sm:text-sm">
-                      No Cancellation Policy
+                      {BOOKING_COPY.policyTitle}
                     </h4>
                     <p className="text-xs leading-relaxed text-cream-muted sm:text-sm">
-                      Once confirmed, no cancellations or refunds. Can&apos;t make it? Find someone to take your slot and settle payment directly.
+                      {BOOKING_COPY.policyDesc}{' '}
+                      <Link to="/refund-policy" className="underline underline-offset-2 hover:text-rose-300">
+                        {BOOKING_COPY.policyLinkText}
+                      </Link>
                     </p>
                   </div>
                 </div>
@@ -696,7 +683,7 @@ export function Landing() {
                           type="date"
                           value={selectedDate}
                           min={todayISO()}
-                          max={maxSelectableDate ?? undefined}   /* ⭐ NEW */
+                          max={maxSelectableDate ?? undefined}
                           onChange={handleCalendarPick}
                           aria-label="Pick a date from calendar"
                           className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:dark]"
@@ -714,7 +701,7 @@ export function Landing() {
                         </button>
                         <button
                           onClick={() => setWeekOffset((w) => w + 1)}
-                          disabled={isNextWeekDisabled}   /* ⭐ NEW */
+                          disabled={isNextWeekDisabled}
                           className="flex h-9 w-9 items-center justify-center rounded-lg border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 disabled:opacity-30 active:scale-95"
                           aria-label="Next week"
                         >
@@ -746,17 +733,17 @@ export function Landing() {
                           const hasOpenPlay = openPlaySessions.some(
                             (s) => s.date === iso && s.is_active && s.status !== 'cancelled'
                           );
-                          const beyondLimit = isDayBeyondLimit(iso);   /* ⭐ NEW */
+                          const beyondLimit = isDayBeyondLimit(iso);
 
                           return (
                             <button
                               key={iso}
                               onClick={() => setDate(iso)}
-                              disabled={beyondLimit}   /* ⭐ NEW */
-                              title={beyondLimit ? `Bookings open up to ${maxAdvanceDays} days ahead` : undefined}   /* ⭐ NEW */
+                              disabled={beyondLimit}
+                              title={beyondLimit ? `Bookings open up to ${maxAdvanceDays} days ahead` : undefined}
                               className={`relative flex min-w-[54px] flex-1 snap-center flex-col items-center justify-center rounded-xl border py-2 transition-all ${
                                 beyondLimit
-                                  ? 'cursor-not-allowed border-forest-800/50 bg-forest-950/50 opacity-40 text-cream-muted/50'   /* ⭐ NEW */
+                                  ? 'cursor-not-allowed border-forest-800/50 bg-forest-950/50 opacity-40 text-cream-muted/50'
                                   : isSelected
                                     ? 'border-court-400 bg-court-600 text-white font-bold shadow-glow-court'
                                     : 'border-forest-700/80 bg-forest-800/90 text-cream-muted hover:border-court-400/50 hover:text-cream'
@@ -808,8 +795,8 @@ export function Landing() {
 
                       <button
                         onClick={() => setWeekOffset((w) => w + 1)}
-                        disabled={isNextWeekDisabled}   /* ⭐ NEW */
-                        title={isNextWeekDisabled ? `Bookings open up to ${maxAdvanceDays} days ahead` : undefined}   /* ⭐ NEW */
+                        disabled={isNextWeekDisabled}
+                        title={isNextWeekDisabled ? `Bookings open up to ${maxAdvanceDays} days ahead` : undefined}
                         className="hidden h-14 w-10 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 disabled:opacity-30 sm:flex"
                         aria-label="Next week"
                       >
@@ -873,10 +860,12 @@ export function Landing() {
                     <div className="rounded-2xl border border-forest-700/60 bg-forest-950/40 p-8 text-center">
                       <Clock className="mx-auto h-8 w-8 text-court-300/50" />
                       <p className="mt-3 text-sm font-semibold text-cream">
-                        No more slots available today
+                        {selectedDate === todayISO()
+                          ? BOOKING_COPY.emptyState.titleToday
+                          : BOOKING_COPY.emptyState.titleFuture}
                       </p>
                       <p className="mt-1 text-xs text-cream-muted">
-                        Pick a future date above to book — we&apos;re open 5 AM to 12 AM daily.
+                        {BOOKING_COPY.emptyState.description}
                       </p>
                     </div>
                   ) : (
@@ -884,10 +873,10 @@ export function Landing() {
                       <div className="max-h-[75vh] overflow-y-auto overflow-x-auto rounded-2xl border border-forest-700/60 bg-forest-950/40">
                         <div className="w-full p-4 sm:min-w-[580px]">
                           <div
-                            className="sticky -top-4 z-30 -mx-4 -mt-4 mb-4 border-b border-forest-700 bg-forest-900 px-4 py-3 text-center text-xs font-extrabold uppercase tracking-wider text-court-300 shadow-md backdrop-blur-md"
+                            className="sticky top-0 z-30 -mx-4 -mt-4 mb-4 border-b border-forest-700 bg-forest-900 px-4 py-3 text-center text-xs font-extrabold uppercase tracking-wider text-court-300 shadow-md backdrop-blur-md"
                             style={{
                               display: 'grid',
-                              gridTemplateColumns: `repeat(${courts.length}, minmax(56px, 1fr))`,
+                              gridTemplateColumns: `repeat(${courts.length}, minmax(90px, 1fr))`,
                               gap: '0.75rem',
                             }}
                           >
@@ -983,11 +972,11 @@ export function Landing() {
       </div>
 
       {selectedSlotIds.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-600 bg-charcoal/95 p-3.5 backdrop-blur-md sm:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-600 bg-charcoal/95 p-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:hidden">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-cream-muted">
-                {selectedSlotIds.length} slot{selectedSlotIds.length !== 1 && 's'} chosen
+                {selectedSlotIds.length} Slot{selectedSlotIds.length !== 1 ? 's' : ''} Selected
               </p>
               <p className="text-lg font-bold text-court-300">{formatCurrency(totalSelected)}</p>
             </div>
@@ -1074,8 +1063,8 @@ export function Landing() {
             {[
               { step: '01', title: 'Select Court & Time', desc: 'Pick your preferred court, date, and available time slots.' },
               { step: '02', title: 'Enter Details', desc: 'Fill in your name, contact info, and any special requests.' },
-              { step: '03', title: 'Pay Your Way', desc: 'Send payment using your chosen payment method and upload your screenshot.' },
-              { step: '04', title: 'Get Confirmed', desc: 'We verify your payment and confirm your booking. Play!' },
+              { step: '03', title: BOOKING_COPY.howItWorks.step03Title, desc: BOOKING_COPY.howItWorks.step03Desc },
+              { step: '04', title: BOOKING_COPY.howItWorks.step04Title, desc: BOOKING_COPY.howItWorks.step04Desc },
             ].map((item, i) => (
               <motion.div
                 key={item.step}
@@ -1148,7 +1137,7 @@ function DesktopPeriodSection({
             key={`${interval.start_time}-${interval.end_time}`}
             className="grid gap-2.5"
             style={{
-              gridTemplateColumns: `repeat(${courts.length}, minmax(80px, 1fr))`,
+              gridTemplateColumns: `repeat(${courts.length}, minmax(90px, 1fr))`,
             }}
           >
             {courts.map((court, idx) => {
@@ -1209,7 +1198,7 @@ function OpenPlayPill({
   return (
     <button
       onClick={onClick}
-      className="group relative flex h-11 w-full items-center justify-between rounded-xl border-2 border-court-400 bg-court-600/35 px-3 font-bold transition-all hover:bg-court-600/55 hover:shadow-[0_0_20px_-4px_rgba(61,114,168,0.6)]"
+      className="group relative flex h-11 w-full items-center justify-between rounded-xl border-2 border-court-400 bg-court-600/35 px-3 font-bold transition-all hover:bg-court-600/55 hover:shadow-[0_0_20px_-4px_rgba(61,114,168,0.6)] active:scale-95"
       title={`Open Play: ${session.current_players}/${session.max_players} players · ${session.skill_level}`}
     >
       <span className="text-xs font-black text-court-300">OP</span>
@@ -1259,7 +1248,8 @@ function SlotPill({
     <button
       onClick={isAvailable && !isPending ? onToggle : undefined}
       disabled={!isAvailable || isPending}
-      className={`flex h-11 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-tight transition-all px-1 ${styleClasses}`}
+      aria-pressed={isSelected}
+      className={`flex h-11 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-tight transition-all px-1 active:scale-95 ${styleClasses}`}
     >
       <span className="truncate">
         {formatTimeRangeShort(slot.start_time, slot.end_time)}

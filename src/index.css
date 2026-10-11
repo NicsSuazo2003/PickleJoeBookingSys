@@ -9,6 +9,7 @@
 
   html {
     scroll-behavior: smooth;
+    scroll-padding-top: 120px; /* 👈 ADDED: Prevents navbar from covering scrolled content */
   }
 
   body {
