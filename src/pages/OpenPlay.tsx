@@ -1,6 +1,6 @@
 // src/pages/OpenPlay.tsx
 import { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,6 +15,10 @@ import {
   User,
   Mail,
   Phone,
+  ScrollText,
+  X,
+  BadgeCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -71,11 +75,24 @@ const SKILL_BADGE: Record<string, string> = {
 };
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  upcoming: { label: 'Upcoming', className: 'bg-forest-800 text-cream-muted border border-forest-600' },
-  active: { label: 'Active Now', className: 'bg-accentGreen-500/20 text-accentGreen-300 border border-accentGreen-400/40' },
+  upcoming: {
+    label: 'Upcoming',
+    className: 'bg-forest-800 text-cream-muted border border-forest-600',
+  },
+  active: {
+    label: 'Active Now',
+    className:
+      'bg-accentGreen-500/20 text-accentGreen-300 border border-accentGreen-400/40',
+  },
   full: { label: 'Full', className: 'bg-red-500/15 text-red-400 border border-red-500/30' },
-  past: { label: 'Past', className: 'bg-forest-900/60 text-cream-muted/50 border border-forest-800' },
-  cancelled: { label: 'Cancelled', className: 'bg-forest-900/60 text-cream-muted/50 border border-forest-800' },
+  past: {
+    label: 'Past',
+    className: 'bg-forest-900/60 text-cream-muted/50 border border-forest-800',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    className: 'bg-forest-900/60 text-cream-muted/50 border border-forest-800',
+  },
 };
 
 export function OpenPlay() {
@@ -88,6 +105,9 @@ export function OpenPlay() {
   const [selectedSession, setSelectedSession] = useState<OpenPlaySession | null>(null);
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+
+  // ── Session terms modal state ────────────────────────────
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const {
     register,
@@ -119,7 +139,11 @@ export function OpenPlay() {
     if (sessionId && sessions.length > 0) {
       const session = sessions.find((s) => s.id === sessionId);
       if (!session) return;
-      if (session.status === 'full' || session.status === 'past' || session.status === 'cancelled') {
+      if (
+        session.status === 'full' ||
+        session.status === 'past' ||
+        session.status === 'cancelled'
+      ) {
         return;
       }
       handleViewDetails(session);
@@ -223,6 +247,18 @@ export function OpenPlay() {
           </p>
         </div>
 
+        {/* Session terms trigger */}
+        <div className="mb-6 flex justify-center sm:mb-8">
+          <button
+            type="button"
+            onClick={() => setShowTermsModal(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-forest-700/80 bg-forest-900/60 px-3.5 py-2 text-xs font-semibold text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300"
+          >
+            <ScrollText className="h-3.5 w-3.5" />
+            Read Session Terms
+          </button>
+        </div>
+
         {error && (
           <div className="mb-6 rounded-xl border border-error/30 bg-error/10 p-3 text-center text-xs font-semibold text-error">
             {error}
@@ -268,7 +304,9 @@ export function OpenPlay() {
                 >
                   <div>
                     <div className="mb-3 flex items-center justify-between gap-2">
-                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${status.className}`}>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${status.className}`}
+                      >
                         {status.label}
                       </span>
                       <span
@@ -329,9 +367,13 @@ export function OpenPlay() {
 
                   <div className="mt-5 flex items-center justify-between border-t border-forest-700/80 pt-3.5">
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-cream-muted font-semibold">Per player</p>
+                      <p className="text-[10px] uppercase tracking-wider text-cream-muted font-semibold">
+                        Per player
+                      </p>
                       <p className="font-display text-lg font-extrabold text-brand-blue-300">
-                        {session.price_per_player === 0 ? 'Free' : formatCurrency(session.price_per_player)}
+                        {session.price_per_player === 0
+                          ? 'Free'
+                          : formatCurrency(session.price_per_player)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -364,6 +406,18 @@ export function OpenPlay() {
             })}
           </div>
         )}
+
+        {/* Footer disclaimer with terms link */}
+        <p className="mt-8 text-center text-xs text-cream-muted">
+          Sessions may be cancelled if minimum players are not met.{' '}
+          <button
+            type="button"
+            onClick={() => setShowTermsModal(true)}
+            className="font-semibold text-brand-blue-300 underline hover:text-brand-blue-200"
+          >
+            Read session terms
+          </button>
+        </p>
       </div>
 
       {/* ─────────────────────── Details Modal ─────────────────────── */}
@@ -406,7 +460,9 @@ export function OpenPlay() {
               </div>
               <div className="flex items-center gap-2.5">
                 <Clock className="h-4 w-4 text-brand-blue-300" />
-                <span>{formatTimeRange(detailsSession.start_time, detailsSession.end_time)}</span>
+                <span>
+                  {formatTimeRange(detailsSession.start_time, detailsSession.end_time)}
+                </span>
               </div>
               {/* ✅ Multi-court display */}
               <div className="flex items-start gap-2.5">
@@ -497,9 +553,13 @@ export function OpenPlay() {
             {/* Price + CTA */}
             <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 p-3.5">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Price per player</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                  Price per player
+                </p>
                 <p className="font-display text-xl font-extrabold text-brand-blue-300">
-                  {detailsSession.price_per_player === 0 ? 'Free' : formatCurrency(detailsSession.price_per_player)}
+                  {detailsSession.price_per_player === 0
+                    ? 'Free'
+                    : formatCurrency(detailsSession.price_per_player)}
                 </p>
               </div>
               <Button
@@ -541,7 +601,9 @@ export function OpenPlay() {
                     </span>
                   ))
                 ) : (
-                  <span className="text-xs text-cream-muted">{selectedSession.court_name}</span>
+                  <span className="text-xs text-cream-muted">
+                    {selectedSession.court_name}
+                  </span>
                 )}
               </div>
               <p className="mt-1 text-xs text-cream-muted">
@@ -595,6 +657,28 @@ export function OpenPlay() {
               {...register('notes')}
             />
 
+            {/* Session terms quick note with link to modal */}
+            <p className="text-[11px] leading-relaxed text-cream-muted">
+              By joining, you agree to our{' '}
+              <button
+                type="button"
+                onClick={() => setShowTermsModal(true)}
+                className="font-semibold text-brand-blue-300 underline"
+              >
+                session terms
+              </button>{' '}
+              and our{' '}
+              <Link
+                to="/terms"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-brand-blue-300 underline"
+              >
+                Terms & Conditions
+              </Link>
+              .
+            </p>
+
             {joinError && (
               <div className="rounded-xl border border-error/30 bg-error/10 p-2.5 text-xs font-medium text-error">
                 {joinError}
@@ -618,6 +702,77 @@ export function OpenPlay() {
           </form>
         )}
       </Modal>
+
+      {/* ─────────────────────── Session Terms Modal ─────────────────────── */}
+      {showTermsModal && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setShowTermsModal(false)}
+          role="dialog"
+          aria-label="Open Play session terms"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-forest-700 bg-forest-900 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ScrollText className="h-5 w-5 text-court-300" />
+                <h3 className="text-lg font-bold text-cream">Open Play Session Terms</h3>
+              </div>
+              <button
+                onClick={() => setShowTermsModal(false)}
+                aria-label="Close"
+                className="rounded-lg border border-forest-700 bg-forest-900/60 p-1.5 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <ul className="space-y-2.5 text-sm text-cream-muted">
+              <li className="flex items-start gap-2.5">
+                <Users className="mt-0.5 h-4 w-4 shrink-0 text-court-300" />
+                <span>Sessions may be cancelled if fewer than 4 players sign up.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-court-300" />
+                <span>
+                  You&apos;ll be notified at least 2 hours before if a session is cancelled.
+                </span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-court-300" />
+                <span>Full refund if we cancel the session.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-court-300" />
+                <span>Skill levels are self-reported, not verified.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-court-300" />
+                <span>Hosts may remove disruptive players.</span>
+              </li>
+            </ul>
+
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <Link
+                to="/terms"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-semibold text-brand-blue-300 underline"
+              >
+                Full Terms
+              </Link>
+              <button
+                onClick={() => setShowTermsModal(false)}
+                className="rounded-xl bg-brand-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-blue-600"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
