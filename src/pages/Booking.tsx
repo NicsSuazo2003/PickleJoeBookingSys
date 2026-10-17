@@ -18,6 +18,7 @@ import {
   Timer,
   FileText,
   RotateCcw,
+  ShieldCheck,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -64,6 +65,13 @@ const customerSchema = z.object({
     }),
 
   notes: z.string().max(NOTES_MAX, 'Notes are too long').optional(),
+
+  // ✅ Terms & Privacy consent — works on Zod v3 and v4
+  termsAccepted: z
+    .boolean()
+    .refine((v) => v === true, {
+      message: 'You must agree to the Terms & Privacy Policy to continue',
+    }),
 });
 
 type CustomerForm = z.infer<typeof customerSchema>;
@@ -94,7 +102,10 @@ export function Booking() {
   } = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
     mode: 'onBlur',
-    defaultValues: { ...useBookingStore.getState().customer },
+    defaultValues: {
+      ...useBookingStore.getState().customer,
+      termsAccepted: false,
+    },
   });
 
   const notesLength = (watch('notes') ?? '').length;
@@ -427,6 +438,47 @@ export function Booking() {
                   </div>
                 </div>
 
+                {/* ✅ NEW — Terms & Privacy consent checkbox */}
+                <div className="flex items-start gap-2.5 rounded-xl border border-forest-700/60 bg-forest-950/60 p-3.5">
+                  <input
+                    type="checkbox"
+                    id="termsAccepted"
+                    {...register('termsAccepted')}
+                    className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-forest-600 bg-forest-950 accent-brand-blue-500 focus:ring-2 focus:ring-brand-blue-500/40"
+                  />
+                  <label
+                    htmlFor="termsAccepted"
+                    className="cursor-pointer select-none text-xs leading-relaxed text-cream-muted sm:text-sm"
+                  >
+                    I have read and agree to the{' '}
+                    <Link
+                      to="/terms"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-brand-blue-300 underline underline-offset-2 hover:text-brand-blue-200"
+                    >
+                      Terms &amp; Conditions
+                    </Link>{' '}
+                    and{' '}
+                    <Link
+                      to="/privacy"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-brand-blue-300 underline underline-offset-2 hover:text-brand-blue-200"
+                    >
+                      Privacy Policy
+                    </Link>
+                    .
+                  </label>
+                </div>
+
+                {errors.termsAccepted && (
+                  <p className="flex items-center gap-1.5 rounded-lg border border-error/30 bg-error/10 px-2.5 py-2 text-xs font-medium text-error">
+                    <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                    {errors.termsAccepted.message}
+                  </p>
+                )}
+
                 {submitError && (
                   <p className="rounded-xl border border-error/30 bg-error/10 p-2.5 text-xs font-medium text-error">
                     {submitError}
@@ -531,7 +583,7 @@ export function Booking() {
                 </p>
 
                 <p className="mt-3 text-center text-[11px] text-cream-muted">
-                  By continuing, you agree to our{' '}
+                  View our{' '}
                   <Link
                     to="/terms"
                     target="_blank"
@@ -574,6 +626,11 @@ export function Booking() {
               {selectedSlots.length} slot{selectedSlots.length !== 1 ? 's' : ''} selected
             </p>
             <p className="text-xl font-extrabold text-brand-blue-300">{formatCurrency(total)}</p>
+            {errors.termsAccepted && (
+              <p className="mt-0.5 text-[10px] font-medium text-error">
+                ⚠ Agree to Terms &amp; Privacy above
+              </p>
+            )}
           </div>
           <Button
             size="md"
