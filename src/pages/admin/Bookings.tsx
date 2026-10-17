@@ -320,10 +320,11 @@ export function Bookings() {
     }
   }, [loadBookings]);
 
+  // ✅ FIXED — load courts for both admin AND staff (needed by StaffCreateBookingModal)
   useEffect(() => {
     fetchBookings();
-    if (isAdmin) loadCourts();
-  }, [fetchBookings, loadCourts, isAdmin]);
+    if (isAdmin || isStaff) loadCourts();
+  }, [fetchBookings, loadCourts, isAdmin, isStaff]);
 
   /* ── Toast auto-dismiss ───────────────────────────────────────────────── */
 
@@ -473,13 +474,11 @@ export function Bookings() {
     setSelectedBooking(b);
   };
 
-  // ✅ Open the reschedule modal (closes details first so they never stack)
   const openReschedule = (b: Booking) => {
     setSelectedBooking(null);
     setRescheduleTarget(b);
   };
 
-  // ✅ Remember the delta so the row can show a persistent badge
   const handleRescheduled = async (result: RescheduleBookingResult) => {
     if (result.balance_due > 0 || result.refund_due > 0) {
       setPendingAdjustments((prev) => ({
@@ -1071,7 +1070,6 @@ export function Bookings() {
                   Actions
                 </p>
 
-                {/* ✅ Reschedule entry point, shown for non-terminal statuses */}
                 {!TERMINAL_STATUSES.includes(selectedBooking.status) && (
                   <Button
                     size="sm"
@@ -1257,7 +1255,6 @@ export function Bookings() {
         onCreated={() => fetchBookings()}
       />
 
-      {/* ✅ Reschedule modal */}
       <RescheduleBookingModal
         isOpen={!!rescheduleTarget}
         booking={rescheduleTarget}
