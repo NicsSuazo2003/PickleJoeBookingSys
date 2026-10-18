@@ -4,7 +4,6 @@ import {
   MapPin,
   Phone,
   Clock,
-  Instagram,
   Facebook,
   FileText,
   Lock,
@@ -32,14 +31,9 @@ export function Footer() {
           </p>
           <div className="mt-3.5 flex gap-2.5 sm:mt-4">
             <a
-              href="#"
-              className="rounded-xl border border-forest-700/80 bg-forest-900/60 p-2 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300"
-              aria-label="Instagram"
-            >
-              <Instagram className="h-4 w-4" />
-            </a>
-            <a
-              href="#"
+              href="https://www.facebook.com/profile.php?id=61594106069425"
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded-xl border border-forest-700/80 bg-forest-900/60 p-2 text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300"
               aria-label="Facebook"
             >
