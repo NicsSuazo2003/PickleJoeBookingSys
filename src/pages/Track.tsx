@@ -38,6 +38,7 @@ export function Track() {
   const settings = useClientStore((state) => state.settings);
   const loadSettings = useClientStore((state) => state.loadSettings);
   const courts = useAdminStore((state) => state.courts);
+  const loadCourts = useAdminStore((state) => state.loadCourts);
   
   const displayNumber = settings?.gcash_number || APP_CONFIG.paymentNumber;
 
@@ -52,9 +53,13 @@ export function Track() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
+  // Load settings and courts on mount
   useEffect(() => {
     loadSettings();
-  }, [loadSettings]);
+    if (courts.length === 0) {
+      loadCourts();
+    }
+  }, [loadSettings, loadCourts, courts.length]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,7 +150,7 @@ export function Track() {
   const hasPaymentScreenshot = booking?.payment_screenshot_url;
   const canSearch = reference.trim().length > 0 || email.trim().length > 0;
 
-  // 👇 Group slots by court to avoid showing 9 duplicate times
+  // 👇 Group slots by court, with a fallback to Court 1, 2, 3 if IDs are missing
   const groupedSlots = useMemo(() => {
     if (!booking || !booking.slots) return [];
     const map = new Map<string, { start_time: string; end_time: string }[]>();
@@ -154,10 +159,25 @@ export function Track() {
       if (!map.has(cid)) map.set(cid, []);
       map.get(cid)!.push({ start_time: s.start_time, end_time: s.end_time });
     });
-    return Array.from(map.entries()).map(([cid, times]) => ({
-      courtName: courts.find((c) => c.id === cid)?.name || 'Court',
-      times: times.sort((a, b) => a.start_time.localeCompare(b.start_time)),
-    }));
+    
+    let unknownIndex = 1;
+    return Array.from(map.entries()).map(([cid, times]) => {
+      let courtName = courts.find((c) => c.id === cid)?.name;
+      
+      // Fallback if the court isn't found (e.g. Track page didn't load courts or backend missing ID)
+      if (!courtName) {
+        if (cid === 'unknown') {
+          courtName = `Court ${unknownIndex++}`;
+        } else {
+          courtName = booking.court_name || 'Court';
+        }
+      }
+
+      return {
+        courtName,
+        times: times.sort((a, b) => a.start_time.localeCompare(b.start_time)),
+      };
+    });
   }, [booking, courts]);
 
   return (
