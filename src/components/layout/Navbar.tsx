@@ -87,7 +87,7 @@ export function Navbar() {
   const navLinks: NavLink[] = [
     { label: 'Home', path: '/' },
     { label: 'Open Play', path: '/open-play' },
-    { label: 'Book a Court', path: '/booking' },
+    // ❌ REMOVED: { label: 'Book a Court', path: '/booking' },
     { label: 'My Bookings', path: '/my-bookings', badge: hasPending ? 1 : 0 },
     { label: 'Track Booking', path: '/track' },
   ];
@@ -106,6 +106,7 @@ export function Navbar() {
       <nav className="container-page flex h-16 items-center justify-between md:h-20">
         <Logo size="nav" />
 
+        {/* Desktop Navigation */}
         <div className="hidden items-center gap-1 md:flex">
           {navLinks.map((link) => {
             const showDot = (link.badge ?? 0) > 0;
@@ -128,6 +129,7 @@ export function Navbar() {
           })}
         </div>
 
+        {/* Desktop Right Actions */}
         <div className="hidden items-center gap-3 md:flex">
           <a
             href={mailtoHref}
@@ -141,6 +143,7 @@ export function Navbar() {
           </Button>
         </div>
 
+        {/* Mobile Menu Toggle */}
         <button
           className="rounded-lg p-2 text-cream hover:bg-forest-800/60 md:hidden"
           onClick={() => setIsOpen(!isOpen)}
@@ -150,6 +153,7 @@ export function Navbar() {
         </button>
       </nav>
 
+      {/* Mobile Navigation Drawer */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -159,13 +163,14 @@ export function Navbar() {
             className="overflow-hidden border-t border-forest-800/80 bg-forest-950 md:hidden"
           >
             <div className="container-page flex flex-col gap-1 py-4">
+              {/* Nav Links */}
               {navLinks.map((link) => {
                 const showDot = (link.badge ?? 0) > 0;
                 return (
                   <Link
                     key={link.path}
                     to={link.path}
-                    className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition ${
+                    className={`flex items-center justify-between rounded-lg px-4 py-3.5 text-base font-medium transition ${
                       isActive(link.path)
                         ? 'text-brand-blue-300 bg-brand-blue-500/15 font-semibold'
                         : 'text-cream hover:bg-forest-800/60 hover:text-brand-blue-300'
@@ -173,32 +178,40 @@ export function Navbar() {
                   >
                     <span>{link.label}</span>
                     {showDot && (
-                      <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
                     )}
                   </Link>
                 );
               })}
 
+              {/* Clean Email Link for Mobile */}
               <a
                 href={mailtoHref}
-                className="flex items-center gap-2 rounded-lg px-4 py-3 text-sm text-cream-muted hover:bg-forest-800/60 hover:text-brand-blue-300 transition"
+                className="flex items-center gap-3 rounded-lg px-4 py-3.5 text-sm text-cream-muted hover:bg-forest-800/60 hover:text-brand-blue-300 transition"
               >
-                <Mail className="h-4 w-4 text-brand-green-400" />
-                Email {contactEmail}
+                <Mail className="h-5 w-5 text-brand-green-400" />
+                {contactEmail}
               </a>
 
-              <div className="mt-2 flex flex-col gap-2">
+              {/* Divider */}
+              <div className="my-2 border-t border-forest-800/80" />
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2.5 px-1 pb-2">
                 <Button
-                  size="md"
+                  size="lg"
                   fullWidth
-                  leftIcon={<CalendarPlus className="h-4 w-4" />}
-                  onClick={() => navigate('/booking')}
+                  leftIcon={<CalendarPlus className="h-5 w-5" />}
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate('/booking');
+                  }}
                 >
                   Book Now
                 </Button>
                 <Link
                   to="/admin"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-forest-700/80 bg-forest-900/40 px-4 py-2.5 text-sm text-cream-muted hover:border-brand-blue-500/50 hover:text-brand-blue-300 transition"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-forest-700/80 bg-forest-900/40 px-4 py-3 text-sm font-medium text-cream-muted hover:border-brand-blue-500/50 hover:text-brand-blue-300 transition"
                 >
                   <Shield className="h-4 w-4" />
                   Admin Login
