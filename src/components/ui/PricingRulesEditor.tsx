@@ -42,6 +42,7 @@ const EMPTY_FORM: EditorForm = {
 
 function formatTimeShort(time: string): string {
   if (!time) return '';
+  // Handle 00:00 as Midnight (12 AM)
   const [hour, minute] = time.split(':').map(Number);
   const ampm = hour >= 12 ? 'PM' : 'AM';
   const hour12 = hour % 12 || 12;
@@ -50,10 +51,6 @@ function formatTimeShort(time: string): string {
     : `${hour12}:${String(minute).padStart(2, '0')}${ampm}`;
 }
 
-/**
- * Group intervals by period (morning / afternoon / evening), deduping
- * identical start-end pairs across the day.
- */
 function groupSlotsByPeriod(slots: TimeSlot[]) {
   const morningMap = new Map<string, { start_time: string; end_time: string }>();
   const afternoonMap = new Map<string, { start_time: string; end_time: string }>();
@@ -91,7 +88,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
   const [saving, setSaving] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // Slot picker state
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [manualMode, setManualMode] = useState(false);
@@ -100,8 +96,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
     if (courtId) loadPricingRules(courtId).catch(() => {});
   }, [courtId, loadPricingRules]);
 
-  // Fetch this court's availability for today so the picker shows real intervals.
-  // Backend route: GET /api/courts/{id}/availability?date=YYYY-MM-DD
   useEffect(() => {
     if (!courtId) return;
     let cancelled = false;
@@ -202,29 +196,19 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
     setForm({ ...form, days: [] });
   };
 
-  // ─── Slot range logic ────────────────────────────────────────
-
   const isInRange = (
     start: string,
     end: string,
     interval: { start_time: string; end_time: string }
   ): boolean => {
     if (!start) return false;
-    if (!end || start === end) {
-      return interval.start_time === start;
+    // 👇 FIX: Handle 00:00 as end of day
+    if (!end || start === end || end === '00:00') {
+      return interval.start_time >= start;
     }
     return interval.start_time >= start && interval.end_time <= end;
   };
 
-  /**
-   * Click behavior:
-   *  - Nothing selected → this pill becomes start & end.
-   *  - Clicking the current start pill → clear selection.
-   *  - Clicking a later pill than start → extends end to that pill.
-   *  - Clicking an earlier pill than start → shifts start earlier.
-   *  - The range always stays continuous — every pill between start and
-   *    end is highlighted automatically.
-   */
   const handleSlotClick = (interval: { start_time: string; end_time: string }) => {
     if (!form) return;
     const s = form.start_time;
@@ -232,25 +216,21 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
     const clickedStart = interval.start_time;
     const clickedEnd = interval.end_time;
 
-    // Nothing selected yet → start here
     if (!s) {
       setForm({ ...form, start_time: clickedStart, end_time: clickedEnd });
       return;
     }
 
-    // Clicking the current start pill → clear
     if (s === clickedStart && e === clickedEnd) {
       setForm({ ...form, start_time: '', end_time: '' });
       return;
     }
 
-    // Clicked after current start → extend end
     if (clickedStart > s) {
       setForm({ ...form, start_time: s, end_time: clickedEnd });
       return;
     }
 
-    // Clicked before current start → shift start earlier
     if (clickedStart < s) {
       setForm({
         ...form,
@@ -260,7 +240,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
       return;
     }
 
-    // Fallback: same start time
     setForm({ ...form, start_time: s, end_time: clickedEnd });
   };
 
@@ -274,7 +253,9 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
       (max, x) => (x.end_time > max.end_time ? x : max),
       allIntervals[0]
     );
-    setForm({ ...form, start_time: first.start_time, end_time: last.end_time });
+    // If the last interval ends at midnight, ensure it's saved as 00:00
+    const finalEnd = last.end_time === '00:00' ? '00:00' : last.end_time;
+    setForm({ ...form, start_time: first.start_time, end_time: finalEnd });
   };
 
   const selectMorning = () => {
@@ -295,7 +276,9 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
     if (!form || evening.length === 0) return;
     const first = evening[0];
     const last = evening[evening.length - 1];
-    setForm({ ...form, start_time: first.start_time, end_time: last.end_time });
+    // 👇 FIX: If evening ends at midnight, force 00:00
+    const finalEnd = last.end_time === '00:00' ? '00:00' : last.end_time;
+    setForm({ ...form, start_time: first.start_time, end_time: finalEnd });
   };
 
   const clearRange = () => {
@@ -315,7 +298,9 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
       setLocalError('Please pick a start and end time.');
       return;
     }
-    if (form.end_time <= form.start_time) {
+    
+    // 👇 FIX: Allow 00:00 (Midnight) as an end time
+    if (form.end_time !== '00:00' && form.end_time <= form.start_time) {
       setLocalError('End time must be after start time.');
       return;
     }
@@ -360,10 +345,10 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
     return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(', ');
   };
 
-  const formatRange = (start: string, end: string) =>
-    `${formatTimeShort(start)} – ${formatTimeShort(end)}`;
-
-  // ─── Render ──────────────────────────────────────────────────
+  const formatRange = (start: string, end: string) => {
+    const isMidnightEnd = end === '00:00';
+    return `${formatTimeShort(start)} – ${isMidnightEnd ? '12:00 AM' : formatTimeShort(end)}`;
+  };
 
   const renderSlotGroup = (
     title: string,
@@ -452,7 +437,7 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
                   </div>
                   <p className="mt-0.5 text-[11px] text-cream-muted">
                     {formatDays(rule.days)} · {formatTimeShort(rule.start_time)}–
-                    {formatTimeShort(rule.end_time)}
+                    {rule.end_time === '00:00' ? '12:00 AM' : formatTimeShort(rule.end_time)}
                   </p>
                 </div>
 
@@ -499,7 +484,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
               onChange={(e) => setForm({ ...form, label: e.target.value })}
             />
 
-            {/* ─── Days ─── */}
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
@@ -546,7 +530,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
               </p>
             </div>
 
-            {/* ─── Time Range ─── */}
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
@@ -561,7 +544,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
                 </button>
               </div>
 
-              {/* Selected range preview + quick presets */}
               <div className="mb-3 rounded-lg border border-brand-blue-500/30 bg-brand-blue-500/10 p-3">
                 <div className="flex items-center gap-2 text-xs">
                   <Clock className="h-3.5 w-3.5 shrink-0 text-brand-blue-300" />
@@ -674,7 +656,6 @@ export function PricingRulesEditor({ courtId }: { courtId: string }) {
               )}
             </div>
 
-            {/* ─── Price & Priority ─── */}
             <div className="grid gap-3.5 sm:grid-cols-2">
               <Input
                 label="Price per Hour"
