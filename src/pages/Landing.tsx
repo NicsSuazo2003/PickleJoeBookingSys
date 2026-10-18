@@ -1006,7 +1006,7 @@ export function Landing() {
         </div>
       )}
 
-            {/* ─── Find Us (Google Maps) ─── */}
+      {/* ─── Find Us (Google Maps) ─── */}
       <section className="border-b border-forest-700/80 bg-forest-950/60 py-12 sm:py-20">
         <div className="container-page">
           <div className="mb-8 text-center sm:mb-12">
@@ -1287,9 +1287,6 @@ function SlotPill({
     styleClasses = 'border-amber-500/30 bg-amber-500/10 text-amber-300/80 cursor-not-allowed';
   } else if (isSelected) {
     styleClasses = 'border-court-300 bg-court-600 text-white font-bold shadow-glow-court';
-  } else if (slot.is_peak) {
-    // 👈 Highlight peak hour slots
-    styleClasses = 'border-amber-400/40 bg-amber-500/10 text-amber-200 hover:border-amber-400/70 hover:bg-amber-500/20 cursor-pointer';
   }
 
   return (
@@ -1301,8 +1298,6 @@ function SlotPill({
     >
       <span className="truncate flex items-center gap-1">
         {formatTimeRangeShort(slot.start_time, slot.end_time)}
-        {/* 👈 Add the star icon if it's a peak slot */}
-        {slot.is_peak && !isSelected && <span className="text-[10px] text-amber-400">★</span>}
       </span>
     </button>
   );
