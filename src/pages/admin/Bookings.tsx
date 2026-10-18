@@ -234,6 +234,12 @@ type BookingExtras = {
 
 const toDay = (d: string | undefined | null) => (d ? d.slice(0, 10) : '');
 
+/** Normalizes IDs so "ABC-123" and "abc-123 " compare equal. */
+const normId = (id: unknown): string => (id == null ? '' : String(id).trim().toLowerCase());
+
+/** Trims "19:00:00" → "19:00" so duplicate detection ignores seconds. */
+const trimTime = (t: string | undefined | null): string => (t ? t.slice(0, 5) : '');
+
 function localDayString(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
@@ -254,33 +260,72 @@ function timeLeft(deadline?: string | null) {
   return `${hrs}h ${mins % 60}m left`;
 }
 
+type SlotLike = {
+  court_id?: string | null;
+  start_time: string;
+  end_time: string;
+};
+
 /**
- * ✅ UPDATED — Groups slots by court so the admin doesn't see duplicated times.
- * Example output: "Court 1: 8AM-9AM | Court 2: 8AM-9AM"
+ * Groups slots by court_id, de-duplicates identical time ranges within each
+ * court, sorts times chronologically, and formats a readable summary.
+ *
+ * Example: "Court 1: 7:00 PM - 8:00 PM | Court 2: 7:00 PM - 8:00 PM"
+ *
+ * - Safe with null/undefined/empty slots and malformed entries.
+ * - Court ids are compared case-insensitively.
+ * - If a court can't be resolved (e.g. courts list not loaded yet), it falls
+ *   back to `fallbackCourtName` when there's a single group, otherwise
+ *   "Unknown court". It re-renders with real names once courts load.
  */
 function slotsSummary(
-  slots: { court_id?: string; start_time: string; end_time: string }[] | null | undefined,
-  courtsList: { id: string; name: string }[]
+  slots: SlotLike[] | null | undefined,
+  courtsList: { id: string; name: string }[] | null | undefined,
+  fallbackCourtName?: string | null
 ): string {
-  if (!slots || slots.length === 0) return 'No slots';
+  if (!Array.isArray(slots) || slots.length === 0) return 'No slots';
 
-  // Group by court_id
-  const grouped: Record<string, { start: string; end: string }[]> = {};
-  
-  slots.forEach((s) => {
-    const courtId = s.court_id || 'unknown';
-    if (!grouped[courtId]) grouped[courtId] = [];
-    grouped[courtId].push({ start: s.start_time, end: s.end_time });
+  const nameById = new Map<string, string>();
+  (courtsList ?? []).forEach((c) => {
+    if (c?.id) nameById.set(normId(c.id), c.name || 'Unnamed Court');
   });
 
-  // Format each group
-  return Object.entries(grouped)
-    .map(([courtId, times]) => {
-      const courtName = courtsList.find((c) => c.id === courtId)?.name || 'Court';
-      const timeStrings = times.map((t) => formatTimeRange(t.start, t.end)).join(', ');
-      return `${courtName}: ${timeStrings}`;
-    })
-    .join(' | ');
+  // courtKey -> (timeKey -> {start,end})  — the inner Map is what de-duplicates
+  const groups = new Map<string, Map<string, { start: string; end: string }>>();
+
+  for (const s of slots) {
+    if (!s || !s.start_time || !s.end_time) continue;
+    const courtKey = normId(s.court_id) || 'unknown';
+    const timeKey = `${trimTime(s.start_time)}-${trimTime(s.end_time)}`;
+
+    let times = groups.get(courtKey);
+    if (!times) {
+      times = new Map();
+      groups.set(courtKey, times);
+    }
+    if (!times.has(timeKey)) times.set(timeKey, { start: s.start_time, end: s.end_time });
+  }
+
+  if (groups.size === 0) return 'No slots';
+
+  const parts: { label: string; text: string }[] = [];
+
+  groups.forEach((times, courtKey) => {
+    const sortedTimes = Array.from(times.values()).sort((a, b) =>
+      trimTime(a.start).localeCompare(trimTime(b.start))
+    );
+    const text = sortedTimes.map((t) => formatTimeRange(t.start, t.end)).join(', ');
+
+    const label =
+      nameById.get(courtKey) ??
+      (groups.size === 1 && fallbackCourtName ? fallbackCourtName : 'Unknown court');
+
+    parts.push({ label, text });
+  });
+
+  parts.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+
+  return parts.map((p) => `${p.label}: ${p.text}`).join(' | ');
 }
 
 const selectClass =
@@ -375,25 +420,40 @@ export function Bookings() {
     if (tabCounts.review > 0) setTab('review');
   }, [loadingBookings, bookings.length, tabCounts.review]);
 
-  /* ── ✅ Helper to get ALL court names for a booking ─────────────── */
+  /* ── Court lookup (rebuilds whenever the courts array changes) ────────── */
 
-  const getCourtNamesForBooking = (booking: Booking): string => {
-    if (booking.slots && booking.slots.length > 0) {
-      const courtIds = Array.from(
-        new Set(booking.slots.map((s) => s.court_id).filter(Boolean))
+  const courtNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    (courts ?? []).forEach((c) => {
+      if (c?.id) map.set(normId(c.id), c.name || 'Unnamed Court');
+    });
+    return map;
+  }, [courts]);
+
+  /**
+   * Looks at every court_id in the booking's slots, matches them against the
+   * courts from the store, and returns e.g. "Court 1, Court 2, Court 3".
+   *
+   * Because it's memoized on `courtNameById`, anything that depends on it
+   * (the filtered list, the table rows) recalculates as soon as courts load.
+   * Until then it falls back to the booking's own court_name.
+   */
+  const getCourtNamesForBooking = useCallback(
+    (booking: Booking): string => {
+      const ids = Array.from(
+        new Set((booking.slots ?? []).map((s) => normId(s.court_id)).filter(Boolean))
       );
 
-      if (courtIds.length > 0) {
-        const names = courtIds
-          .map((id) => courts.find((c) => c.id === id)?.name)
-          .filter(Boolean);
-        
-        if (names.length > 0) return names.join(', ');
-      }
-    }
-    
-    return booking.court_name || 'Unknown Court';
-  };
+      const names = Array.from(
+        new Set(ids.map((id) => courtNameById.get(id)).filter((n): n is string => !!n))
+      ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+      if (names.length > 0) return names.join(', ');
+
+      return booking.court_name || 'Unknown Court';
+    },
+    [courtNameById]
+  );
 
   /* ── Filtering / sorting / paging ─────────────────────────────────────── */
 
@@ -402,10 +462,17 @@ export function Bookings() {
     const today = localDayString(0);
     const weekEnd = localDayString(6);
     const q = search.trim().toLowerCase();
+    const courtFilterId = normId(courtFilter);
 
     const list = bookings.filter((b) => {
       if (activeTab?.statuses && !activeTab.statuses.includes(b.status)) return false;
-      if (courtFilter !== 'all' && b.court_id !== courtFilter) return false;
+
+      // Match the court filter against the booking's main court AND every slot's court
+      if (courtFilter !== 'all') {
+        const matchesMain = normId(b.court_id) === courtFilterId;
+        const matchesSlot = (b.slots ?? []).some((s) => normId(s.court_id) === courtFilterId);
+        if (!matchesMain && !matchesSlot) return false;
+      }
 
       const day = toDay(b.date);
       if (dateFilter === 'today' && day !== today) return false;
@@ -430,7 +497,7 @@ export function Bookings() {
       const cmp = toDay(a.date).localeCompare(toDay(b.date));
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [bookings, tab, courtFilter, dateFilter, search, sortDir, courts]);
+  }, [bookings, tab, courtFilter, dateFilter, search, sortDir, getCourtNamesForBooking]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -743,6 +810,8 @@ export function Bookings() {
                   {pageItems.map((b) => {
                     const needsReview = b.status === 'payment_submitted';
                     const adjust = pendingAdjustments[b.id];
+                    const refundDue = adjust?.refund_due ?? 0;
+                    const balanceDue = adjust?.balance_due ?? 0;
                     const courtNames = getCourtNamesForBooking(b);
                     return (
                       <tr
@@ -757,16 +826,16 @@ export function Bookings() {
                             <span className="font-mono font-bold text-brand-blue-300 tracking-wide">
                               {b.reference_code || 'N/A'}
                             </span>
-                            {adjust?.refund_due > 0 && (
+                            {refundDue > 0 && (
                               <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/40 bg-purple-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-200">
                                 <RotateCcw className="h-3 w-3" />
-                                Refund {formatCurrency(adjust.refund_due)}
+                                Refund {formatCurrency(refundDue)}
                               </span>
                             )}
-                            {adjust?.balance_due > 0 && (
+                            {balanceDue > 0 && (
                               <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
                                 <AlertTriangle className="h-3 w-3" />
-                                Balance {formatCurrency(adjust.balance_due)}
+                                Balance {formatCurrency(balanceDue)}
                               </span>
                             )}
                           </div>
@@ -783,15 +852,12 @@ export function Bookings() {
                             {b.customer?.email || 'No email'}
                           </p>
                         </td>
-                        <td className="px-4 py-3.5 font-medium text-cream">
-                          {courtNames}
-                        </td>
+                        <td className="px-4 py-3.5 font-medium text-cream">{courtNames}</td>
                         <td className="px-4 py-3.5 text-xs text-cream-muted">
                           {formatDateLong(b.date)}
                         </td>
                         <td className="px-4 py-3.5 text-xs text-cream-muted max-w-[280px]">
-                          {/* ✅ UPDATED: Grouped slots */}
-                          {slotsSummary(b.slots, courts)}
+                          {slotsSummary(b.slots, courts, b.court_name)}
                         </td>
                         <td className="px-4 py-3.5 font-bold text-brand-blue-300">
                           {formatCurrency(b.total_amount || 0)}
@@ -845,6 +911,8 @@ export function Bookings() {
               {pageItems.map((b) => {
                 const needsReview = b.status === 'payment_submitted';
                 const adjust = pendingAdjustments[b.id];
+                const refundDue = adjust?.refund_due ?? 0;
+                const balanceDue = adjust?.balance_due ?? 0;
                 const courtNames = getCourtNamesForBooking(b);
                 return (
                   <div
@@ -860,18 +928,18 @@ export function Bookings() {
                       <StatusBadge status={b.status} size="sm" />
                     </div>
 
-                    {(adjust?.refund_due > 0 || adjust?.balance_due > 0) && (
+                    {(refundDue > 0 || balanceDue > 0) && (
                       <div className="flex flex-wrap gap-1.5">
-                        {adjust?.refund_due > 0 && (
+                        {refundDue > 0 && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/40 bg-purple-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-200">
                             <RotateCcw className="h-3 w-3" />
-                            Refund {formatCurrency(adjust.refund_due)}
+                            Refund {formatCurrency(refundDue)}
                           </span>
                         )}
-                        {adjust?.balance_due > 0 && (
+                        {balanceDue > 0 && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
                             <AlertTriangle className="h-3 w-3" />
-                            Balance {formatCurrency(adjust.balance_due)}
+                            Balance {formatCurrency(balanceDue)}
                           </span>
                         )}
                       </div>
@@ -894,8 +962,7 @@ export function Bookings() {
                         {courtNames} — {formatDateLong(b.date)}
                       </p>
                       <p className="mt-1 text-xs text-cream-muted/90">
-                        {/* ✅ UPDATED: Grouped slots */}
-                        {slotsSummary(b.slots, courts)}
+                        {slotsSummary(b.slots, courts, b.court_name)}
                       </p>
                     </div>
                     {b.payment_reference && (
@@ -973,7 +1040,7 @@ export function Bookings() {
                 <p className="rounded-lg border border-forest-800 bg-forest-900/60 px-3 py-2 text-xs text-cream-muted">
                   Last changed {extra.status_updated_by ? `by ${extra.status_updated_by} ` : ''}
                   on {formatDateTime(extra.status_updated_at)}
-                  {extra.status_reason ? ` — "{extra.status_reason}"` : ''}
+                  {extra.status_reason ? ` — "${extra.status_reason}"` : ''}
                 </p>
               )}
 
@@ -1023,8 +1090,7 @@ export function Bookings() {
                   </p>
                   <p className="text-xs text-cream-muted">{formatDateLong(selectedBooking.date)}</p>
                   <p className="mt-1.5 text-xs text-cream-muted">
-                    {/* ✅ UPDATED: Grouped slots */}
-                    {slotsSummary(selectedBooking.slots, courts)}
+                    {slotsSummary(selectedBooking.slots, courts, selectedBooking.court_name)}
                   </p>
                 </div>
               </div>

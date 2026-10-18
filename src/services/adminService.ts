@@ -79,22 +79,30 @@ function normalizeAnalytics(raw: any): Analytics {
 
 function normalizeBooking(raw: any): Booking {
   const data = raw?.data ?? raw;
+  const rawSlots: any[] = data.slots ?? data.Slots ?? data.bookingSlots ?? data.booking_slots ?? [];
+
+  const slots = rawSlots.map((s: any) => ({
+    id: s.id || '',
+    slot_id: s.slotId ?? s.slot_id ?? s.id ?? '',
+    // ✅ THE FIX: keep each slot's own court
+    court_id: String(
+      s.courtId ?? s.court_id ?? s.CourtId ?? s.court?.id ?? data.courtId ?? data.court_id ?? ''
+    ),
+    start_time: s.startTime ?? s.start_time ?? '',
+    end_time: s.endTime ?? s.end_time ?? '',
+    date: s.date ?? data.date ?? '',
+    type: s.type ?? 'standard',
+    price: Number(s.price ?? s.amount ?? s.total ?? s.Price ?? 0),
+    is_peak: s.isPeak ?? s.is_peak ?? false,
+  }));
+
   return {
     id: data.id || '',
     reference_code: data.referenceCode ?? data.reference_code ?? '',
-    court_id: data.courtId ?? data.court_id ?? '',
+    court_id: String(data.courtId ?? data.court_id ?? slots[0]?.court_id ?? ''),
     court_name: data.courtName ?? data.court_name ?? 'Unknown Court',
     date: data.date || '',
-    slots: (data.slots ?? []).map((s: any) => ({
-      id: s.id || '',
-      slot_id: s.slotId ?? s.slot_id ?? s.id ?? '',
-      start_time: s.startTime ?? s.start_time ?? '',
-      end_time: s.endTime ?? s.end_time ?? '',
-      date: s.date ?? data.date ?? '',
-      type: s.type ?? 'standard',
-      price: Number(s.price ?? s.amount ?? s.total ?? s.Price ?? 0),
-      is_peak: s.isPeak ?? s.is_peak ?? false,
-    })),
+    slots,
     customer: {
       name: data.customerName ?? data.customer?.name ?? 'Unknown',
       email: data.customerEmail ?? data.customer?.email ?? '',
@@ -105,9 +113,16 @@ function normalizeBooking(raw: any): Booking {
     status: data.status || 'pending_payment',
     payment_screenshot_url: data.paymentScreenshot ?? data.payment_screenshot_url ?? null,
     payment_reference: data.paymentReference ?? data.payment_reference ?? '',
+    payment_expires_at: data.paymentExpiresAt ?? data.payment_expires_at ?? null,
     gcash_number: data.gcashNumber ?? data.gcash_number ?? '',
     created_at: data.createdAt ?? data.created_at ?? new Date().toISOString(),
-    updated_at: data.updatedAt ?? data.updated_at ?? data.createdAt ?? data.created_at ?? new Date().toISOString(),
+    updated_at:
+      data.updatedAt ??
+      data.updated_at ??
+      data.createdAt ??
+      data.created_at ??
+      new Date().toISOString(),
+    open_play_session_id: data.openPlaySessionId ?? data.open_play_session_id ?? null,
   };
 }
 
@@ -324,16 +339,17 @@ export const adminService = {
 
     return {
       booking: normalizeBooking(data.booking ?? data.Booking ?? data),
-      previous_slots: (data.previousSlots ?? data.previous_slots ?? []).map((s: any) => ({
-        id: s.id || '',
-        slot_id: s.slotId ?? s.slot_id ?? s.id ?? '',
-        start_time: s.startTime ?? s.start_time ?? '',
-        end_time: s.endTime ?? s.end_time ?? '',
-        date: s.date ?? '',
-        type: s.type ?? 'standard',
-        price: Number(s.price ?? 0),
-        is_peak: s.isPeak ?? s.is_peak ?? false,
-      })),
+     previous_slots: (data.previousSlots ?? data.previous_slots ?? []).map((s: any) => ({
+  id: s.id || '',
+  slot_id: s.slotId ?? s.slot_id ?? s.id ?? '',
+  court_id: String(s.courtId ?? s.court_id ?? data.previousCourtId ?? data.previous_court_id ?? ''),
+  start_time: s.startTime ?? s.start_time ?? '',
+  end_time: s.endTime ?? s.end_time ?? '',
+  date: s.date ?? '',
+  type: s.type ?? 'standard',
+  price: Number(s.price ?? 0),
+  is_peak: s.isPeak ?? s.is_peak ?? false,
+})),
       previous_date: data.previousDate ?? data.previous_date ?? '',
       previous_court_id: data.previousCourtId ?? data.previous_court_id ?? '',
       previous_court_name: data.previousCourtName ?? data.previous_court_name ?? '',

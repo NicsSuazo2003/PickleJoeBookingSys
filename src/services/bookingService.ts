@@ -1,27 +1,43 @@
 // src/services/bookingService.ts
-import type { Booking, BookingSummary, CustomerDetails, SlotSelection } from '@/types';
+import type { Booking, BookingSummary, CustomerDetails } from '@/types';
 import { apiRequest } from './api';
 
-function normalizeBooking(raw: any): Booking {
-  console.log('📥 Raw booking data:', raw);
+/**
+ * Normalizes a booking from the API (camelCase or snake_case) into the
+ * frontend `Booking` shape.
+ *
+ * IMPORTANT: every slot keeps its own `court_id` (mapped from `courtId`),
+ * which is what the admin UI uses to show multi-court bookings correctly.
+ *
+ * Exported so the admin store (and anything else that loads bookings)
+ * can reuse the exact same mapping instead of rolling its own.
+ */
+export function normalizeBooking(raw: any): Booking {
+  const rawSlots: any[] = raw.slots ?? raw.Slots ?? raw.bookingSlots ?? raw.booking_slots ?? [];
+
+  const slots = rawSlots.map((s: any) => ({
+    id: s.id,
+    slot_id: s.slotId ?? s.slot_id ?? s.id,
+    // ✅ courtId (camelCase) / court_id (snake_case) / CourtId (PascalCase) / nested court object
+    court_id: String(s.courtId ?? s.court_id ?? s.CourtId ?? s.court?.id ?? raw.courtId ?? raw.court_id ?? ''),
+    start_time: s.startTime ?? s.start_time ?? s.StartTime,
+    end_time: s.endTime ?? s.end_time ?? s.EndTime,
+    date: s.date ?? raw.date,
+    type: s.type ?? 'standard',
+    price: s.price ?? 0,
+    is_peak: s.isPeak ?? s.is_peak ?? false,
+  }));
+
+  // Top-level court_id: use the API value, or fall back to the first slot's court
+  const topLevelCourtId = String(raw.courtId ?? raw.court_id ?? slots[0]?.court_id ?? '');
 
   return {
     id: raw.id,
     reference_code: raw.referenceCode ?? raw.reference_code,
-    court_id: raw.courtId ?? raw.court_id,
+    court_id: topLevelCourtId,
     court_name: raw.courtName ?? raw.court_name,
     date: raw.date,
-    slots: (raw.slots ?? []).map((s: any) => ({
-      id: s.id,
-      slot_id: s.slotId ?? s.slot_id ?? s.id,
-      court_id: s.courtId ?? s.court_id, // 👈 ADDED
-      start_time: s.startTime ?? s.start_time,
-      end_time: s.endTime ?? s.end_time,
-      date: s.date ?? raw.date,
-      type: s.type ?? 'standard',
-      price: s.price ?? 0,
-      is_peak: s.isPeak ?? s.is_peak ?? false,
-    })),
+    slots,
     customer: {
       name: raw.customerName ?? raw.customer?.name,
       email: raw.customerEmail ?? raw.customer?.email,
@@ -41,6 +57,7 @@ function normalizeBooking(raw: any): Booking {
     open_play_session_id: raw.openPlaySessionId ?? raw.open_play_session_id ?? null,
   };
 }
+
 // ✅ Normalizer for the email-only summary endpoint
 function normalizeSummary(raw: any): BookingSummary {
   return {
@@ -56,7 +73,7 @@ function normalizeSummary(raw: any): BookingSummary {
   };
 }
 
-// ✅ NEW: Payload now supports multiple courts in a single booking
+// ✅ Payload supports multiple courts in a single booking
 export interface CreateBookingPayload {
   court_groups: {
     courtId: string;
@@ -127,12 +144,10 @@ export const bookingService = {
       customerEmail: payload.customer.email.trim().toLowerCase(),
       customerPhone: payload.customer.phone.trim(),
       date: payload.date,
-      courtGroups: resolvedGroups, // 👈 New backend structure
+      courtGroups: resolvedGroups,
       totalAmount: payload.total_amount,
       notes: payload.customer.notes?.trim() || '',
     };
-
-    console.log('📤 Creating booking with payload:', JSON.stringify(requestBody, null, 2));
 
     try {
       const res = await apiRequest<Booking | { data: Booking }>('/api/bookings', {
@@ -141,7 +156,6 @@ export const bookingService = {
       });
 
       const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
-      console.log('✅ Booking created successfully:', booking.reference_code);
       return booking;
     } catch (error) {
       console.error('❌ Failed to create booking:', error);
@@ -160,7 +174,6 @@ export const bookingService = {
     try {
       const res = await apiRequest<Booking | { data: Booking }>(url);
       const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
-      console.log('✅ Booking tracked successfully:', booking.reference_code);
       return booking;
     } catch (error) {
       console.error('❌ Failed to track booking:', error);
