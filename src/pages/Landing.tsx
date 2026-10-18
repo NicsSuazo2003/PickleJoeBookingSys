@@ -165,6 +165,24 @@ export function Landing() {
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  // Dynamic operating hours fallback
+  const getOperatingHours = () => {
+    if (!courts || courts.length === 0) return '7AM - 12AM';
+    const earliestOpen = courts.reduce((earliest, court) => 
+      court.open_time < earliest ? court.open_time : earliest
+    , courts[0].open_time);
+    const latestClose = courts.reduce((latest, court) => 
+      court.close_time > latest ? court.close_time : latest
+    , courts[0].close_time);
+    const formatTime = (timeStr: string) => {
+      const [hour, minute] = timeStr.split(':').map(Number);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour % 12 || 12;
+      return minute === 0 ? `${hour12}${ampm}` : `${hour12}:${String(minute).padStart(2, '0')}${ampm}`;
+    };
+    return `${formatTime(earliestOpen)} - ${formatTime(latestClose)}`;
+  };
+
   const isNextWeekDisabled = (() => {
     if (!maxSelectableDate) return false;
     const nextWeekStart = addDays(new Date(), (weekOffset + 1) * 7);
@@ -493,7 +511,7 @@ export function Landing() {
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="h-4 w-4 text-court-300" />
-                <span>Open 5AM - 12AM</span>
+                <span>Open {getOperatingHours()}</span>
               </div>
             </div>
           </motion.div>
@@ -1269,6 +1287,9 @@ function SlotPill({
     styleClasses = 'border-amber-500/30 bg-amber-500/10 text-amber-300/80 cursor-not-allowed';
   } else if (isSelected) {
     styleClasses = 'border-court-300 bg-court-600 text-white font-bold shadow-glow-court';
+  } else if (slot.is_peak) {
+    // 👈 Highlight peak hour slots
+    styleClasses = 'border-amber-400/40 bg-amber-500/10 text-amber-200 hover:border-amber-400/70 hover:bg-amber-500/20 cursor-pointer';
   }
 
   return (
@@ -1278,8 +1299,10 @@ function SlotPill({
       aria-pressed={isSelected}
       className={`flex h-11 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-tight transition-all px-1 active:scale-95 ${styleClasses}`}
     >
-      <span className="truncate">
+      <span className="truncate flex items-center gap-1">
         {formatTimeRangeShort(slot.start_time, slot.end_time)}
+        {/* 👈 Add the star icon if it's a peak slot */}
+        {slot.is_peak && !isSelected && <span className="text-[10px] text-amber-400">★</span>}
       </span>
     </button>
   );

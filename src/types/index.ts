@@ -44,6 +44,7 @@ export interface TimeSlot {
   price: number;
   is_available: boolean;
   is_peak: boolean;
+  
 }
 
 export interface BookingSlotItem {

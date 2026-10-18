@@ -14,11 +14,37 @@ import {
 import { Logo } from '@/components/Logo';
 import { APP_CONFIG } from '@/utils/constants';
 import { useClientStore } from '@/stores/clientStore';
+import { useBookingStore } from '@/stores/bookingStore';
 
 export function Footer() {
   const settings = useClientStore((state) => state.settings);
   // Backend field name kept as gcash_number for DB compatibility; UI treats it generically.
   const displayNumber = settings?.gcash_number || APP_CONFIG.paymentNumber;
+
+  // Get courts to calculate dynamic hours
+  const courts = useBookingStore((state) => state.courts);
+
+  // Function to calculate the operating hours based on court data
+  const getOperatingHours = () => {
+    if (!courts || courts.length === 0) return '7:00 AM – 12:00 AM'; // 👈 Updated fallback to 7AM
+    
+    const earliestOpen = courts.reduce((earliest, court) => 
+      court.open_time < earliest ? court.open_time : earliest
+    , courts[0].open_time);
+    
+    const latestClose = courts.reduce((latest, court) => 
+      court.close_time > latest ? court.close_time : latest
+    , courts[0].close_time);
+
+    const formatTime = (timeStr: string) => {
+      const [hour, minute] = timeStr.split(':').map(Number);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour % 12 || 12;
+      return minute === 0 ? `${hour12}:00 ${ampm}` : `${hour12}:${String(minute).padStart(2, '0')} ${ampm}`;
+    };
+
+    return `${formatTime(earliestOpen)} – ${formatTime(latestClose)}`;
+  };
 
   return (
     <footer className="border-t border-forest-700/80 bg-forest-950 text-cream">
@@ -154,7 +180,8 @@ export function Footer() {
             <ul className="space-y-2 text-xs text-cream-muted sm:space-y-2.5 sm:text-sm">
               <li className="flex items-center gap-2.5">
                 <Clock className="h-4 w-4 shrink-0 text-brand-blue-300" />
-                <span>Mon – Sun · 5:00 AM – 12:00 AM</span>
+                {/* 👈 Updated UI display */}
+                <span>Mon – Sun · {getOperatingHours()}</span>
               </li>
             </ul>
             <Link
