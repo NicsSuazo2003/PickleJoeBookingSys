@@ -534,13 +534,14 @@ export function Booking() {
                 </div>
 
                 <Button
-                  size="lg"
-                  fullWidth
-                  className="mt-4"
-                  isLoading={submitting}
-                  onClick={handleSummaryButtonClick}
-                  rightIcon={<ArrowRight className="h-5 w-5" />}
-                >
+  size="lg"
+  fullWidth
+  className="mt-4"
+  isLoading={submitting}
+  disabled={submitting} // 👈 THIS IS THE FIX. Disables the button immediately.
+  onClick={handleSummaryButtonClick}
+  rightIcon={<ArrowRight className="h-5 w-5" />}
+>
                   Continue to Payment
                 </Button>
                 <p className="mt-2 text-center text-[11px] text-cream-muted">
@@ -598,12 +599,13 @@ export function Booking() {
             )}
           </div>
           <Button
-            size="md"
-            isLoading={submitting}
-            onClick={handleSummaryButtonClick}
-            rightIcon={<ArrowRight className="h-4 w-4" />}
-            className="shrink-0 px-6"
-          >
+  size="md"
+  isLoading={submitting}
+  disabled={submitting} // 👈 ADD THIS
+  onClick={handleSummaryButtonClick}
+  rightIcon={<ArrowRight className="h-4 w-4" />}
+  className="shrink-0 px-6"
+>
             Continue
           </Button>
         </div>
