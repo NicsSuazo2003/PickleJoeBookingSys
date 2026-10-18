@@ -8,8 +8,8 @@ import type {
   PaymentMethod,
   PricingRule,
   AmenityItem,
-  RescheduleBookingPayload,      // ← add
-  RescheduleBookingResult,       // ← add
+  RescheduleBookingPayload,
+  RescheduleBookingResult,
 } from '@/types';
 import { apiRequest } from './api';
 import { normalizeCourt, buildCourtPayload } from './courtService';
@@ -39,7 +39,6 @@ function normalizeClientSettings(raw: any): ClientSettings {
     payment_methods: data.paymentMethods ?? data.payment_methods ?? [],
     available_amenities: (data.availableAmenities ?? data.available_amenities ?? [])
       .map(normalizeAmenity),
-    // ⭐ NEW
     max_advance_booking_days: Number(
       data.maxAdvanceBookingDays ??
         data.max_advance_booking_days ??
@@ -50,7 +49,6 @@ function normalizeClientSettings(raw: any): ClientSettings {
 
 function normalizeAnalytics(raw: any): Analytics {
   const data = raw?.data ?? raw;
-
   const rawRevenueByDay =
     data.revenueByDay ??
     data.revenue_by_day ??
@@ -58,13 +56,6 @@ function normalizeAnalytics(raw: any): Analytics {
     data.daily_revenue ??
     data.revenueTrend ??
     [];
-
-  if (rawRevenueByDay.length === 0) {
-    console.warn(
-      '[analytics] revenue_by_day resolved to an empty array. Raw analytics keys:',
-      Object.keys(data)
-    );
-  }
 
   const revenueByDay = rawRevenueByDay
     .map((d: any) => ({
@@ -139,7 +130,7 @@ export const adminService = {
     rcbc_account_name?: string;
     rcbc_qr_image?: string;
     available_amenities?: AmenityItem[];
-    max_advance_booking_days?: number;   // ⭐ NEW
+    max_advance_booking_days?: number;
   }): Promise<ClientSettings> {
     const res = await apiRequest<any>('/api/admin/settings', {
       method: 'PUT',
@@ -151,7 +142,7 @@ export const adminService = {
         rcbcAccountName: payload.rcbc_account_name,
         rcbcQrImage: payload.rcbc_qr_image,
         availableAmenities: payload.available_amenities,
-        maxAdvanceBookingDays: payload.max_advance_booking_days,   // ⭐ NEW
+        maxAdvanceBookingDays: payload.max_advance_booking_days,
       }),
     });
     return normalizeClientSettings(res?.data ?? res);
@@ -199,11 +190,7 @@ export const adminService = {
   },
 
   async getBlockedDates(courtId?: string): Promise<BlockedDate[]> {
-    if (!courtId) {
-      console.warn('No court selected, returning empty blocked dates');
-      return [];
-    }
-
+    if (!courtId) return [];
     try {
       const res = await apiRequest<any>(`/api/courts/${courtId}/blocked-dates`);
       const rawList = Array.isArray(res) ? res : res?.data || [];
@@ -222,17 +209,13 @@ export const adminService = {
   },
 
   async addBlockedDate(blocked: Omit<BlockedDate, 'id'>): Promise<BlockedDate> {
-    const payload: any = {
-      date: blocked.date,
-      reason: blocked.reason,
+    // Send PascalCase to match ASP.NET Core DTO
+    const payload = {
+      Date: blocked.date,
+      StartTime: blocked.startTime || null,
+      EndTime: blocked.endTime || null,
+      Reason: blocked.reason,
     };
-
-    if ((blocked as any).startTime) {
-      payload.startTime = (blocked as any).startTime;
-    }
-    if ((blocked as any).endTime) {
-      payload.endTime = (blocked as any).endTime;
-    }
 
     const res = await apiRequest<any>(`/api/courts/${blocked.court_id}/blocked-dates`, {
       method: 'POST',
@@ -316,7 +299,7 @@ export const adminService = {
     });
     return normalizeBooking(res?.data ?? res);
   },
-    // ✅ Move an existing booking to a different court / date / time
+
   async rescheduleBooking(
     bookingId: string,
     payload: RescheduleBookingPayload

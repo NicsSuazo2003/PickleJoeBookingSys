@@ -412,8 +412,20 @@ export function Settings() {
     setMethodMsg(null);
   };
 
-  const handleAddBlock = async () => {
+    const handleAddBlock = async () => {
     if (!selectedCourtId || !blockDate) return;
+
+    // Basic validation for time blocks
+    if (!isFullDay) {
+      if (!blockStartTime || !blockEndTime) {
+        alert("Please provide both start and end times for a partial day block.");
+        return;
+      }
+      if (blockStartTime >= blockEndTime) {
+        alert("End time must be after start time.");
+        return;
+      }
+    }
 
     const payload: any = {
       court_id: selectedCourtId,
@@ -426,17 +438,24 @@ export function Settings() {
       payload.endTime = blockEndTime;
     }
 
-    await addBlockedDate(payload);
-    if (selectedCourtId) {
-      await loadBlockedDates(selectedCourtId);
+    try {
+      await addBlockedDate(payload);
+      if (selectedCourtId) {
+        await loadBlockedDates(selectedCourtId);
+      }
+
+      // Reset form
+      setBlockReason('');
+      setBlockStartTime('');
+      setBlockEndTime('');
+      setIsFullDay(true);
+      setAmenitiesMsg(null); // clear any lingering errors
+    } catch (err) {
+      console.error("Failed to block date:", err);
+      // Optionally alert the user
+      alert("Failed to block date. Please check the console for details.");
     }
-
-    setBlockReason('');
-    setBlockStartTime('');
-    setBlockEndTime('');
-    setIsFullDay(true);
   };
-
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     setProfileMsg(null);
