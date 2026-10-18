@@ -1,10 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // 👈 Added Link
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   CalendarPlus,
-  Wallet,
-  ShieldCheck,
   Clock,
   ArrowRight,
   MapPin,
@@ -29,7 +27,7 @@ import { useBookingStore } from '@/stores/bookingStore';
 import { useOpenPlayStore } from '@/stores/openPlayStore';
 import { useClientStore } from '@/stores/clientStore';
 import { bookingService } from '@/services/bookingService';
-import { COURT_IMAGES, APP_CONFIG, BOOKING_COPY } from '@/utils/constants'; // 👈 Added BOOKING_COPY
+import { APP_CONFIG, BOOKING_COPY } from '@/utils/constants';
 import { getAmenityIconForItem } from '@/utils/amenityIcons';
 import type { AmenityItem } from '@/types';
 import {
@@ -131,8 +129,6 @@ const SKILL_BADGE: Record<string, string> = {
 export function Landing() {
   const navigate = useNavigate();
   const bookingSectionRef = useRef<HTMLDivElement>(null);
-
-  // 👈 REMOVED: Unused heroIdx state and slideshow useEffect
 
   const [pendingBooking, setPendingBooking] = useState<Booking | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -991,6 +987,37 @@ export function Landing() {
           </div>
         </div>
       )}
+
+      {/* ─── Find Us (Google Maps) ─── */}
+      <section className="border-b border-forest-700/80 bg-forest-950/60 py-12 sm:py-20">
+        <div className="container-page">
+          <div className="mb-8 text-center sm:mb-12">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-court-300 sm:text-xs">
+              Location
+            </span>
+            <h2 className="section-title mt-2 text-2xl sm:text-3xl md:text-4xl">
+              Find Us
+            </h2>
+            <p className="mt-2 text-xs text-cream-muted sm:text-sm">
+              San Agustin Sur "Dawis", Tandag City, Surigao del Sur
+            </p>
+          </div>
+
+          <div className="mx-auto max-w-5xl overflow-hidden rounded-2xl border border-forest-700/80 bg-forest-900/80 shadow-xl">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d583.8565950807487!2d126.1816994284636!3d9.076753464415377!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x330237c0aa11e7bb%3A0x58594cdc67688115!2sCenter%20Court%20Tandag!5e0!3m2!1sen!2sph!4v1792297550254!5m2!1sen!2sph"
+              width="100%"
+              height="450"
+              style={{ border: 0 }}
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              title="Center Court Tandag Location"
+              className="w-full sm:h-[500px]"
+            />
+          </div>
+        </div>
+      </section>
 
       {/* ─── Venue Amenities ─── */}
       <section className="border-b border-forest-700/80 bg-forest-900/60 py-12 sm:py-20">
