@@ -1006,7 +1006,7 @@ export function Landing() {
         </div>
       )}
 
-      {/* ─── Find Us (Google Maps) ─── */}
+            {/* ─── Find Us (Google Maps) ─── */}
       <section className="border-b border-forest-700/80 bg-forest-950/60 py-12 sm:py-20">
         <div className="container-page">
           <div className="mb-8 text-center sm:mb-12">
@@ -1022,17 +1022,17 @@ export function Landing() {
           </div>
 
           <div className="mx-auto max-w-5xl overflow-hidden rounded-2xl border border-forest-700/80 bg-forest-900/80 shadow-xl">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d583.8565950807487!2d126.1816994284636!3d9.076753464415377!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x330237c0aa11e7bb%3A0x58594cdc67688115!2sCenter%20Court%20Tandag!5e0!3m2!1sen!2sph!4v1792297550254!5m2!1sen!2sph"
-              width="100%"
-              height="450"
-              style={{ border: 0 }}
-              allowFullScreen
-              loading="lazy"
-              referrerPolicy="strict-origin-when-cross-origin"
-              title="Center Court Tandag Location"
-              className="w-full sm:h-[500px]"
-            />
+            <div className="relative w-full aspect-[4/3] sm:aspect-auto sm:h-[500px]">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d942.641067526728!2d126.18157436955089!3d9.076979623747455!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x330237c0aa11e7bb%3A0x58594cdc67688115!2sCenter%20Court%20Tandag!5e1!3m2!1sen!2sph!4v1792309489742!5m2!1sen!2sph"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="strict-origin-when-cross-origin"
+                title="Center Court Tandag Location"
+                className="absolute inset-0 h-full w-full"
+              />
+            </div>
           </div>
         </div>
       </section>
