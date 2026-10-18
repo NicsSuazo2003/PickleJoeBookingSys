@@ -5,7 +5,7 @@ import {
   FileText,
   ArrowLeft,
   Mail,
-  Phone,
+  Facebook,
   MapPin,
   AlertTriangle,
   CalendarCheck,
@@ -245,8 +245,16 @@ export function Terms() {
                   <span>centercourttandag@gmail.com</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <Phone className="h-4 w-4 shrink-0 text-court-300" />
-                  <span>{APP_CONFIG.paymentNumber}</span>
+                  {/* 👇 Replaced Phone with Facebook */}
+                  <Facebook className="h-4 w-4 shrink-0 text-court-300" />
+                  <a 
+                    href="https://www.facebook.com/profile.php?id=61594106069425&mibextid=wwXIfr&rdid=2CqRPgsgi7BZIBAd&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F1D5snWhetr%2F#"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-brand-blue-300 transition"
+                  >
+                    Center Court Tandag
+                  </a>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-court-300" />
