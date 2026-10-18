@@ -63,7 +63,6 @@ const customerSchema = z.object({
 
   notes: z.string().max(NOTES_MAX, 'Notes are too long').optional(),
 
-  // ✅ Terms & Privacy consent — works on Zod v3 and v4
   termsAccepted: z
     .boolean()
     .refine((v) => v === true, {
@@ -86,6 +85,7 @@ export function Booking() {
     setCustomer,
     createBooking,
     slots,
+    refreshSlots, // 👈 Added this
   } = useBookingStore();
 
   const [submitting, setSubmitting] = useState(false);
@@ -141,6 +141,16 @@ export function Booking() {
     setSubmitting(true);
     setSubmitError(null);
     try {
+      // 👇 NEW: Check if slots are still available before saving
+      const isStillAvailable = await refreshSlots();
+      if (!isStillAvailable) {
+        setSubmitError(
+          "Sorry, one of your selected slots was just booked by another customer. Please go back and select a different time."
+        );
+        setSubmitting(false);
+        return;
+      }
+
       setCustomer({
         name: data.name,
         email: data.email,
@@ -401,7 +411,7 @@ export function Booking() {
                   </p>
                 </div>
 
-                {/* ✅ NEW — Terms & Privacy consent checkbox */}
+                {/* ✅ Terms & Privacy consent checkbox */}
                 <div className="flex items-start gap-2.5 rounded-xl border border-forest-700/60 bg-forest-950/60 p-3.5">
                   <input
                     type="checkbox"
