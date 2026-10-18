@@ -320,7 +320,6 @@ export function Bookings() {
     }
   }, [loadBookings]);
 
-  // ✅ FIXED — load courts for both admin AND staff (needed by StaffCreateBookingModal)
   useEffect(() => {
     fetchBookings();
     if (isAdmin || isStaff) loadCourts();
@@ -353,6 +352,28 @@ export function Bookings() {
     if (tabCounts.review > 0) setTab('review');
   }, [loadingBookings, bookings.length, tabCounts.review]);
 
+  /* ── ✅ NEW: Helper to get ALL court names for a booking ─────────────── */
+
+  const getCourtNamesForBooking = (booking: Booking): string => {
+    // If the booking has slots with court_ids, map them to court names
+    if (booking.slots && booking.slots.length > 0) {
+      const courtIds = Array.from(
+        new Set(booking.slots.map((s) => (s as any).court_id).filter(Boolean))
+      );
+
+      if (courtIds.length > 0) {
+        const names = courtIds
+          .map((id) => courts.find((c) => c.id === id)?.name)
+          .filter(Boolean);
+        
+        if (names.length > 0) return names.join(', ');
+      }
+    }
+    
+    // Fallback to the primary court name
+    return booking.court_name || 'Unknown Court';
+  };
+
   /* ── Filtering / sorting / paging ─────────────────────────────────────── */
 
   const filtered = useMemo(() => {
@@ -377,7 +398,8 @@ export function Bookings() {
           b.customer?.name?.toLowerCase().includes(q) ||
           b.customer?.email?.toLowerCase().includes(q) ||
           b.customer?.phone?.toLowerCase().includes(q) ||
-          b.court_name?.toLowerCase().includes(q)
+          b.court_name?.toLowerCase().includes(q) ||
+          getCourtNamesForBooking(b).toLowerCase().includes(q)
         );
       }
       return true;
@@ -387,7 +409,7 @@ export function Bookings() {
       const cmp = toDay(a.date).localeCompare(toDay(b.date));
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [bookings, tab, courtFilter, dateFilter, search, sortDir]);
+  }, [bookings, tab, courtFilter, dateFilter, search, sortDir, courts]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -688,7 +710,7 @@ export function Bookings() {
                   <tr className="border-b border-forest-700/80 bg-forest-950/70 text-xs uppercase tracking-wider text-cream-muted">
                     <th className="px-4 py-3 font-semibold">Reference</th>
                     <th className="px-4 py-3 font-semibold">Customer</th>
-                    <th className="px-4 py-3 font-semibold">Court</th>
+                    <th className="px-4 py-3 font-semibold">Court(s)</th>
                     <th className="px-4 py-3">{SortHeader}</th>
                     <th className="px-4 py-3 font-semibold">Slots</th>
                     <th className="px-4 py-3 font-semibold">Total</th>
@@ -700,6 +722,7 @@ export function Bookings() {
                   {pageItems.map((b) => {
                     const needsReview = b.status === 'payment_submitted';
                     const adjust = pendingAdjustments[b.id];
+                    const courtNames = getCourtNamesForBooking(b);
                     return (
                       <tr
                         key={b.id}
@@ -740,7 +763,8 @@ export function Bookings() {
                           </p>
                         </td>
                         <td className="px-4 py-3.5 font-medium text-cream">
-                          {b.court_name || 'Unknown Court'}
+                          {/* 👇 Now shows ALL courts */}
+                          {courtNames}
                         </td>
                         <td className="px-4 py-3.5 text-xs text-cream-muted">
                           {formatDateLong(b.date)}
@@ -800,6 +824,7 @@ export function Bookings() {
               {pageItems.map((b) => {
                 const needsReview = b.status === 'payment_submitted';
                 const adjust = pendingAdjustments[b.id];
+                const courtNames = getCourtNamesForBooking(b);
                 return (
                   <div
                     key={b.id}
@@ -845,7 +870,8 @@ export function Bookings() {
                         </a>
                       )}
                       <p className="mt-1 text-xs text-cream-muted">
-                        {b.court_name || 'Unknown Court'} — {formatDateLong(b.date)}
+                        {/* 👇 Now shows ALL courts */}
+                        {courtNames} — {formatDateLong(b.date)}
                       </p>
                       <p className="mt-1 text-xs text-cream-muted/90">{slotsSummary(b.slots)}</p>
                     </div>
@@ -970,7 +996,8 @@ export function Bookings() {
                     Court Booking
                   </p>
                   <p className="mt-1 text-sm font-bold text-cream">
-                    {selectedBooking.court_name || 'Unknown Court'}
+                    {/* 👇 Now shows ALL courts */}
+                    {getCourtNamesForBooking(selectedBooking)}
                   </p>
                   <p className="text-xs text-cream-muted">{formatDateLong(selectedBooking.date)}</p>
                   <p className="mt-1.5 text-xs text-cream-muted">
