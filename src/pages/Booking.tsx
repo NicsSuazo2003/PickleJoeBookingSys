@@ -14,10 +14,7 @@ import {
   User,
   Mail,
   Phone,
-  AlertTriangle,
   Timer,
-  FileText,
-  RotateCcw,
   ShieldCheck,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
@@ -402,40 +399,6 @@ export function Booking() {
                     your slots are held for {HOLD_MINUTES} minutes once you continue. Pay and submit
                     your payment reference within that time, or the hold is released.
                   </p>
-                </div>
-
-                {/* No-refund reminder (non-blocking) */}
-                <div className="flex items-start gap-2.5 rounded-xl border border-rose-900/50 bg-rose-950/25 p-3.5">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wider text-rose-400 sm:text-sm">
-                      No cancellation policy
-                    </p>
-                    <p className="text-xs leading-relaxed text-cream-muted sm:text-sm">
-                      Once your booking is confirmed, there are no cancellations or refunds. If you
-                      can&apos;t make it, please find someone to take your slot.
-                    </p>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 pt-0.5">
-                      <Link
-                        to="/terms"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand-blue-300 underline"
-                      >
-                        <FileText className="h-3 w-3" />
-                        Read full terms
-                      </Link>
-                      <Link
-                        to="/refund-policy"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand-blue-300 underline"
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                        Refund policy
-                      </Link>
-                    </div>
-                  </div>
                 </div>
 
                 {/* ✅ NEW — Terms & Privacy consent checkbox */}
