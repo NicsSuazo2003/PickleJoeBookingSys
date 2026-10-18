@@ -128,13 +128,13 @@ export function Track() {
   };
 
   // ✅ Helper to get all court names for the booking
-  const courtNames = useMemo(() => {
-    if (!booking || !booking.slots) return booking?.court_name || '';
-    const ids = Array.from(new Set(booking.slots.map(s => s.court_id).filter(Boolean)));
-    if (ids.length === 0) return booking.court_name;
+  const getCourtNames = (b: Booking | null) => {
+    if (!b || !b.slots) return b?.court_name || '';
+    const ids = Array.from(new Set(b.slots.map(s => s.court_id).filter(Boolean)));
+    if (ids.length === 0) return b.court_name;
     const names = ids.map(id => courts.find(c => c.id === id)?.name).filter(Boolean);
-    return names.length > 0 ? names.join(', ') : booking.court_name;
-  }, [booking, courts]);
+    return names.length > 0 ? names.join(', ') : b.court_name;
+  };
 
   const canUploadPayment = booking && (booking.status === 'pending_payment' || booking.status === 'payment_submitted');
   const formatSlotTime = (slot: { startTime?: string; endTime?: string; start_time?: string; end_time?: string }): string => {
@@ -144,6 +144,21 @@ export function Track() {
   };
   const hasPaymentScreenshot = booking?.payment_screenshot_url;
   const canSearch = reference.trim().length > 0 || email.trim().length > 0;
+
+  // 👇 Group slots by court to avoid showing 9 duplicate times
+  const groupedSlots = useMemo(() => {
+    if (!booking || !booking.slots) return [];
+    const map = new Map<string, { start_time: string; end_time: string }[]>();
+    booking.slots.forEach((s) => {
+      const cid = s.court_id || 'unknown';
+      if (!map.has(cid)) map.set(cid, []);
+      map.get(cid)!.push({ start_time: s.start_time, end_time: s.end_time });
+    });
+    return Array.from(map.entries()).map(([cid, times]) => ({
+      courtName: courts.find((c) => c.id === cid)?.name || 'Court',
+      times: times.sort((a, b) => a.start_time.localeCompare(b.start_time)),
+    }));
+  }, [booking, courts]);
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
@@ -257,7 +272,7 @@ export function Track() {
                       </div>
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Court</p>
-                        <p className="text-sm font-bold text-cream sm:text-base">{courtNames}</p>
+                        <p className="text-sm font-bold text-cream sm:text-base">{getCourtNames(booking)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -273,14 +288,18 @@ export function Track() {
 
                   <div className="mt-4">
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">Time Slots</p>
-                    <div className="space-y-1.5 sm:space-y-2">
-                      {booking.slots.map((slot) => (
-                        <div key={slot.slot_id || slot.id} className="flex items-center justify-between rounded-xl border border-forest-700/60 bg-forest-800/80 p-2.5 sm:p-3">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-3.5 w-3.5 text-brand-blue-300" />
-                            <span className="text-xs font-medium text-cream sm:text-sm">{formatSlotTime(slot)}</span>
+                    <div className="space-y-3">
+                      {groupedSlots.map((group, idx) => (
+                        <div key={idx} className="rounded-xl border border-forest-700/60 bg-forest-800/80 p-3">
+                          <p className="mb-1.5 text-xs font-bold text-cream">{group.courtName}</p>
+                          <div className="space-y-1">
+                            {group.times.map((t, i) => (
+                              <div key={i} className="flex items-center gap-2 text-xs text-cream-muted">
+                                <Clock className="h-3.5 w-3.5 text-brand-blue-300" />
+                                <span>{formatTimeRange(t.start_time, t.end_time)}</span>
+                              </div>
+                            ))}
                           </div>
-                          <span className="text-xs font-bold text-brand-blue-300 sm:text-sm">{formatCurrency(slot.price)}</span>
                         </div>
                       ))}
                     </div>
@@ -292,7 +311,6 @@ export function Track() {
                   </div>
                 </div>
 
-                {/* Customer, Upload, etc. (unchanged from previous) */}
                 <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
                   <h3 className="mb-3.5 font-display text-base font-bold text-cream">Customer Details</h3>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -325,7 +343,147 @@ export function Track() {
                   )}
                 </div>
 
-                {/* ... rest of the file (payment upload logic, status callouts) stays the same ... */}
+                {/* Payment Upload Section */}
+                {canUploadPayment && !hasPaymentScreenshot && (
+                  <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+                    <h3 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-cream">
+                      <Wallet className="h-5 w-5 text-brand-blue-300" />
+                      Complete Payment
+                    </h3>
+                    <p className="mb-3.5 text-xs text-cream-muted sm:text-sm">
+                      Send {formatCurrency(booking.total_amount)} to our payment account{' '}
+                      <span className="font-bold text-brand-blue-300">{displayNumber}</span> and
+                      upload your receipt below.
+                    </p>
+
+                    {uploadSuccess ? (
+                      <div className="rounded-xl border border-accentGreen-500/40 bg-accentGreen-500/10 p-3.5 text-center text-xs font-semibold text-accentGreen-300 sm:text-sm">
+                        Payment screenshot uploaded! Your booking is being reviewed.
+                      </div>
+                    ) : (
+                      <>
+                        <div
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const file = e.dataTransfer.files[0];
+                            if (file) handleFile(file);
+                          }}
+                          className="rounded-xl border-2 border-dashed border-forest-700/80 bg-forest-950/40 p-4 text-center transition-all hover:border-brand-blue-400/60 sm:p-6"
+                        >
+                          {screenshot ? (
+                            <div className="space-y-2">
+                              <img
+                                src={screenshot}
+                                alt="Screenshot"
+                                className="mx-auto max-h-36 rounded-lg object-contain border border-forest-700 bg-forest-950 sm:max-h-40"
+                              />
+                              <button
+                                onClick={() => setScreenshot(null)}
+                                className="text-xs text-cream-muted underline hover:text-error transition"
+                              >
+                                Change image
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <ImageIcon className="mx-auto h-8 w-8 text-cream-muted/40" />
+                              <p className="mt-2 text-xs text-cream-muted">
+                                Drag receipt screenshot or{' '}
+                                <label className="cursor-pointer font-semibold text-brand-blue-300 underline hover:text-brand-blue-200">
+                                  browse
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleFile(file);
+                                    }}
+                                  />
+                                </label>
+                              </p>
+                            </>
+                          )}
+                        </div>
+
+                        {screenshot && (
+                          <>
+                            <div className="mt-3.5">
+                              <input
+                                type="text"
+                                value={paymentRef}
+                                onChange={(e) => setPaymentRef(e.target.value)}
+                                placeholder="Payment reference number"
+                                className="w-full rounded-xl border border-forest-700/80 bg-forest-950/60 px-4 py-2.5 text-sm text-cream placeholder-cream-muted/40 transition-all focus:border-brand-blue-400 focus:bg-forest-900/60 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
+                              />
+                            </div>
+                            <Button
+                              className="mt-3.5"
+                              fullWidth
+                              isLoading={uploading}
+                              disabled={!paymentRef.trim()}
+                              onClick={handleUpload}
+                              leftIcon={<Upload className="h-4 w-4" />}
+                            >
+                              Upload Payment
+                            </Button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Payment Screenshot Display */}
+                {hasPaymentScreenshot && (
+                  <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+                    <h3 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-cream">
+                      <CheckCircle2 className="h-5 w-5 text-accentGreen-300" />
+                      Payment Screenshot
+                    </h3>
+                    <p className="mb-3.5 text-xs text-cream-muted">
+                      Your payment screenshot has been submitted and is currently being verified.
+                    </p>
+                    <div className="rounded-xl border border-forest-700/80 bg-forest-950/80 p-3">
+                      <img
+                        src={booking.payment_screenshot_url || undefined}
+                        alt="Payment Screenshot"
+                        className="mx-auto max-h-64 rounded-lg object-contain"
+                      />
+                    </div>
+                    {booking.payment_reference && (
+                      <p className="mt-2.5 text-xs text-cream-muted">
+                        Reference Number:{' '}
+                        <span className="font-mono font-bold text-brand-blue-300">
+                          {booking.payment_reference}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Status Callouts */}
+                {booking.status === 'confirmed' && (
+                  <div className="rounded-xl border border-accentGreen-500/40 bg-accentGreen-500/10 p-4 text-center text-xs font-semibold text-accentGreen-300 sm:text-sm">
+                    Your booking is confirmed! See you on the court.
+                  </div>
+                )}
+                {booking.status === 'completed' && (
+                  <div className="rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/10 p-4 text-center text-xs font-semibold text-brand-blue-300 sm:text-sm">
+                    Thanks for playing with us! We hope to see you again soon.
+                  </div>
+                )}
+                {booking.status === 'cancelled' && (
+                  <div className="rounded-xl border border-error/30 bg-error/10 p-4 text-center text-xs font-semibold text-error sm:text-sm">
+                    This booking has been cancelled.
+                  </div>
+                )}
+                {booking.status === 'rejected' && (
+                  <div className="rounded-xl border border-error/30 bg-error/10 p-4 text-center text-xs font-semibold text-error sm:text-sm">
+                    Your payment could not be verified. Please contact court administration.
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

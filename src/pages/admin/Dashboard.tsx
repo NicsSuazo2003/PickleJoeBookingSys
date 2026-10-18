@@ -1,3 +1,4 @@
+// src/pages/admin/Dashboard.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -155,7 +156,6 @@ export function Dashboard() {
 
   const selectDate = (iso: string) => {
     setSelectedDate(iso);
-    // On phones the day details sit below the grid, so bring them into view.
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
       setTimeout(() => drawerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     }
@@ -198,7 +198,6 @@ export function Dashboard() {
     },
   ];
 
-  // Revenue chart helpers (computed once, not per bar)
   const revenueDays = analytics?.revenue_by_day ?? [];
   const maxRevenue = Math.max(...revenueDays.map((d) => d.revenue), 1);
   const periodTotal = revenueDays.reduce((sum, d) => sum + d.revenue, 0);
@@ -216,7 +215,6 @@ export function Dashboard() {
           </p>
         </div>
 
-        {/* Needs attention: the most common admin task is verifying payments */}
         {pendingCount > 0 && (
           <Link
             to={ADMIN_BOOKINGS_PATH}
@@ -238,7 +236,6 @@ export function Dashboard() {
           </Link>
         )}
 
-        {/* Stats */}
         <div className="mb-6 grid gap-3.5 sm:mb-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
           {statCards.map((stat, i) => {
             const Icon = stat.icon;
@@ -259,7 +256,6 @@ export function Dashboard() {
                     <Icon className={`h-5 w-5 ${stat.color}`} />
                   </div>
                 </div>
-                {/* Show a dash while loading so "0" is never mistaken for real data */}
                 <p className="mt-3 text-2xl font-extrabold text-cream sm:text-3xl tracking-tight">
                   {statsLoading ? '—' : stat.value}
                 </p>
@@ -271,7 +267,6 @@ export function Dashboard() {
           })}
         </div>
 
-        {/* Revenue chart */}
         {revenueDays.length > 0 && (
           <div className="mb-6 card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:mb-8 sm:p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -284,7 +279,6 @@ export function Dashboard() {
                   </span>
                 </h2>
               </div>
-              {/* Readout works on touch, unlike hover tooltips */}
               <p className="text-xs text-cream-muted sm:text-sm" aria-live="polite">
                 {activeDay ? (
                   <>
@@ -347,7 +341,6 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Calendar / List View */}
         <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
           <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-display text-base font-bold text-cream sm:text-lg">
@@ -412,12 +405,10 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* Only wait for bookings here; analytics has no effect on this section */}
           {loadingBookings && bookings.length === 0 ? (
             <LoadingSpinner className="py-14" />
           ) : view === 'calendar' ? (
             <div>
-              {/* Status legend */}
               <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cream-muted">
                 {Object.entries(STATUS_STYLE).map(([key, s]) => (
                   <span key={key} className="flex items-center gap-1.5">
@@ -427,7 +418,6 @@ export function Dashboard() {
                 ))}
               </div>
 
-              {/* Calendar header row */}
               <div className="mb-2 grid grid-cols-7 gap-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
                   <div
@@ -440,7 +430,6 @@ export function Dashboard() {
                 ))}
               </div>
 
-              {/* Calendar days grid */}
               <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
                 {weeks.flat().map((day) => {
                   const iso = toISODate(day);
@@ -487,14 +476,12 @@ export function Dashboard() {
                         )}
                       </div>
 
-                      {/* Mobile: status dots instead of unreadable chips */}
                       <div className="mt-1.5 flex gap-1 sm:hidden">
                         {dotStatuses.map((s) => (
                           <span key={s} className={`h-1.5 w-1.5 rounded-full ${statusStyle(s).dot}`} />
                         ))}
                       </div>
 
-                      {/* Desktop booking chips */}
                       <div className="mt-1 hidden space-y-1 sm:block">
                         {dayBookings.slice(0, 2).map((b, i) => {
                           const start = firstStart(b) ? formatTimeShort(firstStart(b)) : '';
@@ -519,7 +506,6 @@ export function Dashboard() {
                 })}
               </div>
 
-              {/* Selected date drawer */}
               {selectedDate && (
                 <div
                   ref={drawerRef}
@@ -548,7 +534,6 @@ export function Dashboard() {
             </div>
           ) : (
             <div>
-              {/* Status filter */}
               <div className="no-scrollbar -mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">
                 {STATUS_FILTERS.map((f) => {
                   const count =
@@ -618,8 +603,21 @@ function BookingRow({
   showDate: boolean;
   showReference?: boolean;
 }) {
+  // 👇 Access the courts store to resolve the actual court names
+  const courts = useAdminStore((state) => state.courts);
+
+  // 👇 Group the slots by court to get all names
+  const courtNames = useMemo(() => {
+    if (!b || !b.slots) return b?.court_name || '';
+    const ids = Array.from(new Set(b.slots.map((s: any) => s.court_id).filter(Boolean)));
+    if (ids.length === 0) return b.court_name;
+    const names = ids
+      .map((id) => courts.find((c) => c.id === id)?.name)
+      .filter(Boolean);
+    return names.length > 0 ? names.join(', ') : b.court_name;
+  }, [b, courts]);
+
   const slotDisplay = b.slots?.map((s: any) => formatSlotTime(s)).join(', ') || 'No slots';
-  const courtName = b.court_name || 'Unknown Court';
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-forest-700/70 bg-forest-950/70 p-3.5 sm:flex-row sm:items-center sm:justify-between">
@@ -636,7 +634,8 @@ function BookingRow({
               </>
             )}
             {showDate && <>{formatDate(b.date)} · </>}
-            {courtName} · {slotDisplay}
+            {/* 👇 Now shows all courts */}
+            {courtNames} · {slotDisplay}
           </p>
         </div>
       </div>
