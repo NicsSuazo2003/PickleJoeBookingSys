@@ -116,14 +116,25 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
     }
   },
 
-  refreshSlots: async (): Promise<boolean> => {
-    const { selectedCourt, selectedDate, selectedSlotIds } = get();
-    if (!selectedCourt || selectedSlotIds.length === 0) return true;
+    refreshSlots: async (): Promise<boolean> => {
+    const { courts, selectedDate, selectedSlotIds, slots } = get();
+    if (selectedSlotIds.length === 0) return true;
 
     try {
-      const freshSlots = await courtService.getAvailability(selectedCourt.id, selectedDate);
+      // 1. Determine which courts are actually involved in the selection
+      const selectedSlotObjs = slots.filter((s) => selectedSlotIds.includes(s.id));
+      const courtIds = Array.from(new Set(selectedSlotObjs.map((s) => s.court_id)));
+
+      // 2. Fetch fresh slots for ALL those courts
+      const results = await Promise.all(
+        courtIds.map((courtId) => courtService.getAvailability(courtId, selectedDate))
+      );
+      const freshSlots = results.flat();
+
+      // 3. Update the store's slots with the fresh data
       set({ slots: freshSlots });
 
+      // 4. Check if all selected slots are still available
       const allAvailable = selectedSlotIds.every((slotId) => {
         const slot = freshSlots.find((s) => s.id === slotId);
         return slot?.is_available === true;
