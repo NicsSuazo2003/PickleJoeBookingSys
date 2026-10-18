@@ -1050,6 +1050,7 @@ export function Bookings() {
         )}
       </div>
 
+      
       {/* ─────────────────────── Booking Details Modal ─────────────────────── */}
       <AnimatePresence>
         {selectedBooking && (
@@ -1059,160 +1060,165 @@ export function Bookings() {
             title={`Booking ${selectedBooking.reference_code || 'N/A'}`}
             size="lg"
           >
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-forest-700/80 pb-3">
-                <StatusBadge status={selectedBooking.status} />
-                <span className="text-xs text-cream-muted font-medium">
-                  Created {formatDateTime(selectedBooking.created_at)}
-                </span>
-              </div>
+            {/* 👇 FIX: Use flex-col to separate scrollable content from the fixed footer */}
+            <div className="flex max-h-[80vh] flex-col">
+              
+              {/* 👇 SCROLLABLE CONTENT AREA */}
+              <div className="flex-1 overflow-y-auto pr-1 pb-4 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-forest-700/80 pb-3">
+                  <StatusBadge status={selectedBooking.status} />
+                  <span className="text-xs text-cream-muted font-medium">
+                    Created {formatDateTime(selectedBooking.created_at)}
+                  </span>
+                </div>
 
-              {extra?.status_updated_at && (
-                <p className="rounded-lg border border-forest-800 bg-forest-900/60 px-3 py-2 text-xs text-cream-muted">
-                  Last changed {extra.status_updated_by ? `by ${extra.status_updated_by} ` : ''}
-                  on {formatDateTime(extra.status_updated_at)}
-                  {extra.status_reason ? ` — "${extra.status_reason}"` : ''}
-                </p>
-              )}
+                {extra?.status_updated_at && (
+                  <p className="rounded-lg border border-forest-800 bg-forest-900/60 px-3 py-2 text-xs text-cream-muted">
+                    Last changed {extra.status_updated_by ? `by ${extra.status_updated_by} ` : ''}
+                    on {formatDateTime(extra.status_updated_at)}
+                    {extra.status_reason ? ` — "{extra.status_reason}"` : ''}
+                  </p>
+                )}
 
-              <div className="grid gap-3.5 sm:grid-cols-2">
-                <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wider text-brand-blue-300">
-                    Customer
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-cream">
-                    {selectedBooking.customer?.name || 'Unknown'}
-                  </p>
-                  {selectedBooking.customer?.email ? (
-                    <a
-                      href={`mailto:${selectedBooking.customer.email}`}
-                      className="mt-1 flex items-center gap-1.5 text-xs text-cream-muted hover:text-brand-blue-300"
-                    >
-                      <Mail className="h-3.5 w-3.5" />
-                      {selectedBooking.customer.email}
-                    </a>
-                  ) : (
-                    <p className="mt-1 text-xs text-cream-muted">No email</p>
-                  )}
-                  {selectedBooking.customer?.phone ? (
-                    <a
-                      href={`tel:${selectedBooking.customer.phone}`}
-                      className="mt-1 flex items-center gap-1.5 text-xs text-cream-muted hover:text-brand-blue-300"
-                    >
-                      <Phone className="h-3.5 w-3.5" />
-                      {selectedBooking.customer.phone}
-                    </a>
-                  ) : (
-                    <p className="mt-1 text-xs text-cream-muted">No phone</p>
-                  )}
-                  {selectedBooking.customer?.notes && (
-                    <p className="mt-2.5 rounded-lg border border-forest-800 bg-forest-900/60 p-2 text-xs italic text-cream-muted">
-                      "{selectedBooking.customer.notes}"
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-brand-blue-300">
+                      Customer
                     </p>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wider text-brand-blue-300">
-                    Court Booking
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-cream">
-                    {getCourtNamesForBooking(selectedBooking)}
-                  </p>
-                  <p className="text-xs text-cream-muted">{formatDateLong(selectedBooking.date)}</p>
-                  <p className="mt-1.5 text-xs text-cream-muted">
-                    {slotsSummary(selectedBooking.slots, courts, selectedBooking.court_name)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Total Summary */}
-              <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 p-4">
-                <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
-                  {selectedBooking.status === 'payment_submitted'
-                    ? 'Amount to verify'
-                    : 'Total Amount'}
-                </span>
-                <span className="font-display text-2xl font-extrabold text-brand-blue-300">
-                  {formatCurrency(selectedBooking.total_amount || 0)}
-                </span>
-              </div>
-
-              {/* Payment Details */}
-              <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
-                <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
-                  Payment Details
-                </p>
-
-                {selectedBooking.payment_screenshot_url || selectedBooking.payment_reference ? (
-                  <>
-                    {selectedBooking.payment_reference && (
-                      <div className="mb-3 flex items-center justify-between rounded-xl border border-forest-700/60 bg-forest-900/70 p-3">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-wider text-cream-muted">
-                            Reference Number
-                          </p>
-                          <p className="mt-0.5 font-mono text-sm font-bold tracking-wider text-brand-blue-300">
-                            {selectedBooking.payment_reference}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => copyReference(selectedBooking.payment_reference || '')}
-                          className="flex items-center gap-1.5 rounded-lg border border-forest-600 bg-forest-800 px-2.5 py-1.5 text-xs text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
-                          title="Copy reference"
-                          aria-label="Copy payment reference number"
-                        >
-                          {copied ? (
-                            <>
-                              <Check className="h-3.5 w-3.5 text-green-400" /> Copied
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3.5 w-3.5" /> Copy
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
-
-                    {selectedBooking.payment_screenshot_url ? (
-                      <button
-                        type="button"
-                        onClick={() => setZoomImage(selectedBooking.payment_screenshot_url!)}
-                        className="group relative block w-full"
-                        aria-label="Enlarge payment screenshot"
+                    <p className="mt-1 text-sm font-bold text-cream">
+                      {selectedBooking.customer?.name || 'Unknown'}
+                    </p>
+                    {selectedBooking.customer?.email ? (
+                      <a
+                        href={`mailto:${selectedBooking.customer.email}`}
+                        className="mt-1 flex items-center gap-1.5 text-xs text-cream-muted hover:text-brand-blue-300"
                       >
-                        <img
-                          src={selectedBooking.payment_screenshot_url}
-                          alt="Payment screenshot"
-                          className="max-h-72 w-full rounded-lg object-contain bg-forest-950 border border-forest-800"
-                        />
-                        <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-1 text-[11px] font-medium text-white opacity-90">
-                          <ZoomIn className="h-3 w-3" /> Click to enlarge
-                        </span>
-                      </button>
+                        <Mail className="h-3.5 w-3.5" />
+                        {selectedBooking.customer.email}
+                      </a>
                     ) : (
-                      <p className="rounded-lg border border-dashed border-forest-700 bg-forest-950/60 p-3 text-center text-xs text-cream-muted">
-                        No screenshot uploaded — customer submitted a reference number only.
-                      </p>
+                      <p className="mt-1 text-xs text-cream-muted">No email</p>
                     )}
-                  </>
-                ) : (
-                  <div className="rounded-lg border border-dashed border-forest-700 bg-forest-950/60 p-3 text-center text-xs text-cream-muted">
-                    <p className="font-semibold text-cream">Awaiting payment</p>
-                    <p className="mt-0.5">The customer hasn't submitted payment proof yet.</p>
-                    {selectedBooking.status === 'pending_payment' && deadline && (
-                      <p className="mt-1.5">
-                        Pay by {formatDateTime(deadline)} ·{' '}
-                        <span className="font-semibold text-amber-300">{timeLeft(deadline)}</span>
+                    {selectedBooking.customer?.phone ? (
+                      <a
+                        href={`tel:${selectedBooking.customer.phone}`}
+                        className="mt-1 flex items-center gap-1.5 text-xs text-cream-muted hover:text-brand-blue-300"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        {selectedBooking.customer.phone}
+                      </a>
+                    ) : (
+                      <p className="mt-1 text-xs text-cream-muted">No phone</p>
+                    )}
+                    {selectedBooking.customer?.notes && (
+                      <p className="mt-2.5 rounded-lg border border-forest-800 bg-forest-900/60 p-2 text-xs italic text-cream-muted">
+                        "{selectedBooking.customer.notes}"
                       </p>
                     )}
                   </div>
-                )}
+
+                  <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-brand-blue-300">
+                      Court Booking
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-cream">
+                      {getCourtNamesForBooking(selectedBooking)}
+                    </p>
+                    <p className="text-xs text-cream-muted">{formatDateLong(selectedBooking.date)}</p>
+                    <p className="mt-1.5 text-xs text-cream-muted">
+                      {slotsSummary(selectedBooking.slots, courts)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Total Summary */}
+                <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 p-4">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                    {selectedBooking.status === 'payment_submitted'
+                      ? 'Amount to verify'
+                      : 'Total Amount'}
+                  </span>
+                  <span className="font-display text-2xl font-extrabold text-brand-blue-300">
+                    {formatCurrency(selectedBooking.total_amount || 0)}
+                  </span>
+                </div>
+
+                {/* Payment Details */}
+                <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
+                  <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
+                    Payment Details
+                  </p>
+
+                  {selectedBooking.payment_screenshot_url || selectedBooking.payment_reference ? (
+                    <>
+                      {selectedBooking.payment_reference && (
+                        <div className="mb-3 flex items-center justify-between rounded-xl border border-forest-700/60 bg-forest-900/70 p-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-cream-muted">
+                              Reference Number
+                            </p>
+                            <p className="mt-0.5 font-mono text-sm font-bold tracking-wider text-brand-blue-300">
+                              {selectedBooking.payment_reference}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => copyReference(selectedBooking.payment_reference || '')}
+                            className="flex items-center gap-1.5 rounded-lg border border-forest-600 bg-forest-800 px-2.5 py-1.5 text-xs text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
+                            title="Copy reference"
+                            aria-label="Copy payment reference number"
+                          >
+                            {copied ? (
+                              <>
+                                <Check className="h-3.5 w-3.5 text-green-400" /> Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3.5 w-3.5" /> Copy
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {selectedBooking.payment_screenshot_url ? (
+                        <button
+                          type="button"
+                          onClick={() => setZoomImage(selectedBooking.payment_screenshot_url!)}
+                          className="group relative block w-full"
+                          aria-label="Enlarge payment screenshot"
+                        >
+                          <img
+                            src={selectedBooking.payment_screenshot_url}
+                            alt="Payment screenshot"
+                            className="max-h-72 w-full rounded-lg object-contain bg-forest-950 border border-forest-800"
+                          />
+                          <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-1 text-[11px] font-medium text-white opacity-90">
+                            <ZoomIn className="h-3 w-3" /> Click to enlarge
+                          </span>
+                        </button>
+                      ) : (
+                        <p className="rounded-lg border border-dashed border-forest-700 bg-forest-950/60 p-3 text-center text-xs text-cream-muted">
+                          No screenshot uploaded — customer submitted a reference number only.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-forest-700 bg-forest-950/60 p-3 text-center text-xs text-cream-muted">
+                      <p className="font-semibold text-cream">Awaiting payment</p>
+                      <p className="mt-0.5">The customer hasn't submitted payment proof yet.</p>
+                      {selectedBooking.status === 'pending_payment' && deadline && (
+                        <p className="mt-1.5">
+                          Pay by {formatDateTime(deadline)} ·{' '}
+                          <span className="font-semibold text-amber-300">{timeLeft(deadline)}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Sticky actions bar */}
-              <div className="sticky bottom-0 -mx-1 border-t border-forest-700/80 bg-forest-900 px-1 pb-1 pt-4">
+              {/* 👇 FIXED BOTTOM ACTIONS BAR */}
+              <div className="shrink-0 border-t border-forest-700/80 bg-forest-900 px-1 pt-4 pb-1 mt-2">
                 <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream-muted">
                   Actions
                 </p>
