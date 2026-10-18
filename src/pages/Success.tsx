@@ -1,5 +1,5 @@
 // src/pages/Success.tsx
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -15,6 +15,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useBookingStore } from '@/stores/bookingStore';
+import { useAdminStore } from '@/stores/adminStore';
 import {
   formatTimeRange,
   formatCurrency,
@@ -24,12 +25,21 @@ import {
 export function Success() {
   const navigate = useNavigate();
   const { currentBooking } = useBookingStore();
+  const courts = useAdminStore((state) => state.courts);
 
   useEffect(() => {
     if (!currentBooking) {
       navigate('/');
     }
   }, [currentBooking, navigate]);
+
+  const courtNames = useMemo(() => {
+    if (!currentBooking || !currentBooking.slots) return currentBooking?.court_name || '';
+    const ids = Array.from(new Set(currentBooking.slots.map(s => s.court_id).filter(Boolean)));
+    if (ids.length === 0) return currentBooking.court_name;
+    const names = ids.map(id => courts.find(c => c.id === id)?.name).filter(Boolean);
+    return names.length > 0 ? names.join(', ') : currentBooking.court_name;
+  }, [currentBooking, courts]);
 
   if (!currentBooking) return null;
 
@@ -95,7 +105,7 @@ export function Success() {
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Court</p>
-                  <p className="text-sm font-bold text-cream sm:text-base">{currentBooking.court_name}</p>
+                  <p className="text-sm font-bold text-cream sm:text-base">{courtNames}</p>
                 </div>
               </div>
 

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+// src/pages/MyBookings.tsx
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   CalendarDays,
@@ -12,6 +13,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { bookingService } from '@/services/bookingService';
+import { useAdminStore } from '@/stores/adminStore';
 import {
   formatCurrency,
   formatDateLong,
@@ -23,6 +25,7 @@ export function MyBookings() {
   const navigate = useNavigate();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
+  const courts = useAdminStore((state) => state.courts);
 
   useEffect(() => {
     const savedRef = localStorage.getItem('pendingBookingRef');
@@ -56,6 +59,15 @@ export function MyBookings() {
       cancelled = true;
     };
   }, []);
+
+  // ✅ Get all court names for the booking
+  const courtNames = useMemo(() => {
+    if (!booking || !booking.slots) return booking?.court_name || '';
+    const ids = Array.from(new Set(booking.slots.map(s => s.court_id).filter(Boolean)));
+    if (ids.length === 0) return booking.court_name;
+    const names = ids.map(id => courts.find(c => c.id === id)?.name).filter(Boolean);
+    return names.length > 0 ? names.join(', ') : booking.court_name;
+  }, [booking, courts]);
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
@@ -132,7 +144,7 @@ export function MyBookings() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3 border-b border-forest-700/60 pb-3">
                   <div>
-                    <p className="text-sm font-bold text-cream">{booking.court_name}</p>
+                    <p className="text-sm font-bold text-cream">{courtNames}</p>
                     <p className="text-xs text-cream-muted">
                       {formatDateLong(booking.date)}
                     </p>
@@ -177,9 +189,9 @@ export function MyBookings() {
             <p className="mt-4 text-sm font-semibold text-cream">
               No pending bookings on this device
             </p>
-           <p className="mt-1 text-xs text-cream-muted">
-  Start a new booking, or look up an existing one with your reference code.
-</p>
+            <p className="mt-1 text-xs text-cream-muted">
+              Start a new booking, or look up an existing one with your reference code.
+            </p>
             <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
               <Button size="md" to="/">
                 Book a court
