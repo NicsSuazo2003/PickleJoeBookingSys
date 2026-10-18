@@ -2,9 +2,8 @@
 import { Link } from 'react-router-dom';
 import {
   MapPin,
-  Phone,
-  Clock,
   Facebook,
+  Clock,
   FileText,
   Lock,
   RotateCcw,
@@ -18,15 +17,13 @@ import { useBookingStore } from '@/stores/bookingStore';
 
 export function Footer() {
   const settings = useClientStore((state) => state.settings);
-  // Backend field name kept as gcash_number for DB compatibility; UI treats it generically.
-  const displayNumber = settings?.gcash_number || APP_CONFIG.paymentNumber;
 
   // Get courts to calculate dynamic hours
   const courts = useBookingStore((state) => state.courts);
 
   // Function to calculate the operating hours based on court data
   const getOperatingHours = () => {
-    if (!courts || courts.length === 0) return '7:00 AM – 12:00 AM'; // 👈 Updated fallback to 7AM
+    if (!courts || courts.length === 0) return '7:00 AM – 12:00 AM';
     
     const earliestOpen = courts.reduce((earliest, court) => 
       court.open_time < earliest ? court.open_time : earliest
@@ -160,8 +157,16 @@ export function Footer() {
             </h4>
             <ul className="space-y-2.5 text-xs text-cream-muted sm:space-y-3 sm:text-sm">
               <li className="flex items-start gap-2.5">
-                <Phone className="h-4 w-4 shrink-0 text-brand-blue-300 mt-0.5" />
-                <span>{displayNumber}</span>
+                {/* 👇 Replaced Phone with Facebook Link */}
+                <Facebook className="h-4 w-4 shrink-0 text-brand-blue-300 mt-0.5" />
+                <a 
+                  href="https://www.facebook.com/profile.php?id=61594106069425&mibextid=wwXIfr&rdid=2CqRPgsgi7BZIBAd&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F1D5snWhetr%2F#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="leading-snug hover:text-brand-blue-300 transition"
+                >
+                  Center Court Tandag
+                </a>
               </li>
               <li className="flex items-start gap-2.5">
                 <MapPin className="h-4 w-4 shrink-0 text-brand-blue-300 mt-0.5" />
@@ -180,7 +185,6 @@ export function Footer() {
             <ul className="space-y-2 text-xs text-cream-muted sm:space-y-2.5 sm:text-sm">
               <li className="flex items-center gap-2.5">
                 <Clock className="h-4 w-4 shrink-0 text-brand-blue-300" />
-                {/* 👈 Updated UI display */}
                 <span>Mon – Sun · {getOperatingHours()}</span>
               </li>
             </ul>
