@@ -228,10 +228,6 @@ export function PaymentPolicy() {
                   <Mail className="h-4 w-4 shrink-0 text-court-300" />
                   <span>centercourttandag@gmail.com</span>
                 </li>
-                <li className="flex items-center gap-2.5">
-                  <Phone className="h-4 w-4 shrink-0 text-court-300" />
-                  <span>{APP_CONFIG.paymentNumber}</span>
-                </li>
               </ul>
             </section>
           </div>
