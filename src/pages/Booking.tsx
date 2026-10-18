@@ -450,25 +450,17 @@ export function Booking() {
                     htmlFor="termsAccepted"
                     className="cursor-pointer select-none text-xs leading-relaxed text-cream-muted sm:text-sm"
                   >
-                    I have read and agree to the{' '}
+                    I acknowledge and agree to the{' '}
                     <Link
                       to="/terms"
                       target="_blank"
                       rel="noreferrer"
                       className="font-semibold text-brand-blue-300 underline underline-offset-2 hover:text-brand-blue-200"
                     >
-                      Terms &amp; Conditions
+                      Terms and Conditions
                     </Link>{' '}
-                    and{' '}
-                    <Link
-                      to="/privacy"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-semibold text-brand-blue-300 underline underline-offset-2 hover:text-brand-blue-200"
-                    >
-                      Privacy Policy
-                    </Link>
-                    .
+                    on behalf of myself and all players included in this booking, and accept
+                    responsibility for informing them of these terms.
                   </label>
                 </div>
 

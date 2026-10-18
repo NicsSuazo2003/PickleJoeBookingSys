@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, CalendarPlus, Search, Shield, Phone } from 'lucide-react';
+import { Menu, X, CalendarPlus, Search, Shield, Mail } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { APP_CONFIG } from '@/utils/constants';
@@ -21,17 +21,10 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const settings = useClientStore((state) => state.settings);
   const loadSettings = useClientStore((state) => state.loadSettings);
 
-  const displayNumber =
-    settings?.gcash_number ||
-    APP_CONFIG.paymentNumber ||
-    '09XX XXX XXXX';
-
-  const telHref = displayNumber.trim()
-    ? `tel:${displayNumber.replace(/\s/g, '')}`
-    : '';
+  const contactEmail = 'centercourttandag@gmail.com';
+  const mailtoHref = `mailto:${contactEmail}`;
 
   useEffect(() => {
     loadSettings();
@@ -137,11 +130,11 @@ export function Navbar() {
 
         <div className="hidden items-center gap-3 md:flex">
           <a
-            href={telHref}
+            href={mailtoHref}
             className="flex items-center gap-1.5 text-sm text-cream-muted hover:text-brand-blue-300 transition"
           >
-            <Phone className="h-4 w-4 text-brand-green-400" />
-            {displayNumber}
+            <Mail className="h-4 w-4 text-brand-green-400" />
+            {contactEmail}
           </a>
           <Button size="sm" to="/booking" leftIcon={<CalendarPlus className="h-4 w-4" />}>
             Book Now
@@ -187,11 +180,11 @@ export function Navbar() {
               })}
 
               <a
-                href={telHref}
+                href={mailtoHref}
                 className="flex items-center gap-2 rounded-lg px-4 py-3 text-sm text-cream-muted hover:bg-forest-800/60 hover:text-brand-blue-300 transition"
               >
-                <Phone className="h-4 w-4 text-brand-green-400" />
-                Call {displayNumber}
+                <Mail className="h-4 w-4 text-brand-green-400" />
+                Email {contactEmail}
               </a>
 
               <div className="mt-2 flex flex-col gap-2">

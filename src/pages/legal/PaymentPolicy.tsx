@@ -5,7 +5,6 @@ import {
   Wallet,
   ArrowLeft,
   AlertTriangle,
-  CheckCircle2,
   ListChecks,
   XCircle,
   ShieldAlert,
@@ -15,9 +14,7 @@ import {
   Phone,
   HelpCircle,
   Search,
-  Send,
   FileWarning,
-  BadgeCheck,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -83,7 +80,7 @@ export function PaymentPolicy() {
                     <li>You send payment using one of our accepted methods</li>
                     <li>You submit your payment reference number (and optionally a screenshot)</li>
                     <li>Our staff checks that the amount and reference match what we received</li>
-                    <li>If everything matches, your booking is confirmed</li>
+                    <li>If everything matches, your booking is confirmed via email</li>
                     <li>If there's an issue, we contact you to resolve it</li>
                   </ol>
                 </div>
