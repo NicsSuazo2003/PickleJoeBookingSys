@@ -58,10 +58,13 @@ function normalizeSummary(raw: any): BookingSummary {
   };
 }
 
+// ✅ NEW: Payload now supports multiple courts in a single booking
 export interface CreateBookingPayload {
-  court_id: string;
+  court_groups: {
+    courtId: string;
+    slots: { start_time: string; end_time: string }[];
+  }[];
   date: string;
-  slots: SlotSelection[];
   customer: CustomerDetails;
   total_amount: number;
 }
@@ -81,7 +84,7 @@ function generateGuid(): string {
   });
 }
 
-// ✅ Deterministic GUIDs for all courts
+// ✅ Deterministic GUIDs for all courts (keep for your mock data if needed)
 export const MOCK_COURT_GUIDS: Record<string, string> = {
   'court-1': '11111111-1111-4111-a111-111111111111',
   'court-2': '22222222-2222-4222-a222-222222222222',
@@ -93,60 +96,45 @@ export const MOCK_COURT_GUIDS: Record<string, string> = {
 
 // ✅ Resolve court ID to valid GUID
 function resolveCourtId(courtId: string): string {
-  console.log('🔍 Resolving court ID:', courtId);
-
-  if (isValidGuid(courtId)) {
-    console.log('✅ Court ID is already a valid GUID:', courtId);
-    return courtId;
-  }
-
-  if (courtId in MOCK_COURT_GUIDS) {
-    const guid = MOCK_COURT_GUIDS[courtId];
-    console.log(`✅ Mapping court ID "${courtId}" to GUID: ${guid}`);
-    return guid;
-  }
-
+  if (isValidGuid(courtId)) return courtId;
+  if (courtId in MOCK_COURT_GUIDS) return MOCK_COURT_GUIDS[courtId];
   if (!isNaN(Number(courtId))) {
     const numId = String(courtId);
-    if (numId in MOCK_COURT_GUIDS) {
-      const guid = MOCK_COURT_GUIDS[numId];
-      console.log(`✅ Mapping numeric court ID "${numId}" to GUID: ${guid}`);
-      return guid;
-    }
+    if (numId in MOCK_COURT_GUIDS) return MOCK_COURT_GUIDS[numId];
   }
-
   console.error(`❌ Unknown court ID: "${courtId}" - cannot resolve to GUID`);
   throw new Error(`Invalid court ID: ${courtId}. Please refresh and try again.`);
 }
 
 export const bookingService = {
   async createBooking(payload: CreateBookingPayload): Promise<Booking> {
-    if (!payload.court_id) throw new Error('Court ID is required');
+    if (!payload.court_groups || payload.court_groups.length === 0)
+      throw new Error('At least one court is required');
     if (!payload.date) throw new Error('Date is required');
-    if (!payload.slots || payload.slots.length === 0)
-      throw new Error('At least one slot is required');
     if (!payload.customer?.name) throw new Error('Customer name is required');
     if (!payload.customer?.email) throw new Error('Customer email is required');
     if (!payload.customer?.phone) throw new Error('Customer phone is required');
 
-    const courtId = resolveCourtId(payload.court_id);
+    // Resolve all court IDs to valid GUIDs
+    const resolvedGroups = payload.court_groups.map((group) => ({
+      CourtId: resolveCourtId(group.courtId),
+      Slots: group.slots.map((s) => ({
+        StartTime: s.start_time,
+        EndTime: s.end_time,
+      })),
+    }));
 
     const requestBody = {
-      courtId: courtId,
       customerName: payload.customer.name.trim(),
       customerEmail: payload.customer.email.trim().toLowerCase(),
       customerPhone: payload.customer.phone.trim(),
       date: payload.date,
-      slots: payload.slots.map((s) => ({
-        startTime: s.start_time,
-        endTime: s.end_time,
-      })),
+      courtGroups: resolvedGroups, // 👈 New backend structure
       totalAmount: payload.total_amount,
       notes: payload.customer.notes?.trim() || '',
     };
 
     console.log('📤 Creating booking with payload:', JSON.stringify(requestBody, null, 2));
-    console.log('📍 Court ID:', courtId, '(valid GUID:', isValidGuid(courtId), ')');
 
     try {
       const res = await apiRequest<Booking | { data: Booking }>('/api/bookings', {
@@ -175,7 +163,6 @@ export const bookingService = {
       const res = await apiRequest<Booking | { data: Booking }>(url);
       const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
       console.log('✅ Booking tracked successfully:', booking.reference_code);
-      console.log('📸 Payment screenshot:', booking.payment_screenshot_url ? 'EXISTS' : 'NULL');
       return booking;
     } catch (error) {
       console.error('❌ Failed to track booking:', error);
@@ -183,7 +170,6 @@ export const bookingService = {
     }
   },
 
-  // ✅ NEW — email-only lookup returns masked summaries (pending + submitted only)
   async trackBookingSummariesByEmail(email: string): Promise<BookingSummary[]> {
     if (!email || !email.trim()) {
       throw new Error('Email is required');
@@ -196,7 +182,6 @@ export const bookingService = {
     try {
       const res = await apiRequest<any[]>(url);
       const summaries = (res ?? []).map(normalizeSummary);
-      console.log(`✅ Found ${summaries.length} pending booking(s) for ${email}`);
       return summaries;
     } catch (error) {
       console.error('❌ Failed to fetch booking summaries:', error);
@@ -205,66 +190,64 @@ export const bookingService = {
   },
 
   async uploadPayment(
-  bookingId: string,
-  screenshotDataUrl: string | null,
-  paymentReference: string,
-  paymentMethod?: string   // ✅ NEW
-): Promise<Booking> {
-  if (!bookingId) {
-    throw new Error('Booking ID is required');
-  }
-
-  if (!paymentReference || !paymentReference.trim()) {
-    throw new Error('Payment reference is required');
-  }
-
-  const formData = new FormData();
-  formData.append('paymentReference', paymentReference.trim());
-
-  // ✅ NEW — pass the selected method so the DB reflects reality
-  if (paymentMethod) {
-    formData.append('paymentMethod', paymentMethod);
-  }
-
-  if (screenshotDataUrl) {
-    try {
-      const response = await fetch(screenshotDataUrl);
-      const blob = await response.blob();
-      const file = new File([blob], `payment-${bookingId}.jpg`, { type: 'image/jpeg' });
-      formData.append('screenshot', file);
-    } catch (error) {
-      console.warn('Failed to process screenshot, continuing without it:', error);
+    bookingId: string,
+    screenshotDataUrl: string | null,
+    paymentReference: string,
+    paymentMethod?: string
+  ): Promise<Booking> {
+    if (!bookingId) {
+      throw new Error('Booking ID is required');
     }
-  }
 
-  try {
-    const token = localStorage.getItem('admin_token');
-    const res = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL || 'https://pickleballcourbookingv2-e064.onrender.com'}/api/bookings/${bookingId}/upload-payment`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: token ? `Bearer ${token}` : '',
-          'X-Client-Subdomain': import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
-        },
-        body: formData,
+    if (!paymentReference || !paymentReference.trim()) {
+      throw new Error('Payment reference is required');
+    }
+
+    const formData = new FormData();
+    formData.append('paymentReference', paymentReference.trim());
+
+    if (paymentMethod) {
+      formData.append('paymentMethod', paymentMethod);
+    }
+
+    if (screenshotDataUrl) {
+      try {
+        const response = await fetch(screenshotDataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `payment-${bookingId}.jpg`, { type: 'image/jpeg' });
+        formData.append('screenshot', file);
+      } catch (error) {
+        console.warn('Failed to process screenshot, continuing without it:', error);
       }
-    );
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.message || `Upload failed: ${res.status}`);
     }
 
-    const data = await res.json();
-    const booking = normalizeBooking(data);
-    console.log('✅ Payment uploaded successfully:', booking.reference_code);
-    return booking;
-  } catch (error) {
-    console.error('❌ Failed to upload payment:', error);
-    throw error;
-  }
-},
+    try {
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || 'https://pickleballcourbookingv2-e064.onrender.com'}/api/bookings/${bookingId}/upload-payment`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: token ? `Bearer ${token}` : '',
+            'X-Client-Subdomain': import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe',
+          },
+          body: formData,
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Upload failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const booking = normalizeBooking(data);
+      return booking;
+    } catch (error) {
+      console.error('❌ Failed to upload payment:', error);
+      throw error;
+    }
+  },
 
   async getBooking(id: string): Promise<Booking> {
     if (!id) {
@@ -274,7 +257,6 @@ export const bookingService = {
     try {
       const res = await apiRequest<Booking | { data: Booking }>(`/api/bookings/${id}`);
       const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
-      console.log('✅ Booking retrieved successfully:', booking.reference_code);
       return booking;
     } catch (error) {
       console.error('❌ Failed to get booking:', error);
@@ -300,7 +282,6 @@ export const bookingService = {
         }
       );
       const booking = normalizeBooking((res as { data?: Booking }).data ?? (res as Booking));
-      console.log('✅ Booking cancelled successfully:', booking.reference_code);
       return booking;
     } catch (error) {
       console.error('❌ Failed to cancel booking:', error);
@@ -316,4 +297,3 @@ export const bookingHelpers = {
   resolveCourtId,
   MOCK_COURT_GUIDS,
 };
-

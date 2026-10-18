@@ -183,104 +183,54 @@ export const useBookingStore = create<BookingStoreState>((set, get) => ({
       customer: { ...state.customer, ...customerData },
     })),
 
-  // ✅ FIXED: createBooking now derives courts from selected slots
-  createBooking: async () => {
+    createBooking: async () => {
     const { selectedDate, selectedSlotIds, slots, customer } = get();
     
-    console.log('🔵 createBooking called with:', {
-      selectedSlotIds,
-      slotsCount: slots.length,
-      customer,
-    });
-    
     if (selectedSlotIds.length === 0) {
-      console.error('❌ No slots selected');
       throw new Error('Please select at least one time slot');
     }
 
-    // ✅ Derive courts from the actual selected slots, not the stale selectedCourt
     const selectedSlotObjs = slots.filter((s) => selectedSlotIds.includes(s.id));
-    const courtIds = Array.from(new Set(selectedSlotObjs.map((s) => s.court_id)));
 
-    if (courtIds.length === 0) {
-      throw new Error('Could not determine court for selected slots');
-    }
+    // 1. Group slots by court
+    const courtGroupsMap: Record<
+      string,
+      { courtId: string; slots: { start_time: string; end_time: string }[] }
+    > = {};
 
-    console.log('🔵 Booking for courts:', courtIds);
-
-    const createdBookings = [];
-
-    // ✅ Group by court and submit one booking per court
-    for (const courtId of courtIds) {
-      console.log(`🔵 Processing court ${courtId}...`);
-      
-      const freshSlots = await courtService.getAvailability(courtId, selectedDate);
-      console.log(`✅ Fresh slots loaded for court ${courtId}:`, freshSlots.length);
-      
-      const idsForThisCourt = selectedSlotObjs
-        .filter((s) => s.court_id === courtId)
-        .map((s) => s.id);
-
-      // Check if all slots for this court are still available
-      const stillAvailable = idsForThisCourt.every((slotId) => {
-        const fresh = freshSlots.find((s) => s.id === slotId);
-        return fresh?.is_available === true;
-      });
-
-      if (!stillAvailable) {
-        // Find which slots are still available
-        const stillAvailableIds = idsForThisCourt.filter((slotId) => {
-          const fresh = freshSlots.find((s) => s.id === slotId);
-          return fresh?.is_available === true;
-        });
-        
-        // Update store with fresh data
-        set((state) => ({
-          slots: state.slots.map((s) => freshSlots.find((f) => f.id === s.id) ?? s),
-          selectedSlotIds: state.selectedSlotIds.filter(
-            (id) => !idsForThisCourt.includes(id) || stillAvailableIds.includes(id)
-          ),
-        }));
-        
-        throw new Error(`One or more selected time slots for court ${courtId} are no longer available. Please select new slots.`);
+    selectedSlotObjs.forEach((slot) => {
+      if (!courtGroupsMap[slot.court_id]) {
+        courtGroupsMap[slot.court_id] = { courtId: slot.court_id, slots: [] };
       }
-
-      // Build booking payload for this court
-      const thisCourtSlots = freshSlots.filter((s) => idsForThisCourt.includes(s.id));
-      const bookingSlots: BookingSlotItem[] = thisCourtSlots.map((s) => ({
-        id: s.id,
-        slot_id: s.id,
-        start_time: s.start_time,
-        end_time: s.end_time,
-        date: s.date || selectedDate,
-        type: s.type,
-        price: Number(s.price || 0),
-        is_peak: s.is_peak || false,
-      }));
-
-      const totalAmount = bookingSlots.reduce((sum, s) => sum + s.price, 0);
-      console.log(`🔵 Total amount for court ${courtId}:`, totalAmount);
-
-      // Create the booking for this court
-      const booking = await bookingService.createBooking({
-        court_id: courtId,
-        date: selectedDate,
-        slots: bookingSlots,
-        customer,
-        total_amount: totalAmount,
+      courtGroupsMap[slot.court_id].slots.push({
+        start_time: slot.start_time,
+        end_time: slot.end_time,
       });
-      
-      console.log(`✅ Booking created for court ${courtId}:`, booking.reference_code);
-      createdBookings.push(booking);
+    });
+
+    const courtGroups = Object.values(courtGroupsMap);
+
+    if (courtGroups.length === 0) {
+      throw new Error('Could not determine courts for selected slots');
     }
 
-    // Store the last booking (or an array if you want to handle multiple)
-    set({ 
-      currentBooking: createdBookings[createdBookings.length - 1], 
-      selectedSlotIds: [] 
+    // 2. Total price
+    const totalAmount = selectedSlotObjs.reduce((sum, s) => sum + Number(s.price || 0), 0);
+
+    // 3. ONE API call for ALL courts
+    const booking = await bookingService.createBooking({
+      court_groups: courtGroups,
+      date: selectedDate,
+      customer,
+      total_amount: totalAmount,
     });
-    
-    return createdBookings[createdBookings.length - 1];
+
+    set({
+      currentBooking: booking,
+      selectedSlotIds: [],
+    });
+
+    return booking;
   },
 
   reset: () =>
