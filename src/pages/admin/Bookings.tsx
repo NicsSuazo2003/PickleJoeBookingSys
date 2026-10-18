@@ -290,42 +290,73 @@ function slotsSummary(
     if (c?.id) nameById.set(normId(c.id), c.name || 'Unnamed Court');
   });
 
-  // courtKey -> (timeKey -> {start,end})  — the inner Map is what de-duplicates
-  const groups = new Map<string, Map<string, { start: string; end: string }>>();
+  // 1) court -> unique time ranges (the inner Map removes duplicates)
+  const byCourt = new Map<string, Map<string, { start: string; end: string }>>();
 
   for (const s of slots) {
     if (!s || !s.start_time || !s.end_time) continue;
     const courtKey = normId(s.court_id) || 'unknown';
     const timeKey = `${trimTime(s.start_time)}-${trimTime(s.end_time)}`;
 
-    let times = groups.get(courtKey);
+    let times = byCourt.get(courtKey);
     if (!times) {
       times = new Map();
-      groups.set(courtKey, times);
+      byCourt.set(courtKey, times);
     }
     if (!times.has(timeKey)) times.set(timeKey, { start: s.start_time, end: s.end_time });
   }
 
-  if (groups.size === 0) return 'No slots';
+  if (byCourt.size === 0) return 'No slots';
 
-  const parts: { label: string; text: string }[] = [];
-
-  groups.forEach((times, courtKey) => {
-    const sortedTimes = Array.from(times.values()).sort((a, b) =>
+  // 2) sort, then merge back-to-back ranges (7-8 + 8-9 + 9-10 → 7-10)
+  const mergeRanges = (times: Map<string, { start: string; end: string }>) => {
+    const sorted = Array.from(times.values()).sort((a, b) =>
       trimTime(a.start).localeCompare(trimTime(b.start))
     );
-    const text = sortedTimes.map((t) => formatTimeRange(t.start, t.end)).join(', ');
+    const merged: { start: string; end: string }[] = [];
+    for (const t of sorted) {
+      const last = merged[merged.length - 1];
+      if (last && trimTime(last.end) === trimTime(t.start)) {
+        last.end = t.end;
+      } else {
+        merged.push({ ...t });
+      }
+    }
+    return merged;
+  };
+
+  // 3) group courts that ended up with identical times
+  const bySignature = new Map<string, { labels: string[]; text: string }>();
+
+  byCourt.forEach((times, courtKey) => {
+    const text = mergeRanges(times)
+      .map((r) => formatTimeRange(r.start, r.end))
+      .join(', ');
 
     const label =
       nameById.get(courtKey) ??
-      (groups.size === 1 && fallbackCourtName ? fallbackCourtName : 'Unknown court');
+      (byCourt.size === 1 && fallbackCourtName ? fallbackCourtName : 'Unknown court');
 
-    parts.push({ label, text });
+    const group = bySignature.get(text);
+    if (group) group.labels.push(label);
+    else bySignature.set(text, { labels: [label], text });
   });
 
-  parts.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+  const groups = Array.from(bySignature.values());
 
-  return parts.map((p) => `${p.label}: ${p.text}`).join(' | ');
+  // Every court has the same times → just show the times once
+  if (groups.length === 1) {
+    return byCourt.size > 1 ? `${groups[0].text} (each court)` : groups[0].text;
+  }
+
+  return groups
+    .map((g) => {
+      const names = g.labels
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+        .join(', ');
+      return `${names}: ${g.text}`;
+    })
+    .join(' | ');
 }
 
 const selectClass =
