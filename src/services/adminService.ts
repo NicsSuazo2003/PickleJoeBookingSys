@@ -194,13 +194,15 @@ export const adminService = {
     try {
       const res = await apiRequest<any>(`/api/courts/${courtId}/blocked-dates`);
       const rawList = Array.isArray(res) ? res : res?.data || [];
+      
       return rawList.map((item: any) => ({
-        id: item.id || '',
+        id: item.id || item.Id || '',
         court_id: courtId,
-        date: item.date || '',
-        reason: item.reason || 'No reason provided',
-        startTime: item.startTime || item.start_time || null,
-        endTime: item.endTime || item.end_time || null,
+        // 👇 Handle both 'Date' (Supabase) and 'date' (Frontend)
+        date: item.date || item.Date || '',
+        reason: item.reason || item.Reason || 'No reason provided',
+        startTime: item.startTime || item.StartTime || null,
+        endTime: item.endTime || item.EndTime || null,
       }));
     } catch (error) {
       console.error('Failed to fetch blocked dates:', error);
@@ -224,12 +226,12 @@ export const adminService = {
 
     const created = res?.data ?? res;
     return {
-      id: created.id || '',
+      id: created.id || created.Id || '',
       court_id: blocked.court_id,
-      date: created.date || blocked.date,
-      reason: created.reason || blocked.reason,
-      startTime: created.startTime || null,
-      endTime: created.endTime || null,
+      date: created.date || created.Date || blocked.date,
+      reason: created.reason || created.Reason || blocked.reason,
+      startTime: created.startTime || created.StartTime || null,
+      endTime: created.endTime || created.EndTime || null,
     };
   },
 
