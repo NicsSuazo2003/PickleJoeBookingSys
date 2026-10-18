@@ -50,6 +50,7 @@ export interface TimeSlot {
 export interface BookingSlotItem {
   id: string;
   slot_id: string;
+  court_id: string;
   start_time: string;
   end_time: string;
   date: string;

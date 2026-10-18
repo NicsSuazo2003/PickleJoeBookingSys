@@ -248,6 +248,7 @@ export function getSelectedSlotItems(state: BookingStoreState): BookingSlotItem[
     .map((s) => ({
       id: s.id,
       slot_id: s.id,
+      court_id: s.court_id, // 👈 ADDED THIS
       start_time: s.start_time,
       end_time: s.end_time,
       date: s.date || state.selectedDate,
@@ -256,7 +257,6 @@ export function getSelectedSlotItems(state: BookingStoreState): BookingSlotItem[
       is_peak: s.is_peak || false,
     }));
 }
-
 export function getSelectedTotal(state: BookingStoreState): number {
   return state.slots
     .filter((s) => state.selectedSlotIds.includes(s.id))

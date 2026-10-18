@@ -2,10 +2,8 @@
 import type { Booking, BookingSummary, CustomerDetails, SlotSelection } from '@/types';
 import { apiRequest } from './api';
 
-// ✅ Normalizes raw API booking data (camelCase, flat customer fields) into the app's Booking shape
 function normalizeBooking(raw: any): Booking {
   console.log('📥 Raw booking data:', raw);
-  console.log('📥 PaymentScreenshot raw value:', raw.paymentScreenshot ?? raw.PaymentScreenshot);
 
   return {
     id: raw.id,
@@ -16,6 +14,7 @@ function normalizeBooking(raw: any): Booking {
     slots: (raw.slots ?? []).map((s: any) => ({
       id: s.id,
       slot_id: s.slotId ?? s.slot_id ?? s.id,
+      court_id: s.courtId ?? s.court_id, // 👈 ADDED
       start_time: s.startTime ?? s.start_time,
       end_time: s.endTime ?? s.end_time,
       date: s.date ?? raw.date,
@@ -42,7 +41,6 @@ function normalizeBooking(raw: any): Booking {
     open_play_session_id: raw.openPlaySessionId ?? raw.open_play_session_id ?? null,
   };
 }
-
 // ✅ Normalizer for the email-only summary endpoint
 function normalizeSummary(raw: any): BookingSummary {
   return {

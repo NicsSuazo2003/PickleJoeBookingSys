@@ -254,10 +254,33 @@ function timeLeft(deadline?: string | null) {
   return `${hrs}h ${mins % 60}m left`;
 }
 
-/** Inline slots summary – keeps the existing formatTimeRange usage. */
-function slotsSummary(slots?: { start_time: string; end_time: string }[] | null) {
+/**
+ * ✅ UPDATED — Groups slots by court so the admin doesn't see duplicated times.
+ * Example output: "Court 1: 8AM-9AM | Court 2: 8AM-9AM"
+ */
+function slotsSummary(
+  slots: { court_id?: string; start_time: string; end_time: string }[] | null | undefined,
+  courtsList: { id: string; name: string }[]
+): string {
   if (!slots || slots.length === 0) return 'No slots';
-  return slots.map((s) => formatTimeRange(s.start_time, s.end_time)).join(', ');
+
+  // Group by court_id
+  const grouped: Record<string, { start: string; end: string }[]> = {};
+  
+  slots.forEach((s) => {
+    const courtId = s.court_id || 'unknown';
+    if (!grouped[courtId]) grouped[courtId] = [];
+    grouped[courtId].push({ start: s.start_time, end: s.end_time });
+  });
+
+  // Format each group
+  return Object.entries(grouped)
+    .map(([courtId, times]) => {
+      const courtName = courtsList.find((c) => c.id === courtId)?.name || 'Court';
+      const timeStrings = times.map((t) => formatTimeRange(t.start, t.end)).join(', ');
+      return `${courtName}: ${timeStrings}`;
+    })
+    .join(' | ');
 }
 
 const selectClass =
@@ -352,13 +375,12 @@ export function Bookings() {
     if (tabCounts.review > 0) setTab('review');
   }, [loadingBookings, bookings.length, tabCounts.review]);
 
-  /* ── ✅ NEW: Helper to get ALL court names for a booking ─────────────── */
+  /* ── ✅ Helper to get ALL court names for a booking ─────────────── */
 
   const getCourtNamesForBooking = (booking: Booking): string => {
-    // If the booking has slots with court_ids, map them to court names
     if (booking.slots && booking.slots.length > 0) {
       const courtIds = Array.from(
-        new Set(booking.slots.map((s) => (s as any).court_id).filter(Boolean))
+        new Set(booking.slots.map((s) => s.court_id).filter(Boolean))
       );
 
       if (courtIds.length > 0) {
@@ -370,7 +392,6 @@ export function Bookings() {
       }
     }
     
-    // Fallback to the primary court name
     return booking.court_name || 'Unknown Court';
   };
 
@@ -763,14 +784,14 @@ export function Bookings() {
                           </p>
                         </td>
                         <td className="px-4 py-3.5 font-medium text-cream">
-                          {/* 👇 Now shows ALL courts */}
                           {courtNames}
                         </td>
                         <td className="px-4 py-3.5 text-xs text-cream-muted">
                           {formatDateLong(b.date)}
                         </td>
                         <td className="px-4 py-3.5 text-xs text-cream-muted max-w-[280px]">
-                          {slotsSummary(b.slots)}
+                          {/* ✅ UPDATED: Grouped slots */}
+                          {slotsSummary(b.slots, courts)}
                         </td>
                         <td className="px-4 py-3.5 font-bold text-brand-blue-300">
                           {formatCurrency(b.total_amount || 0)}
@@ -870,10 +891,12 @@ export function Bookings() {
                         </a>
                       )}
                       <p className="mt-1 text-xs text-cream-muted">
-                        {/* 👇 Now shows ALL courts */}
                         {courtNames} — {formatDateLong(b.date)}
                       </p>
-                      <p className="mt-1 text-xs text-cream-muted/90">{slotsSummary(b.slots)}</p>
+                      <p className="mt-1 text-xs text-cream-muted/90">
+                        {/* ✅ UPDATED: Grouped slots */}
+                        {slotsSummary(b.slots, courts)}
+                      </p>
                     </div>
                     {b.payment_reference && (
                       <p className="text-xs text-cream-muted">
@@ -996,12 +1019,12 @@ export function Bookings() {
                     Court Booking
                   </p>
                   <p className="mt-1 text-sm font-bold text-cream">
-                    {/* 👇 Now shows ALL courts */}
                     {getCourtNamesForBooking(selectedBooking)}
                   </p>
                   <p className="text-xs text-cream-muted">{formatDateLong(selectedBooking.date)}</p>
                   <p className="mt-1.5 text-xs text-cream-muted">
-                    {slotsSummary(selectedBooking.slots)}
+                    {/* ✅ UPDATED: Grouped slots */}
+                    {slotsSummary(selectedBooking.slots, courts)}
                   </p>
                 </div>
               </div>
