@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+// src/pages/admin/Settings.tsx
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings as SettingsIcon,
   CalendarOff,
-  CalendarDays,   // ⭐ NEW
+  CalendarDays,
   Plus,
   Trash2,
   Save,
@@ -21,6 +22,9 @@ import {
   Image as ImageIcon,
   Loader2,
   Sparkles,
+  CloudSun,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 import { AdminLayout } from '@/components/layout/AdminLayout';
@@ -31,15 +35,17 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAdminStore } from '@/stores/adminStore';
 import { useAuthStore } from '@/stores/authStore';
 import { adminService } from '@/services/adminService';
+import { courtService } from '@/services/courtService'; // 👈 Added for availability
 import {
   formatDateLong,
+  formatTimeRange,
   todayISO,
   toISODate,
   addDays,
-  describeAdvanceWindow,   // ⭐ NEW
+  describeAdvanceWindow,
 } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
-import type { ClientSettings, PaymentMethod, AmenityItem } from '@/types';
+import type { ClientSettings, PaymentMethod, AmenityItem, TimeSlot } from '@/types';
 import { StaffManagement } from '@/components/ui/StaffManagement';
 import { Modal } from '@/components/ui/Modal';
 import {
@@ -82,9 +88,12 @@ export function Settings() {
   const [selectedCourtId, setSelectedCourtId] = useState<string>('');
   const [blockDate, setBlockDate] = useState(toISODate(addDays(new Date(), 7)));
   const [blockReason, setBlockReason] = useState('');
-  const [blockStartTime, setBlockStartTime] = useState('');
-  const [blockEndTime, setBlockEndTime] = useState('');
   const [isFullDay, setIsFullDay] = useState(true);
+
+  // 👇 NEW: State for visual slot picking
+  const [slots, setSlots] = useState<TimeSlot[]>([]);
+  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   const [profileName, setProfileName] = useState(user?.name ?? '');
   const [profileEmail, setProfileEmail] = useState(user?.email ?? '');
@@ -133,7 +142,7 @@ export function Settings() {
     text: string;
   } | null>(null);
 
-  // ─── Booking Window ⭐ NEW ───
+  // ─── Booking Window ───
   const [maxAdvanceDays, setMaxAdvanceDays] = useState<number>(90);
   const [savingBookingWindow, setSavingBookingWindow] = useState(false);
   const [bookingWindowMsg, setBookingWindowMsg] = useState<{
@@ -172,7 +181,7 @@ export function Settings() {
         const settings = await adminService.getSettings();
         setClientSettings(settings);
         setAmenities(settings.available_amenities ?? []);
-        setMaxAdvanceDays(settings.max_advance_booking_days ?? 90);   // ⭐ NEW
+        setMaxAdvanceDays(settings.max_advance_booking_days ?? 90);
       } catch (err) {
         console.error('Failed to load client settings:', err);
       } finally {
@@ -186,6 +195,28 @@ export function Settings() {
       loadBlockedDates(selectedCourtId);
     }
   }, [selectedCourtId, loadBlockedDates]);
+
+  // 👇 NEW: Fetch slots for the selected date to allow visual picking
+  useEffect(() => {
+    if (!selectedCourtId || !blockDate) return;
+    
+    let cancelled = false;
+    setLoadingSlots(true);
+    setSelectedSlotIds([]); // Reset selection when date changes
+
+    (async () => {
+      try {
+        const result = await courtService.getAvailability(selectedCourtId, blockDate);
+        if (!cancelled) setSlots(result);
+      } catch {
+        if (!cancelled) setSlots([]);
+      } finally {
+        if (!cancelled) setLoadingSlots(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [selectedCourtId, blockDate]);
 
   useEffect(() => {
     if (courts.length > 0 && !selectedCourtId) {
@@ -412,19 +443,20 @@ export function Settings() {
     setMethodMsg(null);
   };
 
-    const handleAddBlock = async () => {
+  // 👇 NEW: Slot toggle logic for blocking
+  const toggleSlot = (slotId: string) => {
+    setSelectedSlotIds((prev) =>
+      prev.includes(slotId) ? prev.filter((id) => id !== slotId) : [...prev, slotId]
+    );
+  };
+
+  const handleAddBlock = async () => {
     if (!selectedCourtId || !blockDate) return;
 
-    // Basic validation for time blocks
-    if (!isFullDay) {
-      if (!blockStartTime || !blockEndTime) {
-        alert("Please provide both start and end times for a partial day block.");
-        return;
-      }
-      if (blockStartTime >= blockEndTime) {
-        alert("End time must be after start time.");
-        return;
-      }
+    // If not full day, require at least one slot
+    if (!isFullDay && selectedSlotIds.length === 0) {
+      alert("Please select at least one time slot to block.");
+      return;
     }
 
     const payload: any = {
@@ -433,9 +465,20 @@ export function Settings() {
       reason: blockReason || 'Maintenance',
     };
 
-    if (!isFullDay && blockStartTime && blockEndTime) {
-      payload.startTime = blockStartTime;
-      payload.endTime = blockEndTime;
+    // 👇 NEW: Calculate start/end times based on selected visual slots
+    if (!isFullDay && selectedSlotIds.length > 0) {
+      const selectedSlots = slots.filter((s) => selectedSlotIds.includes(s.id));
+      const sorted = selectedSlots.sort((a, b) => a.start_time.localeCompare(b.start_time));
+      
+      const first = sorted[0];
+      const last = sorted[sorted.length - 1];
+
+      // We pass the exact start of the first slot and end of the last slot
+      payload.startTime = first.start_time.slice(0, 5);
+      
+      // If the last slot ends at 00:00 (midnight), we must pass "00:00"
+      // The backend fix we did earlier handles this correctly.
+      payload.endTime = last.end_time.slice(0, 5);
     }
 
     try {
@@ -446,16 +489,14 @@ export function Settings() {
 
       // Reset form
       setBlockReason('');
-      setBlockStartTime('');
-      setBlockEndTime('');
+      setSelectedSlotIds([]);
       setIsFullDay(true);
-      setAmenitiesMsg(null); // clear any lingering errors
     } catch (err) {
       console.error("Failed to block date:", err);
-      // Optionally alert the user
       alert("Failed to block date. Please check the console for details.");
     }
   };
+
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     setProfileMsg(null);
@@ -588,7 +629,6 @@ export function Settings() {
     }
   };
 
-  // ⭐ NEW — save the max advance booking window
   const saveBookingWindow = async () => {
     setSavingBookingWindow(true);
     setBookingWindowMsg(null);
@@ -613,6 +653,56 @@ export function Settings() {
 
   const selectedCourt = courts.find((c) => c.id === selectedCourtId);
   const Layout = user?.role === 'staff' ? StaffLayout : AdminLayout;
+
+  // Helper to render the visual grid inside the block date form
+  const renderSlotGrid = () => {
+    if (loadingSlots) return <div className="py-6 text-center text-xs text-cream-muted"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></div>;
+    if (slots.length === 0) return <p className="text-xs text-cream-muted py-2">No slots available for this court.</p>;
+
+    const morning = slots.filter(s => parseInt(s.start_time.split(':')[0]) < 12);
+    const afternoon = slots.filter(s => parseInt(s.start_time.split(':')[0]) >= 12 && parseInt(s.start_time.split(':')[0]) < 17);
+    const evening = slots.filter(s => parseInt(s.start_time.split(':')[0]) >= 17);
+
+    const renderGroup = (title: string, icon: React.ReactNode, group: TimeSlot[]) => {
+      if (group.length === 0) return null;
+      return (
+        <div className="mb-3">
+          <div className="mb-1.5 flex items-center gap-2">
+            {icon}
+            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">{title}</span>
+            <div className="h-px flex-1 bg-forest-700/60" />
+          </div>
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+            {group.map(slot => {
+              const isSelected = selectedSlotIds.includes(slot.id);
+              return (
+                <button
+                  key={slot.id}
+                  type="button"
+                  onClick={() => toggleSlot(slot.id)}
+                  className={`rounded-lg border p-1.5 text-[11px] font-semibold transition-all ${
+                    isSelected 
+                      ? 'border-brand-blue-400 bg-brand-blue-500 text-white shadow-glow-blue' 
+                      : 'border-forest-700 bg-forest-950/60 text-cream-muted hover:border-brand-blue-400/50 hover:text-cream'
+                  }`}
+                >
+                  {formatTimeRange(slot.start_time, slot.end_time)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className="rounded-xl border border-forest-700/80 bg-forest-950/40 p-3">
+        {renderGroup('Morning', <CloudSun className="h-3.5 w-3.5 text-court-300" />, morning)}
+        {renderGroup('Afternoon', <Sun className="h-3.5 w-3.5 text-court-300" />, afternoon)}
+        {renderGroup('Evening', <Moon className="h-3.5 w-3.5 text-court-300" />, evening)}
+      </div>
+    );
+  };
 
   return (
     <Layout>
@@ -982,7 +1072,7 @@ export function Settings() {
               </div>
             )}
 
-            {/* ─── Booking Window ⭐ NEW ─── */}
+            {/* ─── Booking Window ─── */}
             {isAdmin && (
               <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
                 <div className="mb-4">
@@ -1011,7 +1101,6 @@ export function Settings() {
                   />
                 </div>
 
-                {/* Live preview of the human-readable description */}
                 <p className="mt-3 text-xs text-cream-muted">
                   Currently: <span className="font-semibold text-brand-blue-300">
                     {describeAdvanceWindow(maxAdvanceDays)}
@@ -1216,7 +1305,7 @@ export function Settings() {
                   </div>
                 </div>
 
-                <div className="mb-5 grid gap-3.5 sm:grid-cols-2 md:grid-cols-4">
+                <div className="mb-5 grid gap-3.5 sm:grid-cols-2">
                   <Input
                     label="Date to Block"
                     type="date"
@@ -1233,8 +1322,7 @@ export function Settings() {
                         onChange={(e) => {
                           setIsFullDay(e.target.checked);
                           if (e.target.checked) {
-                            setBlockStartTime('');
-                            setBlockEndTime('');
+                            setSelectedSlotIds([]); // clear specific times if switching to full day
                           }
                         }}
                         className="h-4 w-4 rounded border-forest-600 bg-forest-950 accent-brand-blue-500 cursor-pointer"
@@ -1242,26 +1330,18 @@ export function Settings() {
                       <span>Full Day Block</span>
                     </label>
                   </div>
+                </div>
 
-                  {!isFullDay && (
-                    <>
-                      <Input
-                        label="Start Time"
-                        type="time"
-                        value={blockStartTime}
-                        onChange={(e) => setBlockStartTime(e.target.value)}
-                        leftIcon={<Clock className="h-4 w-4 text-brand-blue-300" />}
-                      />
-                      <Input
-                        label="End Time"
-                        type="time"
-                        value={blockEndTime}
-                        onChange={(e) => setBlockEndTime(e.target.value)}
-                        leftIcon={<Clock className="h-4 w-4 text-brand-blue-300" />}
-                      />
-                    </>
-                  )}
+                {!isFullDay && (
+                  <div className="mb-5">
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-cream-muted">
+                      Select Time Slots
+                    </label>
+                    {renderSlotGrid()}
+                  </div>
+                )}
 
+                <div className="mb-6">
                   <Input
                     label="Reason"
                     placeholder="e.g. Tournament, Resurfacing"
