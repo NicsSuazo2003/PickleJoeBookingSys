@@ -278,6 +278,8 @@ type SlotLike = {
  *   back to `fallbackCourtName` when there's a single group, otherwise
  *   "Unknown court". It re-renders with real names once courts load.
  */
+// Inside src/pages/admin/Bookings.tsx
+
 function slotsSummary(
   slots: SlotLike[] | null | undefined,
   courtsList: { id: string; name: string }[] | null | undefined,
@@ -290,7 +292,6 @@ function slotsSummary(
     if (c?.id) nameById.set(normId(c.id), c.name || 'Unnamed Court');
   });
 
-  // 1) court -> unique time ranges (the inner Map removes duplicates)
   const byCourt = new Map<string, Map<string, { start: string; end: string }>>();
 
   for (const s of slots) {
@@ -308,11 +309,12 @@ function slotsSummary(
 
   if (byCourt.size === 0) return 'No slots';
 
-  // 2) sort, then merge back-to-back ranges (7-8 + 8-9 + 9-10 → 7-10)
   const mergeRanges = (times: Map<string, { start: string; end: string }>) => {
+    // 👇 FIX: Sort the times array by start time FIRST
     const sorted = Array.from(times.values()).sort((a, b) =>
       trimTime(a.start).localeCompare(trimTime(b.start))
     );
+    
     const merged: { start: string; end: string }[] = [];
     for (const t of sorted) {
       const last = merged[merged.length - 1];
@@ -325,6 +327,7 @@ function slotsSummary(
     return merged;
   };
 
+  
   // 3) group courts that ended up with identical times
   const bySignature = new Map<string, { labels: string[]; text: string }>();
 
