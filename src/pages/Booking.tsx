@@ -36,13 +36,24 @@ const normalizePhone = (value: string) =>
 const NOTES_MAX = 500;
 const HOLD_MINUTES = Math.round(APP_CONFIG.paymentTimerSeconds / 60);
 
+// 👇 Helper to check for test/sample keywords
+const isTestString = (val: string) => {
+  const lower = val.toLowerCase();
+  const blockedWords = ['test', 'sample', 'testing', 'admin', 'fake'];
+  return blockedWords.some(word => lower.includes(word));
+};
+
 const customerSchema = z.object({
   name: z
     .string()
     .trim()
     .min(2, 'Name is required')
     .max(80, 'Name is too long')
-    .regex(/^[A-Za-zÀ-ÿ.'\-\s]+$/, "Name can only contain letters, spaces, and . ' -"),
+    .regex(/^[A-Za-zÀ-ÿ.'\-\s]+$/, "Name can only contain letters, spaces, and . ' -")
+    // 👇 Block test names
+    .refine((v) => !isTestString(v), {
+      message: "Please enter your real full name.",
+    }),
 
   email: z
     .string()
@@ -50,7 +61,15 @@ const customerSchema = z.object({
     .toLowerCase()
     .min(1, 'Email is required')
     .email('Enter a valid email address')
-    .max(120, 'Email is too long'),
+    .max(120, 'Email is too long')
+    // 👇 Block test emails and specific domains
+    .refine((v) => {
+      const blockedDomains = ['test.com', 'example.com', 'mailinator.com', 'tempmail.com'];
+      const domain = v.split('@')[1];
+      return !blockedDomains.includes(domain) && !isTestString(v);
+    }, {
+      message: 'Please use a real, active email address.',
+    }),
 
   phone: z
     .string()
@@ -59,6 +78,10 @@ const customerSchema = z.object({
     .transform(normalizePhone)
     .refine((v) => /^09\d{9}$/.test(v), {
       message: 'Enter a valid PH mobile number (e.g. 0917 123 4567)',
+    })
+    // 👇 Block dummy numbers like 09000000000
+    .refine((v) => !/^09(0{9}|1{9}|2{9}|3{9}|4{9}|5{9}|6{9}|7{9}|8{9}|9{9})$/.test(v), {
+      message: 'Please enter a real mobile number.',
     }),
 
   notes: z.string().max(NOTES_MAX, 'Notes are too long').optional(),
@@ -85,7 +108,7 @@ export function Booking() {
     setCustomer,
     createBooking,
     slots,
-    refreshSlots, // 👈 Added this
+    refreshSlots,
   } = useBookingStore();
 
   const [submitting, setSubmitting] = useState(false);
@@ -141,7 +164,6 @@ export function Booking() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      // 👇 NEW: Check if slots are still available before saving
       const isStillAvailable = await refreshSlots();
       if (!isStillAvailable) {
         setSubmitError(
@@ -173,8 +195,6 @@ export function Booking() {
     }
   };
 
-  // The mobile bar can be tapped while the form is scrolled out of view,
-  // so on invalid input bring the user to the first problem.
   const onInvalid = () => {
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -257,7 +277,6 @@ export function Booking() {
                 {formatDateLong(selectedDate)}
               </p>
 
-              {/* Court Cards */}
               <div className="space-y-2.5">
                 {selectedCourts.map((court) => {
                   const courtSlots = selectedSlots.filter((s) => {
@@ -297,7 +316,6 @@ export function Booking() {
                 })}
               </div>
 
-              {/* Slot Row Pills */}
               <div className="mt-3.5 space-y-2">
                 {selectedSlots.map((slot) => {
                   const court = getCourtForSlot(slot.slot_id);
@@ -399,7 +417,6 @@ export function Booking() {
                   </p>
                 </div>
 
-                {/* What happens next */}
                 <div className="flex items-start gap-2.5 rounded-xl border border-brand-blue-500/30 bg-brand-blue-500/10 p-3.5">
                   <Timer className="mt-0.5 h-4 w-4 shrink-0 text-brand-blue-300" />
                   <p className="text-xs leading-relaxed text-cream-muted">
@@ -411,7 +428,6 @@ export function Booking() {
                   </p>
                 </div>
 
-                {/* ✅ Terms & Privacy consent checkbox */}
                 <div className="flex items-start gap-2.5 rounded-xl border border-forest-700/60 bg-forest-950/60 p-3.5">
                   <input
                     type="checkbox"
@@ -534,14 +550,13 @@ export function Booking() {
                 </div>
 
                 <Button
-  size="lg"
-  fullWidth
-  className="mt-4"
-  isLoading={submitting}
-  disabled={submitting} // 👈 THIS IS THE FIX. Disables the button immediately.
-  onClick={handleSummaryButtonClick}
-  rightIcon={<ArrowRight className="h-5 w-5" />}
->
+                  size="lg"
+                  fullWidth
+                  className="mt-4"
+                  isLoading={submitting}
+                  onClick={handleSummaryButtonClick}
+                  rightIcon={<ArrowRight className="h-5 w-5" />}
+                >
                   Continue to Payment
                 </Button>
                 <p className="mt-2 text-center text-[11px] text-cream-muted">
@@ -599,13 +614,12 @@ export function Booking() {
             )}
           </div>
           <Button
-  size="md"
-  isLoading={submitting}
-  disabled={submitting} // 👈 ADD THIS
-  onClick={handleSummaryButtonClick}
-  rightIcon={<ArrowRight className="h-4 w-4" />}
-  className="shrink-0 px-6"
->
+            size="md"
+            isLoading={submitting}
+            onClick={handleSummaryButtonClick}
+            rightIcon={<ArrowRight className="h-4 w-4" />}
+            className="shrink-0 px-6"
+          >
             Continue
           </Button>
         </div>
