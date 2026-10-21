@@ -149,7 +149,12 @@ export function Terms() {
                   <li>Players must wear non-marking athletic shoes at all times.</li>
                   <li>Food and beverages are not allowed on the court surface.</li>
                   <li>All players must observe proper court etiquette and respect their reserved playing time.</li>
-                  <li>The use of loudspeakers and excessive shouting are prohibited, especially after 10:00 PM, to maintain a peaceful environment for nearby residents.</li>
+                 <li>
+  <strong className="text-cream">Noise and Conduct Policy:</strong> All players and guests
+  shall maintain reasonable noise levels at all times, minimize shouting and excessive noise
+  after 10:00 PM, and ensure that speakers and other audio devices are operated at a
+  reasonable volume.
+</li>
                   <li>Pets are not allowed in the court playing area or courtside but are permitted in the designated waiting area.</li>
                 </ul>
               </div>
