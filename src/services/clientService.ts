@@ -26,12 +26,16 @@ function normalizeClientSettings(raw: any): ClientSettings {
     payment_methods: data.paymentMethods ?? data.payment_methods ?? [],
     available_amenities: (data.availableAmenities ?? data.available_amenities ?? [])
       .map(normalizeAmenity),
-    // ⭐ NEW
     max_advance_booking_days: Number(
       data.maxAdvanceBookingDays ??
         data.max_advance_booking_days ??
         90
     ),
+    // 👇 THE FIX
+    bookings_enabled: (() => {
+      const v = data.bookingsEnabled ?? data.bookings_enabled;
+      return v === undefined || v === null ? true : Boolean(v);
+    })(),
   };
 }
 
