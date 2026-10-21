@@ -38,7 +38,8 @@
     addDays,
     getMaxSelectableDate,
   } from '@/utils/format';
-  import type { TimeSlot, Court, OpenPlaySession, Booking } from '@/types';
+import type { TimeSlot, Court, OpenPlaySession, Booking, SlotStatus } from '@/types';
+
 
   const EMPTY_AMENITIES: AmenityItem[] = [];
 
@@ -855,23 +856,31 @@
                     </div>
 
                     <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-forest-700/60 pb-3 text-[11px] text-cream-muted">
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full border border-court-400/80 bg-court-500/30" />
-                        <span>Available</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-amber-400" />
-                        <span>Pending</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-red-400" />
-                        <span>Booked</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-court-300" />
-                        <span>Open Play</span>
-                      </div>
-                    </div>
+  <div className="flex items-center gap-1.5">
+    <span className="h-2 w-2 rounded-full border border-court-400/80 bg-court-500/30" />
+    <span>Available</span>
+  </div>
+  <div className="flex items-center gap-1.5">
+    <span className="h-2 w-2 rounded-full bg-amber-400" />
+    <span>Pending</span>
+  </div>
+  <div className="flex items-center gap-1.5">
+    <span className="h-2 w-2 rounded-full bg-yellow-400" />
+    <span>Pending (expiring)</span>
+  </div>
+  <div className="flex items-center gap-1.5">
+    <span className="h-2 w-2 rounded-full bg-red-400" />
+    <span>Booked</span>
+  </div>
+  <div className="flex items-center gap-1.5">
+    <span className="h-2 w-2 rounded-full bg-red-900" />
+    <span>Blocked</span>
+  </div>
+  <div className="flex items-center gap-1.5">
+    <span className="h-2 w-2 rounded-full bg-court-300" />
+    <span>Open Play</span>
+  </div>
+</div>
 
                     {loadingSlots || loadingCourts || loadingOpenPlay ? (
                       <LoadingSpinner className="py-12 md:py-20" />
@@ -1275,41 +1284,78 @@
       </button>
     );
   }
+function SlotPill({
+  slot,
+  isSelected,
+  onToggle,
+  accent,
+}: {
+  slot: TimeSlot;
+  isSelected: boolean;
+  onToggle: () => void;
+  accent: CourtAccent;
+}) {
+  // Derive status — prefer backend `status`, fall back to old flags
+  const status: SlotStatus = slot.status ?? (!slot.is_available ? 'booked' : 'available');
 
-  function SlotPill({
-    slot,
-    isSelected,
-    onToggle,
-    accent,
-  }: {
-    slot: TimeSlot;
-    isSelected: boolean;
-    onToggle: () => void;
-    accent: CourtAccent;
-  }) {
-    const isAvailable = slot.is_available;
-    const isPending = (slot as unknown as { is_pending?: boolean }).is_pending;
+  const isAvailable = status === 'available';
+  const isPending = status === 'pending';
+  const isBlocked = status === 'blocked';
+  const isBooked = status === 'booked';
 
-    let styleClasses = `${accent.border} ${accent.bg} ${accent.text} ${accent.hoverBorder} ${accent.hoverBg} cursor-pointer`;
+  // "Expiring soon" = pending AND expires within 15 minutes (matches APP_CONFIG.paymentTimerSeconds)
+  const isExpiringSoon = (() => {
+    if (!isPending || !slot.pending_expires_at) return false;
+    const expiresMs = new Date(slot.pending_expires_at).getTime() - Date.now();
+    return expiresMs > 0 && expiresMs <= 15 * 60 * 1000;
+  })();
 
-    if (!isAvailable) {
-      styleClasses = 'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
-    } else if (isPending) {
-      styleClasses = 'border-amber-500/30 bg-amber-500/10 text-amber-300/80 cursor-not-allowed';
-    } else if (isSelected) {
-      styleClasses = 'border-court-300 bg-court-600 text-white font-bold shadow-glow-court';
-    }
+  let styleClasses = `${accent.border} ${accent.bg} ${accent.text} ${accent.hoverBorder} ${accent.hoverBg} cursor-pointer`;
+  let label: React.ReactNode = formatTimeRangeShort(slot.start_time, slot.end_time);
+  let title: string | undefined;
 
-    return (
-      <button
-        onClick={isAvailable && !isPending ? onToggle : undefined}
-        disabled={!isAvailable || isPending}
-        aria-pressed={isSelected}
-        className={`flex h-11 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-tight transition-all px-1 active:scale-95 ${styleClasses}`}
-      >
-        <span className="truncate flex items-center gap-1">
+  if (isSelected) {
+    styleClasses =
+      'border-court-300 bg-court-600 text-white font-bold shadow-glow-court cursor-pointer';
+  } else if (isBlocked) {
+    // 🌑 DARK RED — blocked by admin
+    styleClasses =
+      'border-red-900 bg-red-950 text-red-200/90 line-through cursor-not-allowed';
+    title = 'Blocked — not available for booking';
+  } else if (isBooked) {
+    // 🔴 BRIGHT RED — booked / confirmed
+    styleClasses =
+      'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
+    title = 'Already booked';
+  } else if (isPending) {
+    if (isExpiringSoon) {
+      // 🟡 YELLOW PULSE — pending, payment about to expire
+      styleClasses =
+        'border-yellow-400 bg-yellow-500/20 text-yellow-200 cursor-not-allowed animate-pulse';
+      title = 'Pending payment — expiring soon';
+      label = (
+        <span className="flex items-center gap-1">
+          <Clock className="h-3 w-3" />
           {formatTimeRangeShort(slot.start_time, slot.end_time)}
         </span>
-      </button>
-    );
+      );
+    } else {
+      // 🟠 AMBER — pending payment (fresh)
+      styleClasses =
+        'border-amber-500/40 bg-amber-500/15 text-amber-300/90 cursor-not-allowed';
+      title = 'Pending payment';
+    }
   }
+
+  return (
+    <button
+      onClick={isAvailable ? onToggle : undefined}
+      disabled={!isAvailable}
+      aria-pressed={isSelected}
+      title={title}
+      className={`flex h-11 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-tight transition-all px-1 active:scale-95 ${styleClasses}`}
+    >
+      <span className="flex items-center gap-1 truncate">{label}</span>
+    </button>
+  );
+}

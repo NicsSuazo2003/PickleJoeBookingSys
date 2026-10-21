@@ -107,6 +107,8 @@ export function normalizeSlot(raw: any, fallbackDate: string): TimeSlot {
     price: Number(raw.price ?? raw.Price ?? 0),
     is_available: raw.isAvailable ?? raw.is_available ?? true,
     is_peak: raw.isPeak ?? raw.is_peak ?? false,
+    status: raw.status ?? raw.Status ?? undefined,                              // 👈 NEW
+    pending_expires_at: raw.pendingExpiresAt ?? raw.pending_expires_at ?? null, // 👈 NEW
   };
 }
 

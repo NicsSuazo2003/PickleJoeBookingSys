@@ -34,6 +34,14 @@ export interface Court {
   pricing_rules?: PricingRule[];
 }
 
+export type SlotStatus =
+  | 'available'
+  | 'booked'
+  | 'blocked'
+  | 'pending'
+  | 'open_play'
+  | 'past';
+
 export interface TimeSlot {
   id: string;
   court_id: string;
@@ -44,7 +52,8 @@ export interface TimeSlot {
   price: number;
   is_available: boolean;
   is_peak: boolean;
-  
+  status?: SlotStatus;                 // 👈 NEW
+  pending_expires_at?: string | null;  // 👈 NEW
 }
 
 export interface BookingSlotItem {
