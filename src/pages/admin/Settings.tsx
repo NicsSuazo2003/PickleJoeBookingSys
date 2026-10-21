@@ -25,6 +25,7 @@ import {
   CloudSun,
   Sun,
   Moon,
+  Power,
 } from 'lucide-react';
 
 import { AdminLayout } from '@/components/layout/AdminLayout';
@@ -35,7 +36,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useAdminStore } from '@/stores/adminStore';
 import { useAuthStore } from '@/stores/authStore';
 import { adminService } from '@/services/adminService';
-import { courtService } from '@/services/courtService'; // 👈 Added for availability
+import { courtService } from '@/services/courtService';
 import {
   formatDateLong,
   formatTimeRange,
@@ -90,7 +91,7 @@ export function Settings() {
   const [blockReason, setBlockReason] = useState('');
   const [isFullDay, setIsFullDay] = useState(true);
 
-  // 👇 NEW: State for visual slot picking
+  // State for visual slot picking
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -150,6 +151,14 @@ export function Settings() {
     text: string;
   } | null>(null);
 
+  // 👇 NEW — Master bookings switch
+  const [bookingsEnabled, setBookingsEnabled] = useState<boolean>(true);
+  const [savingBookingsEnabled, setSavingBookingsEnabled] = useState(false);
+  const [bookingsEnabledMsg, setBookingsEnabledMsg] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
   // ─── QR upload ───
   const [uploadingQR, setUploadingQR] = useState(false);
 
@@ -182,6 +191,7 @@ export function Settings() {
         setClientSettings(settings);
         setAmenities(settings.available_amenities ?? []);
         setMaxAdvanceDays(settings.max_advance_booking_days ?? 90);
+        setBookingsEnabled(settings.bookings_enabled ?? true);      // 👈 NEW
       } catch (err) {
         console.error('Failed to load client settings:', err);
       } finally {
@@ -196,13 +206,13 @@ export function Settings() {
     }
   }, [selectedCourtId, loadBlockedDates]);
 
-  // 👇 NEW: Fetch slots for the selected date to allow visual picking
+  // Fetch slots for the selected date to allow visual picking
   useEffect(() => {
     if (!selectedCourtId || !blockDate) return;
     
     let cancelled = false;
     setLoadingSlots(true);
-    setSelectedSlotIds([]); // Reset selection when date changes
+    setSelectedSlotIds([]);
 
     (async () => {
       try {
@@ -443,7 +453,7 @@ export function Settings() {
     setMethodMsg(null);
   };
 
-  // 👇 NEW: Slot toggle logic for blocking
+  // Slot toggle logic for blocking
   const toggleSlot = (slotId: string) => {
     setSelectedSlotIds((prev) =>
       prev.includes(slotId) ? prev.filter((id) => id !== slotId) : [...prev, slotId]
@@ -453,7 +463,6 @@ export function Settings() {
   const handleAddBlock = async () => {
     if (!selectedCourtId || !blockDate) return;
 
-    // If not full day, require at least one slot
     if (!isFullDay && selectedSlotIds.length === 0) {
       alert("Please select at least one time slot to block.");
       return;
@@ -465,7 +474,6 @@ export function Settings() {
       reason: blockReason || 'Maintenance',
     };
 
-    // 👇 NEW: Calculate start/end times based on selected visual slots
     if (!isFullDay && selectedSlotIds.length > 0) {
       const selectedSlots = slots.filter((s) => selectedSlotIds.includes(s.id));
       const sorted = selectedSlots.sort((a, b) => a.start_time.localeCompare(b.start_time));
@@ -473,11 +481,7 @@ export function Settings() {
       const first = sorted[0];
       const last = sorted[sorted.length - 1];
 
-      // We pass the exact start of the first slot and end of the last slot
       payload.startTime = first.start_time.slice(0, 5);
-      
-      // If the last slot ends at 00:00 (midnight), we must pass "00:00"
-      // The backend fix we did earlier handles this correctly.
       payload.endTime = last.end_time.slice(0, 5);
     }
 
@@ -487,7 +491,6 @@ export function Settings() {
         await loadBlockedDates(selectedCourtId);
       }
 
-      // Reset form
       setBlockReason('');
       setSelectedSlotIds([]);
       setIsFullDay(true);
@@ -654,7 +657,6 @@ export function Settings() {
   const selectedCourt = courts.find((c) => c.id === selectedCourtId);
   const Layout = user?.role === 'staff' ? StaffLayout : AdminLayout;
 
-  // Helper to render the visual grid inside the block date form
   const renderSlotGrid = () => {
     if (loadingSlots) return <div className="py-6 text-center text-xs text-cream-muted"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></div>;
     if (slots.length === 0) return <p className="text-xs text-cream-muted py-2">No slots available for this court.</p>;
@@ -1072,6 +1074,92 @@ export function Settings() {
               </div>
             )}
 
+            {/* ─── Booking System Switch ─── */}
+            {isAdmin && (
+              <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="flex items-center gap-2 font-display text-base font-bold text-cream sm:text-lg">
+                      <Power className="h-5 w-5 text-brand-blue-300" />
+                      Booking System
+                    </h2>
+                    <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
+                      Turn customer-facing online bookings on or off. When off, the landing page
+                      shows a "Bookings temporarily closed" banner and customer bookings are
+                      rejected. Staff can still create manual bookings. Existing bookings are not
+                      affected.
+                    </p>
+                  </div>
+
+                  <label className="relative inline-flex shrink-0 cursor-pointer items-center">
+                    <input
+                      type="checkbox"
+                      checked={bookingsEnabled}
+                      onChange={async (e) => {
+                        const next = e.target.checked;
+                        const prev = bookingsEnabled;
+                        setBookingsEnabled(next);
+                        setSavingBookingsEnabled(true);
+                        setBookingsEnabledMsg(null);
+                        try {
+                          await adminService.updateSettings({ bookings_enabled: next });
+                          setBookingsEnabledMsg({
+                            type: 'success',
+                            text: next ? 'Bookings are now OPEN.' : 'Bookings are now CLOSED.',
+                          });
+                        } catch (err) {
+                          setBookingsEnabled(prev);
+                          setBookingsEnabledMsg({
+                            type: 'error',
+                            text: err instanceof Error ? err.message : 'Failed to update.',
+                          });
+                        } finally {
+                          setSavingBookingsEnabled(false);
+                        }
+                      }}
+                      className="peer sr-only"
+                      disabled={savingBookingsEnabled}
+                    />
+                    <div className="peer h-7 w-12 rounded-full border border-forest-600 bg-forest-800 transition-all after:absolute after:top-[2px] after:left-[2px] after:h-6 after:w-6 after:rounded-full after:bg-white after:transition-all peer-checked:bg-accentGreen-500 peer-checked:after:translate-x-5" />
+                  </label>
+                </div>
+
+                <div
+                  className={`flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold ${
+                    bookingsEnabled
+                      ? 'border-accentGreen-400/40 bg-accentGreen-500/15 text-accentGreen-300'
+                      : 'border-error/40 bg-error/15 text-error'
+                  }`}
+                >
+                  {bookingsEnabled ? (
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                  )}
+                  {bookingsEnabled
+                    ? 'Customers can currently book courts online. Staff manual bookings are always available.'
+                    : 'Online customer bookings are CLOSED. Staff can still create manual bookings.'}
+                </div>
+
+                {bookingsEnabledMsg && (
+                  <div
+                    className={`mt-3 flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold ${
+                      bookingsEnabledMsg.type === 'success'
+                        ? 'border-accentGreen-400/40 bg-accentGreen-500/15 text-accentGreen-300'
+                        : 'border-error/40 bg-error/15 text-error'
+                    }`}
+                  >
+                    {bookingsEnabledMsg.type === 'success' ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                    )}
+                    {bookingsEnabledMsg.text}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ─── Booking Window ─── */}
             {isAdmin && (
               <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 shadow-xl backdrop-blur-sm sm:p-6">
@@ -1322,7 +1410,7 @@ export function Settings() {
                         onChange={(e) => {
                           setIsFullDay(e.target.checked);
                           if (e.target.checked) {
-                            setSelectedSlotIds([]); // clear specific times if switching to full day
+                            setSelectedSlotIds([]);
                           }
                         }}
                         className="h-4 w-4 rounded border-forest-600 bg-forest-950 accent-brand-blue-500 cursor-pointer"

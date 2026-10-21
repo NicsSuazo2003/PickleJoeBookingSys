@@ -181,11 +181,8 @@ export interface ClientSettings {
   gcash_account_name?: string | null;
   payment_methods?: PaymentMethod[];
   available_amenities?: AmenityItem[];
-  /**
-   * ⭐ NEW — Max days ahead customers can book.
-   * 0 = unlimited. Default 90 (~3 months).
-   */
   max_advance_booking_days: number;
+  bookings_enabled: boolean;  
 }
 
 export type AdminView = 'calendar' | 'list';

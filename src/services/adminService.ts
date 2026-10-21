@@ -44,6 +44,11 @@ function normalizeClientSettings(raw: any): ClientSettings {
         data.max_advance_booking_days ??
         90
     ),
+    // 👇 NEW
+    bookings_enabled: (() => {
+      const v = data.bookingsEnabled ?? data.bookings_enabled;
+      return v === undefined || v === null ? true : Boolean(v);
+    })(),
   };
 }
 
@@ -137,31 +142,33 @@ export const adminService = {
     return normalizeClientSettings(res?.data ?? res);
   },
 
-  async updateSettings(payload: {
-    name?: string;
-    gcash_number?: string;
-    gcash_account_name?: string;
-    payment_methods?: PaymentMethod[];
-    rcbc_account_name?: string;
-    rcbc_qr_image?: string;
-    available_amenities?: AmenityItem[];
-    max_advance_booking_days?: number;
-  }): Promise<ClientSettings> {
-    const res = await apiRequest<any>('/api/admin/settings', {
-      method: 'PUT',
-      body: JSON.stringify({
-        name: payload.name,
-        gcashNumber: payload.gcash_number,
-        gcashAccountName: payload.gcash_account_name,
-        paymentMethods: payload.payment_methods,
-        rcbcAccountName: payload.rcbc_account_name,
-        rcbcQrImage: payload.rcbc_qr_image,
-        availableAmenities: payload.available_amenities,
-        maxAdvanceBookingDays: payload.max_advance_booking_days,
-      }),
-    });
-    return normalizeClientSettings(res?.data ?? res);
-  },
+ async updateSettings(payload: {
+  name?: string;
+  gcash_number?: string;
+  gcash_account_name?: string;
+  payment_methods?: PaymentMethod[];
+  rcbc_account_name?: string;
+  rcbc_qr_image?: string;
+  available_amenities?: AmenityItem[];
+  max_advance_booking_days?: number;
+  bookings_enabled?: boolean;        // 👈 NEW
+}): Promise<ClientSettings> {
+  const res = await apiRequest<any>('/api/admin/settings', {
+    method: 'PUT',
+    body: JSON.stringify({
+      name: payload.name,
+      gcashNumber: payload.gcash_number,
+      gcashAccountName: payload.gcash_account_name,
+      paymentMethods: payload.payment_methods,
+      rcbcAccountName: payload.rcbc_account_name,
+      rcbcQrImage: payload.rcbc_qr_image,
+      availableAmenities: payload.available_amenities,
+      maxAdvanceBookingDays: payload.max_advance_booking_days,
+      bookingsEnabled: payload.bookings_enabled,   // 👈 NEW
+    }),
+  });
+  return normalizeClientSettings(res?.data ?? res);
+},
 
   async getBookings(filters?: {
     status?: BookingStatus;
