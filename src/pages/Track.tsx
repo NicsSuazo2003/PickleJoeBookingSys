@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { bookingService } from '@/services/bookingService';
+import { ApiError } from '@/services/api';
 import { useClientStore } from '@/stores/clientStore';
 import { useAdminStore } from '@/stores/adminStore';
 import {
@@ -33,6 +34,26 @@ import {
 import { APP_CONFIG } from '@/utils/constants';
 import { isInAppBrowser, getInAppBrowserName } from '@/utils/browser';
 import type { Booking, BookingSummary } from '@/types';
+
+// 👇 NEW: friendly error messages for the Track flow
+function trackErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 404) {
+      return 'No booking found. Double-check your reference code and email, or search by email alone to see bookings that still need payment.';
+    }
+    if (err.status === 401) {
+      return 'That email does not match the one on file for this booking. Please use the email you booked with.';
+    }
+    if (err.status === 409) {
+      return err.userMessage;
+    }
+    if (err.status === 0) {
+      return err.userMessage; // timeout
+    }
+    return err.userMessage || 'Something went wrong. Please try again.';
+  }
+  return err instanceof Error ? err.message : 'Search failed. Please try again.';
+}
 
 export function Track() {
   const settings = useClientStore((state) => state.settings);
@@ -88,7 +109,8 @@ export function Track() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Search failed');
+      // 👇 CHANGED: use friendly error mapper
+      setError(trackErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -102,7 +124,8 @@ export function Track() {
       setBooking(detail);
       setSummaries([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not open booking');
+      // 👇 CHANGED: use friendly error mapper
+      setError(trackErrorMessage(err));
     } finally {
       setLoading(false);
     }

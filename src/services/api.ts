@@ -9,8 +9,17 @@ export class ApiError extends Error {
     this.status = status;
     this.body = body;
   }
-}
 
+  /** Best-effort human-readable message from the backend response body. */
+  get userMessage(): string {
+    const b = this.body as { message?: string } | string | undefined;
+    if (typeof b === 'string' && b.trim()) return b;
+    if (b && typeof b === 'object' && typeof b.message === 'string' && b.message.trim()) {
+      return b.message;
+    }
+    return this.message;
+  }
+}
 const BASE_URL = APP_CONFIG.apiUrl;
 const CLIENT_SUBDOMAIN = import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe';
 
