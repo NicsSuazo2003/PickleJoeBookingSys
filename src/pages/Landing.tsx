@@ -1338,9 +1338,9 @@ function SlotPill({
   if (isSelected) {
     styleClasses = 'border-court-300 bg-court-600 text-white font-bold shadow-glow-court cursor-pointer';
  } else if (isBlocked) {
-  // 🍷 PALE DARK RED — muted burgundy, no label, shows the time range
-  styleClasses = 'border-rose-900/40 bg-rose-950/40 text-rose-300/60 cursor-not-allowed';
-}else if (isBooked) {
+  // 🍷 PALE DARK RED + strikethrough (crossed out like booked)
+  styleClasses = 'border-rose-900/40 bg-rose-950/40 text-rose-300/60 line-through cursor-not-allowed';
+} else if (isBooked) {
     styleClasses = 'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
   } else if (isPending) {
     styleClasses = 'border-amber-500/40 bg-amber-500/15 text-amber-300/90 cursor-not-allowed';
