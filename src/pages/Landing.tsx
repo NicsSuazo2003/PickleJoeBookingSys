@@ -873,11 +873,7 @@ export function Landing() {
                         <span className="h-2 w-2 rounded-full bg-red-400" />
                         <span>Booked</span>
                       </div>
-                      {/* 👇 NEW — Blocked legend dot (dark red) */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-red-900" />
-                        <span>Blocked</span>
-                      </div>
+                     
                       <div className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full bg-court-300" />
                         <span>Open Play</span>
@@ -1341,10 +1337,10 @@ function SlotPill({
 
   if (isSelected) {
     styleClasses = 'border-court-300 bg-court-600 text-white font-bold shadow-glow-court cursor-pointer';
-  } else if (isBlocked) {
-    // 🍷 PALE DARK RED — muted burgundy, no label, shows the time range
-    styleClasses = 'border-rose-900/40 bg-rose-950/40 text-rose-300/60 cursor-not-allowed';
-  } else if (isBooked) {
+ } else if (isBlocked) {
+  // 🍷 PALE DARK RED — muted burgundy, no label, shows the time range
+  styleClasses = 'border-rose-900/40 bg-rose-950/40 text-rose-300/60 cursor-not-allowed';
+}else if (isBooked) {
     styleClasses = 'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
   } else if (isPending) {
     styleClasses = 'border-amber-500/40 bg-amber-500/15 text-amber-300/90 cursor-not-allowed';
