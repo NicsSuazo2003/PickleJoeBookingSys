@@ -603,21 +603,105 @@ function BookingRow({
   showDate: boolean;
   showReference?: boolean;
 }) {
-  // 👇 Access the courts store to resolve the actual court names
   const courts = useAdminStore((state) => state.courts);
 
-  // 👇 Group the slots by court to get all names
-  const courtNames = useMemo(() => {
-    if (!b || !b.slots) return b?.court_name || '';
-    const ids = Array.from(new Set(b.slots.map((s: any) => s.court_id).filter(Boolean)));
-    if (ids.length === 0) return b.court_name;
-    const names = ids
-      .map((id) => courts.find((c) => c.id === id)?.name)
-      .filter(Boolean);
-    return names.length > 0 ? names.join(', ') : b.court_name;
-  }, [b, courts]);
+  // Group slots by court, dedupe, sort, merge consecutive ranges
+  const { courtNames, slotDisplay } = useMemo(() => {
+    if (!b || !b.slots?.length) {
+      return { courtNames: b?.court_name || 'Unknown Court', slotDisplay: 'No slots' };
+    }
 
-  const slotDisplay = b.slots?.map((s: any) => formatSlotTime(s)).join(', ') || 'No slots';
+    // Build court id → name map
+    const nameById = new Map<string, string>();
+    (courts ?? []).forEach((c) => {
+      if (c?.id) nameById.set(c.id.toLowerCase(), c.name || 'Unnamed Court');
+    });
+
+    // Group slots by court_id
+    const byCourt = new Map<string, Map<string, { start: string; end: string }>>();
+
+    for (const s of b.slots) {
+      if (!s?.start_time || !s?.end_time) continue;
+      const courtKey = (s.court_id ?? 'unknown').toString().toLowerCase();
+      const timeKey = `${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)}`;
+
+      let times = byCourt.get(courtKey);
+      if (!times) {
+        times = new Map();
+        byCourt.set(courtKey, times);
+      }
+      if (!times.has(timeKey)) {
+        times.set(timeKey, { start: s.start_time, end: s.end_time });
+      }
+    }
+
+    if (byCourt.size === 0) {
+      return { courtNames: b.court_name || 'Unknown Court', slotDisplay: 'No slots' };
+    }
+
+    // Merge consecutive ranges per court
+    const mergeRanges = (times: Map<string, { start: string; end: string }>) => {
+      const sorted = Array.from(times.values()).sort((a, c) =>
+        a.start.slice(0, 5).localeCompare(c.start.slice(0, 5))
+      );
+      const merged: { start: string; end: string }[] = [];
+      for (const t of sorted) {
+        const last = merged[merged.length - 1];
+        if (last && last.end.slice(0, 5) === t.start.slice(0, 5)) {
+          last.end = t.end;
+        } else {
+          merged.push({ ...t });
+        }
+      }
+      return merged;
+    };
+
+    // Resolve court labels and merge times
+    const courtLabels: string[] = [];
+    const signatureToTimes = new Map<string, string>();
+
+    byCourt.forEach((times, courtKey) => {
+      const label =
+        nameById.get(courtKey) ??
+        (byCourt.size === 1 ? b.court_name || 'Unknown Court' : 'Unknown Court');
+
+      const merged = mergeRanges(times);
+      const text = merged
+        .map((r) => `${formatTimeShort(r.start)}-${formatTimeShort(r.end)}`)
+        .join(', ');
+
+      courtLabels.push(label);
+      if (!signatureToTimes.has(text)) {
+        signatureToTimes.set(text, text);
+      }
+    });
+
+    // Sort court labels numerically: Court 1, Court 2, Court 3
+    courtLabels.sort((a, c) => a.localeCompare(c, undefined, { numeric: true }));
+
+    // If every court has identical time signature, collapse to one
+    const uniqueSignatures = Array.from(signatureToTimes.keys());
+    const slotDisplay =
+      uniqueSignatures.length === 1 && byCourt.size > 1
+        ? `${uniqueSignatures[0]} (each court)`
+        : Array.from(byCourt.entries())
+            .map(([courtKey, times]) => {
+              const label = nameById.get(courtKey) ?? 'Unknown Court';
+              const merged = mergeRanges(times);
+              const text = merged
+                .map((r) => `${formatTimeShort(r.start)}-${formatTimeShort(r.end)}`)
+                .join(', ');
+              return { label, text };
+            })
+            .sort((a, c) => a.label.localeCompare(c.label, undefined, { numeric: true }))
+            .map((g) => `${g.label}: ${g.text}`)
+            .join(' | ');
+
+    return {
+      courtNames: courtLabels.join(', '),
+      slotDisplay,
+    };
+  }, [b, courts]);
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-forest-700/70 bg-forest-950/70 p-3.5 sm:flex-row sm:items-center sm:justify-between">
@@ -634,7 +718,6 @@ function BookingRow({
               </>
             )}
             {showDate && <>{formatDate(b.date)} · </>}
-            {/* 👇 Now shows all courts */}
             {courtNames} · {slotDisplay}
           </p>
         </div>
