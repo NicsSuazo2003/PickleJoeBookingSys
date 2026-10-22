@@ -160,7 +160,6 @@ export function Landing() {
     (state) => state.settings?.max_advance_booking_days ?? APP_CONFIG.defaultMaxAdvanceBookingDays
   );
 
-  // 👇 NEW — master bookings switch
   const bookingsEnabled = useClientStore(
     (state) => state.settings?.bookings_enabled ?? true
   );
@@ -860,6 +859,7 @@ export function Landing() {
                       </span>
                     </div>
 
+                    {/* Legend */}
                     <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-forest-700/60 pb-3 text-[11px] text-cream-muted">
                       <div className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full border border-court-400/80 bg-court-500/30" />
@@ -872,6 +872,11 @@ export function Landing() {
                       <div className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full bg-red-400" />
                         <span>Booked</span>
+                      </div>
+                      {/* 👇 NEW — Blocked legend dot (dark red) */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-red-900" />
+                        <span>Blocked</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full bg-court-300" />
@@ -1323,27 +1328,65 @@ function SlotPill({
   onToggle: () => void;
   accent: CourtAccent;
 }) {
-  const isAvailable = slot.is_available;
-  const isPending = (slot as unknown as { is_pending?: boolean }).is_pending;
+  // 👇 Read `status` from the backend, fall back to old flags
+  const raw = slot as any;
+  const status: string =
+    raw.status ??
+    (!slot.is_available ? 'booked' : 'available');
+
+  const isAvailable = status === 'available';
+  const isPending = status === 'pending';
+  const isBlocked = status === 'blocked';
+  const isBooked = status === 'booked';
+
+  // Yellow pulse when pending AND expires within 15 minutes
+  const isExpiringSoon = (() => {
+    if (!isPending) return false;
+    const expiresAt = raw.pending_expires_at ?? raw.pendingExpiresAt;
+    if (!expiresAt) return false;
+    const expiresMs = new Date(expiresAt).getTime() - Date.now();
+    return expiresMs > 0 && expiresMs <= 15 * 60 * 1000;
+  })();
 
   let styleClasses = `${accent.border} ${accent.bg} ${accent.text} ${accent.hoverBorder} ${accent.hoverBg} cursor-pointer`;
+  let title: string | undefined;
 
-  if (!isAvailable) {
-    styleClasses = 'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
+  if (isSelected) {
+    styleClasses =
+      'border-court-300 bg-court-600 text-white font-bold shadow-glow-court cursor-pointer';
+  } else if (isBlocked) {
+    // 🌑 DARK RED — admin-blocked
+    styleClasses =
+      'border-red-900 bg-red-950 text-red-200/90 line-through cursor-not-allowed';
+    title = 'Blocked — not available for booking';
+  } else if (isBooked) {
+    // 🔴 BRIGHT RED — already booked
+    styleClasses =
+      'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
+    title = 'Already booked';
   } else if (isPending) {
-    styleClasses = 'border-amber-500/30 bg-amber-500/10 text-amber-300/80 cursor-not-allowed';
-  } else if (isSelected) {
-    styleClasses = 'border-court-300 bg-court-600 text-white font-bold shadow-glow-court';
+    if (isExpiringSoon) {
+      // 🟡 YELLOW PULSE — pending payment expiring soon
+      styleClasses =
+        'border-yellow-400 bg-yellow-500/20 text-yellow-200 cursor-not-allowed animate-pulse';
+      title = 'Pending payment — expiring soon';
+    } else {
+      // 🟠 AMBER — fresh pending payment
+      styleClasses =
+        'border-amber-500/40 bg-amber-500/15 text-amber-300/90 cursor-not-allowed';
+      title = 'Pending payment';
+    }
   }
 
   return (
     <button
-      onClick={isAvailable && !isPending ? onToggle : undefined}
-      disabled={!isAvailable || isPending}
+      onClick={isAvailable ? onToggle : undefined}
+      disabled={!isAvailable}
       aria-pressed={isSelected}
+      title={title}
       className={`flex h-11 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-tight transition-all px-1 active:scale-95 ${styleClasses}`}
     >
-      <span className="truncate flex items-center gap-1">
+      <span className="flex items-center gap-1 truncate">
         {formatTimeRangeShort(slot.start_time, slot.end_time)}
       </span>
     </button>
