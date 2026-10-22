@@ -13,6 +13,7 @@ import { Bookings } from '@/pages/admin/Bookings';
 import { Courts } from '@/pages/admin/Courts';
 import { Pricing } from '@/pages/admin/Pricing';
 import { Settings } from '@/pages/admin/Settings';
+import { SecurityLogs } from '@/pages/admin/SecurityLogs';   // ← NEW
 import { OpenPlayManagement } from '@/pages/admin/OpenPlayManagement';
 import { StaffBookings } from '@/pages/staff/StaffBookings';
 import { OpenPlay } from '@/pages/OpenPlay';
@@ -90,6 +91,7 @@ export default function App() {
           }
         />
         <Route path="/admin/settings" element={<Settings />} />
+        <Route path="/admin/security-logs" element={<SecurityLogs />} />  {/* ← NEW */}
 
         {/* Staff Routes */}
         <Route path="/staff" element={<Navigate to="/staff/bookings" replace />} />

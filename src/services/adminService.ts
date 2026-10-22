@@ -14,6 +14,28 @@ import type {
 import { apiRequest } from './api';
 import { normalizeCourt, buildCourtPayload } from './courtService';
 
+// ─── Security events (admin log viewer) ───
+export type SecuritySeverity = 'info' | 'warning' | 'critical';
+
+export interface SecurityEvent {
+  id: string;
+  occurred_at: string;
+  event_type: string;
+  severity: SecuritySeverity;
+  message: string;
+  actor_email?: string | null;
+  ip_hash?: string | null;
+  resource?: string | null;
+  success: boolean;
+  error_code?: string | null;
+}
+
+export interface SecurityEventFilters {
+  severity?: SecuritySeverity;
+  eventType?: string;
+  limit?: number;
+}
+
 function normalizeAmenity(raw: any): AmenityItem {
   if (typeof raw === 'string') {
     return { name: raw, icon: 'Sparkles', description: '' };
@@ -44,7 +66,6 @@ function normalizeClientSettings(raw: any): ClientSettings {
         data.max_advance_booking_days ??
         90
     ),
-    // 👇 NEW
     bookings_enabled: (() => {
       const v = data.bookingsEnabled ?? data.bookings_enabled;
       return v === undefined || v === null ? true : Boolean(v);
@@ -89,7 +110,6 @@ function normalizeBooking(raw: any): Booking {
   const slots = rawSlots.map((s: any) => ({
     id: s.id || '',
     slot_id: s.slotId ?? s.slot_id ?? s.id ?? '',
-    // ✅ THE FIX: keep each slot's own court
     court_id: String(
       s.courtId ?? s.court_id ?? s.CourtId ?? s.court?.id ?? data.courtId ?? data.court_id ?? ''
     ),
@@ -131,6 +151,30 @@ function normalizeBooking(raw: any): Booking {
   };
 }
 
+function normalizeSecurityEvent(raw: any): SecurityEvent {
+  const d = raw ?? {};
+  const rawSeverity = String(d.severity ?? d.Severity ?? 'info').toLowerCase();
+  const severity: SecuritySeverity =
+    rawSeverity === 'warning' || rawSeverity === 'critical' ? rawSeverity : 'info';
+
+  return {
+    id: String(d.id ?? d.Id ?? ''),
+    occurred_at:
+      d.occurredAt ?? d.occurred_at ?? d.OccurredAt ?? new Date().toISOString(),
+    event_type: String(d.eventType ?? d.event_type ?? d.EventType ?? ''),
+    severity,
+    message: String(d.message ?? d.Message ?? ''),
+    actor_email: d.actorEmail ?? d.actor_email ?? d.ActorEmail ?? null,
+    ip_hash: d.ipHash ?? d.ip_hash ?? d.IpHash ?? null,
+    resource: d.resource ?? d.Resource ?? null,
+    success:
+      typeof d.success === 'boolean'
+        ? d.success
+        : d.success === 'true' || d.Success === true,
+    error_code: d.errorCode ?? d.error_code ?? d.ErrorCode ?? null,
+  };
+}
+
 export const adminService = {
   async getAnalytics(): Promise<Analytics> {
     const res = await apiRequest<any>('/api/admin/analytics');
@@ -142,33 +186,33 @@ export const adminService = {
     return normalizeClientSettings(res?.data ?? res);
   },
 
- async updateSettings(payload: {
-  name?: string;
-  gcash_number?: string;
-  gcash_account_name?: string;
-  payment_methods?: PaymentMethod[];
-  rcbc_account_name?: string;
-  rcbc_qr_image?: string;
-  available_amenities?: AmenityItem[];
-  max_advance_booking_days?: number;
-  bookings_enabled?: boolean;        // 👈 NEW
-}): Promise<ClientSettings> {
-  const res = await apiRequest<any>('/api/admin/settings', {
-    method: 'PUT',
-    body: JSON.stringify({
-      name: payload.name,
-      gcashNumber: payload.gcash_number,
-      gcashAccountName: payload.gcash_account_name,
-      paymentMethods: payload.payment_methods,
-      rcbcAccountName: payload.rcbc_account_name,
-      rcbcQrImage: payload.rcbc_qr_image,
-      availableAmenities: payload.available_amenities,
-      maxAdvanceBookingDays: payload.max_advance_booking_days,
-      bookingsEnabled: payload.bookings_enabled,   // 👈 NEW
-    }),
-  });
-  return normalizeClientSettings(res?.data ?? res);
-},
+  async updateSettings(payload: {
+    name?: string;
+    gcash_number?: string;
+    gcash_account_name?: string;
+    payment_methods?: PaymentMethod[];
+    rcbc_account_name?: string;
+    rcbc_qr_image?: string;
+    available_amenities?: AmenityItem[];
+    max_advance_booking_days?: number;
+    bookings_enabled?: boolean;
+  }): Promise<ClientSettings> {
+    const res = await apiRequest<any>('/api/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: payload.name,
+        gcashNumber: payload.gcash_number,
+        gcashAccountName: payload.gcash_account_name,
+        paymentMethods: payload.payment_methods,
+        rcbcAccountName: payload.rcbc_account_name,
+        rcbcQrImage: payload.rcbc_qr_image,
+        availableAmenities: payload.available_amenities,
+        maxAdvanceBookingDays: payload.max_advance_booking_days,
+        bookingsEnabled: payload.bookings_enabled,
+      }),
+    });
+    return normalizeClientSettings(res?.data ?? res);
+  },
 
   async getBookings(filters?: {
     status?: BookingStatus;
@@ -216,11 +260,10 @@ export const adminService = {
     try {
       const res = await apiRequest<any>(`/api/courts/${courtId}/blocked-dates`);
       const rawList = Array.isArray(res) ? res : res?.data || [];
-      
+
       return rawList.map((item: any) => ({
         id: item.id || item.Id || '',
         court_id: courtId,
-        // 👇 Handle both 'Date' (Supabase) and 'date' (Frontend)
         date: item.date || item.Date || '',
         reason: item.reason || item.Reason || 'No reason provided',
         startTime: item.startTime || item.StartTime || null,
@@ -233,7 +276,6 @@ export const adminService = {
   },
 
   async addBlockedDate(blocked: Omit<BlockedDate, 'id'>): Promise<BlockedDate> {
-    // Send PascalCase to match ASP.NET Core DTO
     const payload = {
       Date: blocked.date,
       StartTime: blocked.startTime || null,
@@ -346,17 +388,17 @@ export const adminService = {
 
     return {
       booking: normalizeBooking(data.booking ?? data.Booking ?? data),
-     previous_slots: (data.previousSlots ?? data.previous_slots ?? []).map((s: any) => ({
-  id: s.id || '',
-  slot_id: s.slotId ?? s.slot_id ?? s.id ?? '',
-  court_id: String(s.courtId ?? s.court_id ?? data.previousCourtId ?? data.previous_court_id ?? ''),
-  start_time: s.startTime ?? s.start_time ?? '',
-  end_time: s.endTime ?? s.end_time ?? '',
-  date: s.date ?? '',
-  type: s.type ?? 'standard',
-  price: Number(s.price ?? 0),
-  is_peak: s.isPeak ?? s.is_peak ?? false,
-})),
+      previous_slots: (data.previousSlots ?? data.previous_slots ?? []).map((s: any) => ({
+        id: s.id || '',
+        slot_id: s.slotId ?? s.slot_id ?? s.id ?? '',
+        court_id: String(s.courtId ?? s.court_id ?? data.previousCourtId ?? data.previous_court_id ?? ''),
+        start_time: s.startTime ?? s.start_time ?? '',
+        end_time: s.endTime ?? s.end_time ?? '',
+        date: s.date ?? '',
+        type: s.type ?? 'standard',
+        price: Number(s.price ?? 0),
+        is_peak: s.isPeak ?? s.is_peak ?? false,
+      })),
       previous_date: data.previousDate ?? data.previous_date ?? '',
       previous_court_id: data.previousCourtId ?? data.previous_court_id ?? '',
       previous_court_name: data.previousCourtName ?? data.previous_court_name ?? '',
@@ -458,5 +500,22 @@ export const adminService = {
     await apiRequest<void>(`/api/admin/pricing-rules/${ruleId}`, {
       method: 'DELETE',
     });
+  },
+
+  async getSecurityEvents(
+    filters: SecurityEventFilters = {}
+  ): Promise<SecurityEvent[]> {
+    const params = new URLSearchParams();
+    if (filters.severity) params.set('severity', filters.severity);
+    if (filters.eventType) params.set('eventType', filters.eventType);
+    if (filters.limit != null) params.set('limit', String(filters.limit));
+
+    const qs = params.toString();
+    const res = await apiRequest<any>(
+      `/api/admin/security-events${qs ? `?${qs}` : ''}`
+    );
+
+    const rawList = Array.isArray(res) ? res : res?.data ?? res?.events ?? [];
+    return rawList.map((item: any) => normalizeSecurityEvent(item));
   },
 };
