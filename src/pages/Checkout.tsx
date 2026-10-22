@@ -26,6 +26,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useBookingStore } from '@/stores/bookingStore';
 import { useClientStore } from '@/stores/clientStore';
 import { bookingService } from '@/services/bookingService';
+import { ApiError } from '@/services/api';
 import {
   formatTimeRange,
   formatCurrency,
@@ -46,6 +47,7 @@ const ICON_MAP: Record<string, any> = {
 };
 
 const HOLD_MINUTES = Math.round(APP_CONFIG.paymentTimerSeconds / 60);
+const MIN_REFERENCE_LENGTH = 8;
 
 type CopyKey = 'account' | 'amount' | 'ref';
 
@@ -82,7 +84,6 @@ export function Checkout() {
     loadSettings();
   }, [loadSettings]);
 
-  // Restore a pending booking when the store is empty.
   useEffect(() => {
     if (currentBooking) {
       setRestoring(false);
@@ -100,7 +101,11 @@ export function Checkout() {
 
     (async () => {
       try {
-        const booking = await bookingService.trackBooking(savedRef);
+        // Backend now requires email — but here we know the booking was just
+        // created in this session, so use the booking id from the store first,
+        // and only fall back to track with the booking id from local state if
+        // the store is empty (rare: hard refresh on the checkout page).
+        const booking = await bookingService.getBooking(savedRef);
         if (cancelled) return;
 
         if (booking.status !== 'pending_payment') {
@@ -162,7 +167,6 @@ export function Checkout() {
     }
   }, [enabledMethods, selectedMethod]);
 
-  // Show a spinner while restoring instead of bouncing
   if (restoring && !currentBooking) {
     return (
       <div className="min-h-screen bg-charcoal">
@@ -192,10 +196,21 @@ export function Checkout() {
     reader.readAsDataURL(file);
   };
 
+  // 🔒 Backend rule: submit requires ref >= 8 chars OR a screenshot.
+  const referenceTrimmed = paymentRef.trim();
+  const hasLongRef = referenceTrimmed.length >= MIN_REFERENCE_LENGTH;
+  const hasEvidence = hasLongRef || !!screenshot;
+
   const handleUpload = async () => {
     if (uploading) return;
-    if (!paymentRef.trim()) {
+    if (!referenceTrimmed) {
       setUploadError('Reference number is required');
+      return;
+    }
+    if (!hasEvidence) {
+      setUploadError(
+        `Attach a screenshot or enter the full reference number (at least ${MIN_REFERENCE_LENGTH} characters).`
+      );
       return;
     }
     if (!agreedToTerms) {
@@ -209,14 +224,14 @@ export function Checkout() {
       await bookingService.uploadPayment(
         currentBooking.id,
         screenshot,
-        paymentRef.trim(),
+        referenceTrimmed,
         selectedMethod?.name
       );
       localStorage.removeItem('pendingBookingRef');
       window.dispatchEvent(new Event('pendingBookingUpdated'));
       navigate('/success');
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+      setUploadError(err instanceof ApiError ? err.userMessage : 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -238,8 +253,11 @@ export function Checkout() {
     reset();
     navigate('/');
   };
+
   const isExpired = timeLeft <= 0;
-  const canSubmit = !!paymentRef.trim() && !isExpired && agreedToTerms;
+
+  const canSubmit =
+    !!referenceTrimmed && hasEvidence && !isExpired && agreedToTerms;
 
   const displayNumber = selectedMethod?.config?.account_number || '';
   const displayAccountName = selectedMethod?.config?.account_name || '';
@@ -252,11 +270,13 @@ export function Checkout() {
 
   const submitHint = isExpired
     ? 'Time expired. Start over to book again.'
-    : !paymentRef.trim()
+    : !referenceTrimmed
       ? 'Enter your payment reference number to submit.'
-      : !agreedToTerms
-        ? 'Please agree to the Terms & Conditions to continue.'
-        : null;
+      : !hasEvidence
+        ? `Attach a screenshot or enter the full reference number (at least ${MIN_REFERENCE_LENGTH} characters).`
+        : !agreedToTerms
+          ? 'Please agree to the Terms & Conditions to continue.'
+          : null;
 
   const CopyButton = ({
     k,
@@ -300,14 +320,15 @@ export function Checkout() {
         </Link>
 
         <div className="mb-5">
-          <h1 className="text-2xl font-bold tracking-tight text-cream sm:text-3xl">Checkout</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-cream sm:text-3xl">
+            Checkout
+          </h1>
           <p className="text-xs text-cream-muted sm:text-sm">
             Step 2 of 2: send your payment, then submit the reference number to secure your slot.
           </p>
         </div>
 
         <div className="grid gap-5 md:gap-6 lg:grid-cols-5">
-          {/* Left column */}
           <div className="space-y-4 lg:col-span-3">
             {isInAppBrowser() && (
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
@@ -315,12 +336,12 @@ export function Checkout() {
                 <span>
                   You&apos;re viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. Tap{' '}
                   <strong>⋯</strong> (top right) and choose{' '}
-                  <strong>&quot;Open in Browser&quot;</strong> for easier payment and receipt upload.
+                  <strong>&quot;Open in Browser&quot;</strong> for easier payment and receipt
+                  upload.
                 </span>
               </div>
             )}
 
-            {/* Payment Timer */}
             <div
               className={`card rounded-2xl border bg-forest-900/80 p-4 shadow-xl backdrop-blur-sm ${
                 isExpired ? 'border-error/80' : 'border-forest-700/80'
@@ -359,7 +380,6 @@ export function Checkout() {
               </div>
             </div>
 
-            {/* Expired */}
             {isExpired && (
               <div className="rounded-2xl border border-error/50 bg-error/10 p-4 text-sm">
                 <p className="font-bold text-error">Your reservation hold has ended.</p>
@@ -381,17 +401,12 @@ export function Checkout() {
               </div>
             )}
 
-            {/* Payment Method Selector */}
             {hasMultipleMethods && (
               <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 shadow-xl backdrop-blur-sm">
                 <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-cream-muted">
                   Step 1 · Choose your payment method
                 </p>
-                <div
-                  className="flex flex-wrap gap-2"
-                  role="radiogroup"
-                  aria-label="Payment method"
-                >
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Payment method">
                   {enabledMethods.map((method: PaymentMethod) => {
                     const Icon = ICON_MAP[method.icon] || Smartphone;
                     const isSelected = selectedMethod?.id === method.id;
@@ -419,16 +434,15 @@ export function Checkout() {
               </div>
             )}
 
-            {/* No payment methods configured */}
             {enabledMethods.length === 0 && (
               <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-200">
-                Payment details are not available right now. Please contact us with your booking code{' '}
+                Payment details are not available right now. Please contact us with your booking
+                code{' '}
                 <span className="font-mono font-bold">{currentBooking.reference_code}</span> before
                 sending any money.
               </div>
             )}
 
-            {/* Payment Details */}
             {selectedMethod && (
               <div className="card space-y-3.5 rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 shadow-xl backdrop-blur-sm sm:p-5">
                 <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
@@ -436,7 +450,6 @@ export function Checkout() {
                   Step {1 + offset} · Send payment via {methodName}
                 </h2>
 
-                {/* Amount box */}
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 px-4 py-3">
                   <div>
                     <span className="text-xs font-medium text-cream-muted">
@@ -502,7 +515,6 @@ export function Checkout() {
                   </div>
                 )}
 
-                {/* Booking code */}
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 px-3.5 py-2.5">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -527,7 +539,6 @@ export function Checkout() {
                   </p>
                 </div>
 
-                {/* How to pay */}
                 <details className="group rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5 text-xs text-cream-muted">
                   <summary className="flex cursor-pointer list-none items-center justify-between text-[13px] font-semibold text-cream">
                     <span>How to pay</span>
@@ -555,8 +566,8 @@ export function Checkout() {
                       .
                     </li>
                     <li>
-                      Send the <strong className="text-cream">exact amount</strong>. Partial payments
-                      won&apos;t be accepted.
+                      Send the <strong className="text-cream">exact amount</strong>. Partial
+                      payments won&apos;t be accepted.
                     </li>
                     <li>
                       Copy the <strong className="text-cream">reference number</strong> from your
@@ -587,7 +598,6 @@ export function Checkout() {
               </div>
             )}
 
-            {/* Reference Number Input */}
             <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 shadow-xl backdrop-blur-sm sm:p-5">
               <label
                 htmlFor="paymentRef"
@@ -609,6 +619,7 @@ export function Checkout() {
               />
               <p className="mt-1.5 text-xs text-cream-muted">
                 Find it on the receipt your payment app or bank shows after you send the money.
+                Must be at least {MIN_REFERENCE_LENGTH} characters, or attach a screenshot below.
               </p>
 
               {uploadError && uploadError.includes('Reference number') && (
@@ -619,7 +630,6 @@ export function Checkout() {
               )}
             </div>
 
-            {/* Screenshot Upload */}
             <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 shadow-xl backdrop-blur-sm sm:p-5">
               <h2 className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
                 <Upload className="h-3.5 w-3.5" />
@@ -697,7 +707,6 @@ export function Checkout() {
                 </div>
               )}
 
-              {/* Terms agreement checkbox */}
               <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-forest-700/80 bg-forest-950/70 p-3.5">
                 <input
                   type="checkbox"
@@ -768,7 +777,6 @@ export function Checkout() {
             </div>
           </div>
 
-          {/* Right sidebar */}
           <div className="lg:col-span-2">
             <div className="card sticky top-24 rounded-2xl border border-forest-700/80 bg-forest-900/90 p-4 shadow-xl sm:p-5">
               <button
@@ -846,7 +854,6 @@ export function Checkout() {
                   <p className="text-[11px] text-cream-muted">{currentBooking.customer.email}</p>
                 </div>
 
-                {/* Legal links quick access */}
                 <div className="rounded-xl border border-forest-800 bg-forest-950/40 p-3 text-xs">
                   <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-cream-muted">
                     Policies
@@ -923,7 +930,6 @@ export function Checkout() {
         </div>
       </div>
 
-      {/* Sticky mobile bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-500 bg-charcoal/95 p-3.5 backdrop-blur-md sm:hidden">
         {uploadError && (
           <p className="mb-2 rounded-lg border border-error/30 bg-error/10 p-2 text-xs font-medium text-error">

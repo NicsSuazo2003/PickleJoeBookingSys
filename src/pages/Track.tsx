@@ -35,21 +35,19 @@ import { APP_CONFIG } from '@/utils/constants';
 import { isInAppBrowser, getInAppBrowserName } from '@/utils/browser';
 import type { Booking, BookingSummary } from '@/types';
 
-// 👇 NEW: friendly error messages for the Track flow
 function trackErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 404) {
-      return 'No booking found. Double-check your reference code and email, or search by email alone to see bookings that still need payment.';
+      return 'No booking found with that reference code and email. Double-check both and try again.';
     }
     if (err.status === 401) {
       return 'That email does not match the one on file for this booking. Please use the email you booked with.';
     }
-    if (err.status === 409) {
-      return err.userMessage;
+    if (err.status === 429) {
+      return 'Too many attempts. Please wait 10 minutes and try again.';
     }
-    if (err.status === 0) {
-      return err.userMessage; // timeout
-    }
+    if (err.status === 409) return err.userMessage;
+    if (err.status === 0) return err.userMessage;
     return err.userMessage || 'Something went wrong. Please try again.';
   }
   return err instanceof Error ? err.message : 'Search failed. Please try again.';
@@ -60,10 +58,12 @@ export function Track() {
   const loadSettings = useClientStore((state) => state.loadSettings);
   const courts = useAdminStore((state) => state.courts);
   const loadCourts = useAdminStore((state) => state.loadCourts);
-  
+
   const displayNumber = settings?.gcash_number || APP_CONFIG.paymentNumber;
 
-  const [reference, setReference] = useState(() => localStorage.getItem('pendingBookingRef') || '');
+  const [reference, setReference] = useState(
+    () => localStorage.getItem('pendingBookingRef') || ''
+  );
   const [email, setEmail] = useState('');
   const [booking, setBooking] = useState<Booking | null>(null);
   const [summaries, setSummaries] = useState<BookingSummary[]>([]);
@@ -74,22 +74,29 @@ export function Track() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  // Load settings and courts on mount
   useEffect(() => {
     loadSettings();
-    if (courts.length === 0) {
-      loadCourts();
-    }
+    if (courts.length === 0) loadCourts();
   }, [loadSettings, loadCourts, courts.length]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const ref = reference.trim();
     const mail = email.trim();
+
     if (!ref && !mail) {
-      setError('Enter a reference code or your email to search.');
+      setError('Enter a reference code and email, or just your email.');
       return;
     }
+
+    // 🔒 Backend now requires email for reference-code lookups.
+    if (ref && !mail) {
+      setError(
+        'Please enter the email address you used when booking to look up this reference code.'
+      );
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setBooking(null);
@@ -98,18 +105,19 @@ export function Track() {
 
     try {
       if (ref) {
-        const result = await bookingService.trackBooking(ref, mail || undefined);
+        const result = await bookingService.trackBooking(ref, mail);
         setBooking(result);
       } else {
         const list = await bookingService.trackBookingSummariesByEmail(mail);
         if (list.length === 0) {
-          setError('No pending payments found for this email. If your booking is already confirmed, look it up with your reference code.');
+          setError(
+            'No pending payments found for this email. If your booking is already confirmed, look it up with your reference code and email.'
+          );
         } else {
           setSummaries(list);
         }
       }
     } catch (err) {
-      // 👇 CHANGED: use friendly error mapper
       setError(trackErrorMessage(err));
     } finally {
       setLoading(false);
@@ -120,11 +128,13 @@ export function Track() {
     setLoading(true);
     setError(null);
     try {
-      const detail = await bookingService.trackBooking(summary.reference_code, email.trim());
+      const detail = await bookingService.trackBooking(
+        summary.reference_code,
+        email.trim()
+      );
       setBooking(detail);
       setSummaries([]);
     } catch (err) {
-      // 👇 CHANGED: use friendly error mapper
       setError(trackErrorMessage(err));
     } finally {
       setLoading(false);
@@ -133,6 +143,10 @@ export function Track() {
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be under 5MB.');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => setScreenshot(reader.result as string);
     reader.readAsDataURL(file);
@@ -142,38 +156,41 @@ export function Track() {
     if (!booking || !screenshot || !paymentRef.trim()) return;
     setUploading(true);
     try {
-      const updated = await bookingService.uploadPayment(booking.id, screenshot, paymentRef.trim());
+      const updated = await bookingService.uploadPayment(
+        booking.id,
+        screenshot,
+        paymentRef.trim()
+      );
       setBooking(updated);
       setUploadSuccess(true);
       setScreenshot(null);
       setPaymentRef('');
       localStorage.removeItem('pendingBookingRef');
-    } catch {
-      setError('Failed to upload payment. Please try again.');
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.userMessage : 'Failed to upload payment. Please try again.'
+      );
     } finally {
       setUploading(false);
     }
   };
 
-  // ✅ Helper to get all court names for the booking
   const getCourtNames = (b: Booking | null) => {
     if (!b || !b.slots) return b?.court_name || '';
-    const ids = Array.from(new Set(b.slots.map(s => s.court_id).filter(Boolean)));
+    const ids = Array.from(new Set(b.slots.map((s) => s.court_id).filter(Boolean)));
     if (ids.length === 0) return b.court_name;
-    const names = ids.map(id => courts.find(c => c.id === id)?.name).filter(Boolean);
+    const names = ids
+      .map((id) => courts.find((c) => c.id === id)?.name)
+      .filter(Boolean);
     return names.length > 0 ? names.join(', ') : b.court_name;
   };
 
-  const canUploadPayment = booking && (booking.status === 'pending_payment' || booking.status === 'payment_submitted');
-  const formatSlotTime = (slot: { startTime?: string; endTime?: string; start_time?: string; end_time?: string }): string => {
-    const start = slot.startTime || slot.start_time || '';
-    const end = slot.endTime || slot.end_time || '';
-    return formatTimeRange(start, end);
-  };
+  const canUploadPayment =
+    booking &&
+    (booking.status === 'pending_payment' || booking.status === 'payment_submitted');
   const hasPaymentScreenshot = booking?.payment_screenshot_url;
   const canSearch = reference.trim().length > 0 || email.trim().length > 0;
 
-  // 👇 Group slots by court, with a fallback to Court 1, 2, 3 if IDs are missing
   const groupedSlots = useMemo(() => {
     if (!booking || !booking.slots) return [];
     const map = new Map<string, { start_time: string; end_time: string }[]>();
@@ -182,12 +199,11 @@ export function Track() {
       if (!map.has(cid)) map.set(cid, []);
       map.get(cid)!.push({ start_time: s.start_time, end_time: s.end_time });
     });
-    
+
     let unknownIndex = 1;
     return Array.from(map.entries()).map(([cid, times]) => {
       let courtName = courts.find((c) => c.id === cid)?.name;
-      
-      // Fallback if the court isn't found (e.g. Track page didn't load courts or backend missing ID)
+
       if (!courtName) {
         if (cid === 'unknown') {
           courtName = `Court ${unknownIndex++}`;
@@ -212,7 +228,9 @@ export function Track() {
           <div className="mx-auto mb-4 flex max-w-3xl items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
             <span>
-              You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. If uploading a screenshot doesn't work, tap <strong>⋯</strong> and choose <strong>"Open in Browser."</strong>
+              You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. If uploading
+              a screenshot doesn't work, tap <strong>⋯</strong> and choose{' '}
+              <strong>"Open in Browser."</strong>
             </span>
           </div>
         )}
@@ -223,19 +241,23 @@ export function Track() {
               Track Your Booking
             </h1>
             <p className="mt-1.5 text-xs text-cream-muted sm:mt-2 sm:text-sm">
-              Search by reference code for one booking, or by email to see bookings pending payment.
+              Look up a booking with your reference code and the email you used, or search by
+              email to see bookings pending payment.
             </p>
           </div>
 
-          <form onSubmit={handleSearch} className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+          <form
+            onSubmit={handleSearch}
+            className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm"
+          >
             <div className="grid gap-3.5 sm:grid-cols-2 sm:gap-4">
               <Input
                 label="Reference Code"
-                placeholder="e.g. PJAB12CD"
+                placeholder="e.g. BK-K7NPQ4RT2X"
                 leftIcon={<Search className="h-4 w-4 text-cream-muted" />}
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
-                hint="Optional if you provide email"
+                hint="We'll also ask for the email you booked with"
               />
               <Input
                 label="Email"
@@ -244,14 +266,24 @@ export function Track() {
                 leftIcon={<Mail className="h-4 w-4 text-cream-muted" />}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                hint="Shows only bookings that need payment action"
+                hint="Same email you used when booking"
               />
             </div>
-            <Button type="submit" size="lg" fullWidth className="mt-4 sm:w-auto" isLoading={loading} disabled={!canSearch} leftIcon={<Search className="h-5 w-5" />}>
+            <Button
+              type="submit"
+              size="lg"
+              fullWidth
+              className="mt-4 sm:w-auto"
+              isLoading={loading}
+              disabled={!canSearch}
+              leftIcon={<Search className="h-5 w-5" />}
+            >
               Search Booking
             </Button>
             {!canSearch && (
-              <p className="mt-2 text-[11px] text-cream-muted">Enter a reference code or email to enable search.</p>
+              <p className="mt-2 text-[11px] text-cream-muted">
+                Enter a reference code or email to enable search.
+              </p>
             )}
           </form>
 
@@ -268,16 +300,33 @@ export function Track() {
             <div className="mt-6 space-y-3 sm:mt-8">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <h2 className="text-sm font-bold text-cream sm:text-base">Bookings Needing Payment Action ({summaries.length})</h2>
-                  <p className="text-[11px] text-cream-muted">Confirmed or completed bookings won't appear here. Use your reference code to see them.</p>
+                  <h2 className="text-sm font-bold text-cream sm:text-base">
+                    Bookings Needing Payment Action ({summaries.length})
+                  </h2>
+                  <p className="text-[11px] text-cream-muted">
+                    Confirmed or completed bookings won't appear here. Use your reference code to
+                    see them.
+                  </p>
                 </div>
-                <button onClick={() => { setSummaries([]); setEmail(''); }} className="shrink-0 text-[11px] text-cream-muted underline hover:text-error">
+                <button
+                  onClick={() => {
+                    setSummaries([]);
+                    setEmail('');
+                  }}
+                  className="shrink-0 text-[11px] text-cream-muted underline hover:text-error"
+                >
                   Clear
                 </button>
               </div>
 
               {summaries.map((s) => (
-                <motion.button key={s.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} onClick={() => handleSummaryClick(s)} className="w-full cursor-pointer rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 text-left shadow-xl backdrop-blur-sm transition hover:border-brand-blue-400/60">
+                <motion.button
+                  key={s.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={() => handleSummaryClick(s)}
+                  className="w-full cursor-pointer rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 text-left shadow-xl backdrop-blur-sm transition hover:border-brand-blue-400/60"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-mono text-sm font-extrabold tracking-wider text-brand-blue-300">
@@ -285,12 +334,16 @@ export function Track() {
                       </p>
                       <p className="mt-0.5 text-xs text-cream-muted">
                         {s.court_name} · {formatDateLong(s.date)}
-                        {s.start_time && s.end_time && (<> · {formatTimeRange(s.start_time, s.end_time)}</>)}
+                        {s.start_time && s.end_time && (
+                          <> · {formatTimeRange(s.start_time, s.end_time)}</>
+                        )}
                       </p>
                     </div>
                     <StatusBadge status={s.status} />
                   </div>
-                  <p className="mt-2 text-[11px] text-cream-muted">Booked {formatDateTime(s.created_at)} · {formatCurrency(s.total_amount)}</p>
+                  <p className="mt-2 text-[11px] text-cream-muted">
+                    Booked {formatDateTime(s.created_at)} · {formatCurrency(s.total_amount)}
+                  </p>
                 </motion.button>
               ))}
             </div>
@@ -298,12 +351,21 @@ export function Track() {
 
           <AnimatePresence>
             {booking && !loading && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-6 space-y-4 sm:mt-8 sm:space-y-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="mt-6 space-y-4 sm:mt-8 sm:space-y-6"
+              >
                 <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
                   <div className="flex flex-col gap-3 border-b border-forest-700/80 pb-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Reference Code</p>
-                      <p className="font-mono text-xl font-extrabold tracking-wider text-brand-blue-300 sm:text-2xl">{booking.reference_code}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                        Reference Code
+                      </p>
+                      <p className="font-mono text-xl font-extrabold tracking-wider text-brand-blue-300 sm:text-2xl">
+                        {booking.reference_code}
+                      </p>
                     </div>
                     <StatusBadge status={booking.status} size="md" />
                   </div>
@@ -314,8 +376,12 @@ export function Track() {
                         <MapPin className="h-4 w-4" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Court</p>
-                        <p className="text-sm font-bold text-cream sm:text-base">{getCourtNames(booking)}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                          Court
+                        </p>
+                        <p className="text-sm font-bold text-cream sm:text-base">
+                          {getCourtNames(booking)}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -323,21 +389,33 @@ export function Track() {
                         <Calendar className="h-4 w-4" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Date</p>
-                        <p className="text-sm font-bold text-cream sm:text-base">{formatDateLong(booking.date)}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
+                          Date
+                        </p>
+                        <p className="text-sm font-bold text-cream sm:text-base">
+                          {formatDateLong(booking.date)}
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-4">
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">Time Slots</p>
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">
+                      Time Slots
+                    </p>
                     <div className="space-y-3">
                       {groupedSlots.map((group, idx) => (
-                        <div key={idx} className="rounded-xl border border-forest-700/60 bg-forest-800/80 p-3">
+                        <div
+                          key={idx}
+                          className="rounded-xl border border-forest-700/60 bg-forest-800/80 p-3"
+                        >
                           <p className="mb-1.5 text-xs font-bold text-cream">{group.courtName}</p>
                           <div className="space-y-1">
                             {group.times.map((t, i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs text-cream-muted">
+                              <div
+                                key={i}
+                                className="flex items-center gap-2 text-xs text-cream-muted"
+                              >
                                 <Clock className="h-3.5 w-3.5 text-brand-blue-300" />
                                 <span>{formatTimeRange(t.start_time, t.end_time)}</span>
                               </div>
@@ -350,22 +428,30 @@ export function Track() {
 
                   <div className="mt-4 flex items-center justify-between border-t border-forest-700/80 pt-4">
                     <span className="text-xs text-cream-muted sm:text-sm">Total Amount</span>
-                    <span className="font-display text-2xl font-extrabold text-brand-blue-300">{formatCurrency(booking.total_amount)}</span>
+                    <span className="font-display text-2xl font-extrabold text-brand-blue-300">
+                      {formatCurrency(booking.total_amount)}
+                    </span>
                   </div>
                 </div>
 
                 <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
-                  <h3 className="mb-3.5 font-display text-base font-bold text-cream">Customer Details</h3>
+                  <h3 className="mb-3.5 font-display text-base font-bold text-cream">
+                    Customer Details
+                  </h3>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <User className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Name:</span>
-                      <span className="truncate font-medium text-cream">{booking.customer.name}</span>
+                      <span className="truncate font-medium text-cream">
+                        {booking.customer.name}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <Mail className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Email:</span>
-                      <span className="truncate font-medium text-cream">{booking.customer.email}</span>
+                      <span className="truncate font-medium text-cream">
+                        {booking.customer.email}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <Phone className="h-4 w-4 shrink-0 text-brand-blue-300" />
@@ -375,7 +461,9 @@ export function Track() {
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <Calendar className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Booked:</span>
-                      <span className="font-medium text-cream">{formatDateTime(booking.created_at)}</span>
+                      <span className="font-medium text-cream">
+                        {formatDateTime(booking.created_at)}
+                      </span>
                     </div>
                   </div>
                   {booking.customer.notes && (
@@ -386,7 +474,6 @@ export function Track() {
                   )}
                 </div>
 
-                {/* Payment Upload Section */}
                 {canUploadPayment && !hasPaymentScreenshot && (
                   <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
                     <h3 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-cream">
@@ -478,7 +565,6 @@ export function Track() {
                   </div>
                 )}
 
-                {/* Payment Screenshot Display */}
                 {hasPaymentScreenshot && (
                   <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
                     <h3 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-cream">
@@ -506,7 +592,6 @@ export function Track() {
                   </div>
                 )}
 
-                {/* Status Callouts */}
                 {booking.status === 'confirmed' && (
                   <div className="rounded-xl border border-accentGreen-500/40 bg-accentGreen-500/10 p-4 text-center text-xs font-semibold text-accentGreen-300 sm:text-sm">
                     Your booking is confirmed! See you on the court.

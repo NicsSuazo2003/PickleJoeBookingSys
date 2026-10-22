@@ -136,10 +136,21 @@ export interface Analytics {
   court_breakdown: { court_id: string; court_name: string; bookings: number; revenue: number }[];
 }
 
+// ─── Payment methods ───
+// The backend's PaymentMethodDto does NOT persist `type` (it's inferred from
+// `name`) and does NOT reliably round-trip `sort_order`. Keep both optional so
+// the TypeScript type matches the real data contract returned by the API.
+export type PaymentType =
+  | 'gcash'
+  | 'qr_ph'
+  | 'bank_transfer'
+  | 'e_wallet'
+  | 'other';
+
 export interface PaymentMethod {
   id: string;
   name: string;
-  type: 'gcash' | 'qr_ph' | 'bank_transfer' | 'e_wallet' | 'other';
+  type?: PaymentType;
   icon: string;
   enabled: boolean;
   config: {
@@ -148,7 +159,7 @@ export interface PaymentMethod {
     qr_image_url?: string;
     instructions?: string;
   };
-  sort_order: number;
+  sort_order?: number;
 }
 
 export interface AdminUser {
@@ -182,7 +193,7 @@ export interface ClientSettings {
   payment_methods?: PaymentMethod[];
   available_amenities?: AmenityItem[];
   max_advance_booking_days: number;
-  bookings_enabled: boolean;  
+  bookings_enabled: boolean;
 }
 
 export type AdminView = 'calendar' | 'list';

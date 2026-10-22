@@ -1,3 +1,4 @@
+// src/pages/Login.tsx
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -6,7 +7,8 @@ import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuthStore } from '@/stores/authStore';
-import { ADMIN_CREDENTIALS, COURT_IMAGES } from '@/utils/constants';
+import { ApiError } from '@/services/api';
+import { COURT_IMAGES } from '@/utils/constants';
 
 export function Login() {
   const navigate = useNavigate();
@@ -16,10 +18,10 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/admin';
+  const from =
+    (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/admin';
 
   useEffect(() => {
-    // wait for init() to resolve before deciding whether to redirect
     if (!initializing && isAuthenticated) {
       navigate(from, { replace: true });
     }
@@ -35,14 +37,25 @@ export function Login() {
     try {
       await login(email, password);
       navigate(from, { replace: true });
-    } catch {
-      setFormError('Invalid email or password');
+    } catch (err) {
+      // Show the actual backend message so lockout / rate-limit / suspended
+      // reasons are visible, not a generic "invalid credentials".
+      if (err instanceof ApiError) {
+        if (err.status === 429) {
+          setFormError('Too many attempts. Please wait 15 minutes and try again.');
+        } else if (err.status === 401) {
+          setFormError(err.userMessage);
+        } else {
+          setFormError(err.userMessage || 'Login failed. Please try again.');
+        }
+      } else {
+        setFormError(
+          err instanceof Error && err.message
+            ? err.message
+            : 'Invalid email or password'
+        );
+      }
     }
-  };
-
-  const fillDemo = () => {
-    setEmail(ADMIN_CREDENTIALS.email);
-    setPassword(ADMIN_CREDENTIALS.password);
   };
 
   return (
@@ -72,19 +85,22 @@ export function Login() {
           className="card p-8"
         >
           <div className="mb-6 text-center">
-            {/* Just the image logo, bigger, no text */}
             <div className="flex justify-center">
               <Logo size="2xl" to="" withText={false} />
             </div>
-            <h1 className="mt-3 font-display text-lg font-bold text-cream">Admin Portal</h1>
-            <p className="mt-1 text-xs text-cream-muted">Sign in to manage bookings</p>
+            <h1 className="mt-3 font-display text-lg font-bold text-cream">
+              Admin Portal
+            </h1>
+            <p className="mt-1 text-xs text-cream-muted">
+              Sign in to manage bookings
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Email"
               type="email"
-              placeholder="admin@picklejoe.com"
+              placeholder="you@example.com"
               leftIcon={<Mail className="h-4 w-4" />}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -101,9 +117,9 @@ export function Login() {
             />
 
             {(formError || error) && (
-              <div className="flex items-center gap-2 rounded-lg bg-error/10 p-3 text-sm text-error">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                {formError ?? error}
+              <div className="flex items-start gap-2 rounded-lg bg-error/10 p-3 text-sm text-error">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>{formError ?? error}</span>
               </div>
             )}
 
@@ -117,7 +133,6 @@ export function Login() {
               Sign In
             </Button>
           </form>
-
         </motion.div>
       </div>
     </div>

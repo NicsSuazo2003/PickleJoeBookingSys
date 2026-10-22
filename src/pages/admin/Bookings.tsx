@@ -220,6 +220,9 @@ const ACTIONS: Partial<Record<BookingStatus, ActionDef[]>> = {
 
 const TERMINAL_STATUSES: BookingStatus[] = ['cancelled', 'rejected', 'expired', 'refunded'];
 
+// 🔒 Staff can only set these statuses — backend returns 403 for anything else.
+const STAFF_ALLOWED_STATUSES: BookingStatus[] = ['confirmed', 'cancelled'];
+
 type BookingExtras = {
   payment_deadline?: string | null;
   expires_at?: string | null;
@@ -233,11 +236,7 @@ type BookingExtras = {
 /* ────────────────────────────────────────────────────────────────────────── */
 
 const toDay = (d: string | undefined | null) => (d ? d.slice(0, 10) : '');
-
-/** Normalizes IDs so "ABC-123" and "abc-123 " compare equal. */
 const normId = (id: unknown): string => (id == null ? '' : String(id).trim().toLowerCase());
-
-/** Trims "19:00:00" → "19:00" so duplicate detection ignores seconds. */
 const trimTime = (t: string | undefined | null): string => (t ? t.slice(0, 5) : '');
 
 function localDayString(offsetDays = 0) {
@@ -265,20 +264,6 @@ type SlotLike = {
   start_time: string;
   end_time: string;
 };
-
-/**
- * Groups slots by court_id, de-duplicates identical time ranges within each
- * court, sorts times chronologically, and formats a readable summary.
- *
- * Example: "Court 1: 7:00 PM - 8:00 PM | Court 2: 7:00 PM - 8:00 PM"
- *
- * - Safe with null/undefined/empty slots and malformed entries.
- * - Court ids are compared case-insensitively.
- * - If a court can't be resolved (e.g. courts list not loaded yet), it falls
- *   back to `fallbackCourtName` when there's a single group, otherwise
- *   "Unknown court". It re-renders with real names once courts load.
- */
-// Inside src/pages/admin/Bookings.tsx
 
 function slotsSummary(
   slots: SlotLike[] | null | undefined,
@@ -310,11 +295,10 @@ function slotsSummary(
   if (byCourt.size === 0) return 'No slots';
 
   const mergeRanges = (times: Map<string, { start: string; end: string }>) => {
-    // 👇 FIX: Sort the times array by start time FIRST
     const sorted = Array.from(times.values()).sort((a, b) =>
       trimTime(a.start).localeCompare(trimTime(b.start))
     );
-    
+
     const merged: { start: string; end: string }[] = [];
     for (const t of sorted) {
       const last = merged[merged.length - 1];
@@ -327,8 +311,6 @@ function slotsSummary(
     return merged;
   };
 
-  
-  // 3) group courts that ended up with identical times
   const bySignature = new Map<string, { labels: string[]; text: string }>();
 
   byCourt.forEach((times, courtKey) => {
@@ -347,7 +329,6 @@ function slotsSummary(
 
   const groups = Array.from(bySignature.values());
 
-  // Every court has the same times → just show the times once
   if (groups.length === 1) {
     return byCourt.size > 1 ? `${groups[0].text} (each court)` : groups[0].text;
   }
@@ -393,7 +374,6 @@ export function Bookings() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<BookingStatus | null>(null);
 
-  // ✅ Reschedule flow
   const [rescheduleTarget, setRescheduleTarget] = useState<Booking | null>(null);
   const [pendingAdjustments, setPendingAdjustments] = useState<
     Record<string, { balance_due: number; refund_due: number }>
@@ -411,8 +391,6 @@ export function Bookings() {
 
   const defaultTabApplied = useRef(false);
 
-  /* ── Data loading ─────────────────────────────────────────────────────── */
-
   const fetchBookings = useCallback(async () => {
     setLoadError(null);
     try {
@@ -427,18 +405,20 @@ export function Bookings() {
     if (isAdmin || isStaff) loadCourts();
   }, [fetchBookings, loadCourts, isAdmin, isStaff]);
 
-  /* ── Toast auto-dismiss ───────────────────────────────────────────────── */
-
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(t);
   }, [toast]);
 
-  /* ── Counts for tabs ──────────────────────────────────────────────────── */
-
   const tabCounts = useMemo(() => {
-    const counts: Record<TabKey, number> = { review: 0, unpaid: 0, confirmed: 0, history: 0, all: 0 };
+    const counts: Record<TabKey, number> = {
+      review: 0,
+      unpaid: 0,
+      confirmed: 0,
+      history: 0,
+      all: 0,
+    };
     for (const b of bookings) {
       counts.all += 1;
       for (const t of TABS) {
@@ -454,8 +434,6 @@ export function Bookings() {
     if (tabCounts.review > 0) setTab('review');
   }, [loadingBookings, bookings.length, tabCounts.review]);
 
-  /* ── Court lookup (rebuilds whenever the courts array changes) ────────── */
-
   const courtNameById = useMemo(() => {
     const map = new Map<string, string>();
     (courts ?? []).forEach((c) => {
@@ -464,14 +442,6 @@ export function Bookings() {
     return map;
   }, [courts]);
 
-  /**
-   * Looks at every court_id in the booking's slots, matches them against the
-   * courts from the store, and returns e.g. "Court 1, Court 2, Court 3".
-   *
-   * Because it's memoized on `courtNameById`, anything that depends on it
-   * (the filtered list, the table rows) recalculates as soon as courts load.
-   * Until then it falls back to the booking's own court_name.
-   */
   const getCourtNamesForBooking = useCallback(
     (booking: Booking): string => {
       const ids = Array.from(
@@ -489,8 +459,6 @@ export function Bookings() {
     [courtNameById]
   );
 
-  /* ── Filtering / sorting / paging ─────────────────────────────────────── */
-
   const filtered = useMemo(() => {
     const activeTab = TABS.find((t) => t.key === tab);
     const today = localDayString(0);
@@ -501,7 +469,6 @@ export function Bookings() {
     const list = bookings.filter((b) => {
       if (activeTab?.statuses && !activeTab.statuses.includes(b.status)) return false;
 
-      // Match the court filter against the booking's main court AND every slot's court
       if (courtFilter !== 'all') {
         const matchesMain = normId(b.court_id) === courtFilterId;
         const matchesSlot = (b.slots ?? []).some((s) => normId(s.court_id) === courtFilterId);
@@ -551,8 +518,6 @@ export function Bookings() {
     setTab('all');
   };
 
-  /* ── Actions ──────────────────────────────────────────────────────────── */
-
   const handleStatusUpdate = async (booking: Booking, status: BookingStatus, why?: string) => {
     setUpdatingStatus(status);
     try {
@@ -586,6 +551,14 @@ export function Bookings() {
   };
 
   const runAction = (booking: Booking, action: ActionDef) => {
+    // 🔒 Client-side guard: staff can only set confirmed/cancelled.
+    if (isStaff && !STAFF_ALLOWED_STATUSES.includes(action.to)) {
+      setToast({
+        type: 'error',
+        message: 'Only an admin can perform this action.',
+      });
+      return;
+    }
     if (action.confirm) {
       setReason('');
       setPendingAction({ booking, action });
@@ -609,7 +582,10 @@ export function Bookings() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      setToast({ type: 'error', message: 'Could not copy. Select the number and copy it manually.' });
+      setToast({
+        type: 'error',
+        message: 'Could not copy. Select the number and copy it manually.',
+      });
     }
   };
 
@@ -642,15 +618,22 @@ export function Bookings() {
     await fetchBookings();
   };
 
-  /* ── Derived for modal ────────────────────────────────────────────────── */
-
   const todayStr = localDayString(0);
-  const modalActions = selectedBooking
-    ? (ACTIONS[selectedBooking.status] ?? []).filter((a) => !(a.adminOnly && !isAdmin))
+
+  // 🔒 Filter actions by role. Staff sees only confirmed/cancelled.
+  const allActionsForStatus = selectedBooking
+    ? ACTIONS[selectedBooking.status] ?? []
     : [];
-  const hiddenAdminOnly = selectedBooking
-    ? (ACTIONS[selectedBooking.status] ?? []).some((a) => a.adminOnly && !isAdmin)
-    : false;
+
+  const modalActions = allActionsForStatus
+    .filter((a) => !(a.adminOnly && !isAdmin))
+    .filter((a) => !(isStaff && !STAFF_ALLOWED_STATUSES.includes(a.to)));
+
+  const hiddenAdminOnly = allActionsForStatus.some((a) => a.adminOnly && !isAdmin);
+  const hiddenByRole =
+    isStaff &&
+    allActionsForStatus.some((a) => !STAFF_ALLOWED_STATUSES.includes(a.to));
+
   const extra = selectedBooking as (Booking & BookingExtras) | null;
   const deadline = extra?.payment_deadline ?? extra?.expires_at ?? null;
 
@@ -661,7 +644,9 @@ export function Bookings() {
       type="button"
       onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
       className="inline-flex items-center gap-1 font-semibold uppercase tracking-wider hover:text-cream"
-      aria-label={`Sort by date, currently ${sortDir === 'asc' ? 'oldest first' : 'newest first'}`}
+      aria-label={`Sort by date, currently ${
+        sortDir === 'asc' ? 'oldest first' : 'newest first'
+      }`}
     >
       Date
       <ArrowUpDown className="h-3 w-3" />
@@ -671,7 +656,6 @@ export function Bookings() {
   return (
     <Layout>
       <div className="container-page py-6 sm:py-8 text-cream">
-        {/* Header */}
         <div className="mb-6 sm:mb-8 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight text-cream sm:text-3xl">
@@ -690,7 +674,6 @@ export function Bookings() {
           </Button>
         </div>
 
-        {/* Status tabs with counts */}
         <div
           role="tablist"
           aria-label="Booking status"
@@ -724,7 +707,6 @@ export function Bookings() {
           })}
         </div>
 
-        {/* Filter controls */}
         <div className="mb-6 card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 sm:p-5 shadow-xl backdrop-blur-sm">
           <div className={`grid gap-3 ${isAdmin ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
             <Input
@@ -782,7 +764,6 @@ export function Bookings() {
           </div>
         </div>
 
-        {/* Content */}
         {loadingBookings ? (
           <LoadingSpinner className="py-16" />
         ) : loadError ? (
@@ -813,7 +794,9 @@ export function Bookings() {
               </>
             ) : (
               <>
-                <p className="text-sm font-semibold text-cream">No bookings match these filters</p>
+                <p className="text-sm font-semibold text-cream">
+                  No bookings match these filters
+                </p>
                 <p className="mt-1 text-sm text-cream-muted">
                   Try a different search or clear the filters.
                 </p>
@@ -825,7 +808,6 @@ export function Bookings() {
           </div>
         ) : (
           <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 overflow-hidden shadow-xl">
-            {/* Desktop table view */}
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-sm">
                 <thead>
@@ -932,7 +914,6 @@ export function Bookings() {
               </table>
             </div>
 
-            {/* Mobile list view */}
             <div className="space-y-3 p-4 md:hidden">
               <button
                 type="button"
@@ -980,7 +961,9 @@ export function Bookings() {
                     )}
 
                     <div>
-                      <p className="text-sm font-bold text-cream">{b.customer?.name || 'Unknown'}</p>
+                      <p className="text-sm font-bold text-cream">
+                        {b.customer?.name || 'Unknown'}
+                      </p>
                       {b.customer?.email && (
                         <p className="text-xs text-cream-muted">{b.customer.email}</p>
                       )}
@@ -1001,7 +984,8 @@ export function Bookings() {
                     </div>
                     {b.payment_reference && (
                       <p className="text-xs text-cream-muted">
-                        Pay ref: <span className="font-mono text-cream">{b.payment_reference}</span>
+                        Pay ref:{' '}
+                        <span className="font-mono text-cream">{b.payment_reference}</span>
                       </p>
                     )}
                     <div className="flex items-center justify-between border-t border-forest-800 pt-3">
@@ -1021,7 +1005,6 @@ export function Bookings() {
               })}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-forest-800 px-4 py-3 text-xs text-cream-muted">
                 <span>
@@ -1053,8 +1036,6 @@ export function Bookings() {
         )}
       </div>
 
-      
-      {/* ─────────────────────── Booking Details Modal ─────────────────────── */}
       <AnimatePresence>
         {selectedBooking && (
           <Modal
@@ -1063,10 +1044,7 @@ export function Bookings() {
             title={`Booking ${selectedBooking.reference_code || 'N/A'}`}
             size="lg"
           >
-            {/* 👇 FIX: Use flex-col to separate scrollable content from the fixed footer */}
             <div className="flex max-h-[80vh] flex-col">
-              
-              {/* 👇 SCROLLABLE CONTENT AREA */}
               <div className="flex-1 overflow-y-auto pr-1 pb-4 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-forest-700/80 pb-3">
                   <StatusBadge status={selectedBooking.status} />
@@ -1077,7 +1055,8 @@ export function Bookings() {
 
                 {extra?.status_updated_at && (
                   <p className="rounded-lg border border-forest-800 bg-forest-900/60 px-3 py-2 text-xs text-cream-muted">
-                    Last changed {extra.status_updated_by ? `by ${extra.status_updated_by} ` : ''}
+                    Last changed{' '}
+                    {extra.status_updated_by ? `by ${extra.status_updated_by} ` : ''}
                     on {formatDateTime(extra.status_updated_at)}
                     {extra.status_reason ? ` — "{extra.status_reason}"` : ''}
                   </p>
@@ -1127,14 +1106,15 @@ export function Bookings() {
                     <p className="mt-1 text-sm font-bold text-cream">
                       {getCourtNamesForBooking(selectedBooking)}
                     </p>
-                    <p className="text-xs text-cream-muted">{formatDateLong(selectedBooking.date)}</p>
+                    <p className="text-xs text-cream-muted">
+                      {formatDateLong(selectedBooking.date)}
+                    </p>
                     <p className="mt-1.5 text-xs text-cream-muted">
                       {slotsSummary(selectedBooking.slots, courts)}
                     </p>
                   </div>
                 </div>
 
-                {/* Total Summary */}
                 <div className="flex items-center justify-between rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/15 p-4">
                   <span className="text-xs font-semibold uppercase tracking-wider text-cream-muted">
                     {selectedBooking.status === 'payment_submitted'
@@ -1146,13 +1126,13 @@ export function Bookings() {
                   </span>
                 </div>
 
-                {/* Payment Details */}
                 <div className="rounded-xl border border-forest-700/80 bg-forest-950/70 p-4">
                   <p className="mb-2.5 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
                     Payment Details
                   </p>
 
-                  {selectedBooking.payment_screenshot_url || selectedBooking.payment_reference ? (
+                  {selectedBooking.payment_screenshot_url ||
+                  selectedBooking.payment_reference ? (
                     <>
                       {selectedBooking.payment_reference && (
                         <div className="mb-3 flex items-center justify-between rounded-xl border border-forest-700/60 bg-forest-900/70 p-3">
@@ -1165,7 +1145,9 @@ export function Bookings() {
                             </p>
                           </div>
                           <button
-                            onClick={() => copyReference(selectedBooking.payment_reference || '')}
+                            onClick={() =>
+                              copyReference(selectedBooking.payment_reference || '')
+                            }
                             className="flex items-center gap-1.5 rounded-lg border border-forest-600 bg-forest-800 px-2.5 py-1.5 text-xs text-cream-muted transition hover:border-brand-blue-400 hover:text-brand-blue-300 active:scale-95"
                             title="Copy reference"
                             aria-label="Copy payment reference number"
@@ -1186,7 +1168,9 @@ export function Bookings() {
                       {selectedBooking.payment_screenshot_url ? (
                         <button
                           type="button"
-                          onClick={() => setZoomImage(selectedBooking.payment_screenshot_url!)}
+                          onClick={() =>
+                            setZoomImage(selectedBooking.payment_screenshot_url!)
+                          }
                           className="group relative block w-full"
                           aria-label="Enlarge payment screenshot"
                         >
@@ -1208,11 +1192,15 @@ export function Bookings() {
                   ) : (
                     <div className="rounded-lg border border-dashed border-forest-700 bg-forest-950/60 p-3 text-center text-xs text-cream-muted">
                       <p className="font-semibold text-cream">Awaiting payment</p>
-                      <p className="mt-0.5">The customer hasn't submitted payment proof yet.</p>
+                      <p className="mt-0.5">
+                        The customer hasn't submitted payment proof yet.
+                      </p>
                       {selectedBooking.status === 'pending_payment' && deadline && (
                         <p className="mt-1.5">
                           Pay by {formatDateTime(deadline)} ·{' '}
-                          <span className="font-semibold text-amber-300">{timeLeft(deadline)}</span>
+                          <span className="font-semibold text-amber-300">
+                            {timeLeft(deadline)}
+                          </span>
                         </p>
                       )}
                     </div>
@@ -1220,7 +1208,6 @@ export function Bookings() {
                 </div>
               </div>
 
-              {/* 👇 FIXED BOTTOM ACTIONS BAR */}
               <div className="shrink-0 border-t border-forest-700/80 bg-forest-900 px-1 pt-4 pb-1 mt-2">
                 <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream-muted">
                   Actions
@@ -1242,7 +1229,8 @@ export function Bookings() {
                 {modalActions.length > 0 && (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {modalActions.map((action) => {
-                      const notYet = action.requiresStarted && toDay(selectedBooking.date) > todayStr;
+                      const notYet =
+                        action.requiresStarted && toDay(selectedBooking.date) > todayStr;
                       return (
                         <div key={action.to + action.label} className="flex flex-col gap-1">
                           <Button
@@ -1272,6 +1260,13 @@ export function Bookings() {
                   </p>
                 )}
 
+                {hiddenByRole && !hiddenAdminOnly && (
+                  <p className="mt-3 text-xs text-cream-muted">
+                    Some actions are restricted to admins. Contact an admin if you need to
+                    change this booking further.
+                  </p>
+                )}
+
                 {TERMINAL_STATUSES.includes(selectedBooking.status) && (
                   <p className="text-xs text-cream-muted">
                     This booking is{' '}
@@ -1287,7 +1282,6 @@ export function Bookings() {
         )}
       </AnimatePresence>
 
-      {/* ─────────────────────── Confirm action dialog ─────────────────────── */}
       <AnimatePresence>
         {pendingAction && (
           <Modal
@@ -1297,7 +1291,9 @@ export function Bookings() {
             size="sm"
           >
             <div className="space-y-4">
-              <p className="text-sm text-cream-muted">{pendingAction.action.confirm?.message}</p>
+              <p className="text-sm text-cream-muted">
+                {pendingAction.action.confirm?.message}
+              </p>
               <p className="text-xs text-cream-muted">
                 Booking{' '}
                 <span className="font-mono font-bold text-brand-blue-300">
@@ -1327,10 +1323,18 @@ export function Bookings() {
               )}
 
               <div className="flex justify-end gap-2">
-                <Button size="sm" variant="secondary" onClick={() => setPendingAction(null)}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setPendingAction(null)}
+                >
                   Go back
                 </Button>
-                <Button size="sm" variant={pendingAction.action.variant} onClick={confirmPending}>
+                <Button
+                  size="sm"
+                  variant={pendingAction.action.variant}
+                  onClick={confirmPending}
+                >
                   {pendingAction.action.confirm?.confirmLabel || 'Confirm'}
                 </Button>
               </div>
@@ -1339,7 +1343,6 @@ export function Bookings() {
         )}
       </AnimatePresence>
 
-      {/* ─────────────────────── Screenshot lightbox ─────────────────────── */}
       {zoomImage && (
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4"
@@ -1373,7 +1376,6 @@ export function Bookings() {
         </div>
       )}
 
-      {/* ─────────────────────── Toast ─────────────────────── */}
       <div
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 bottom-4 z-[90] flex justify-center px-4"

@@ -22,9 +22,14 @@ import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { useBookingStore, getSelectedSlotItems, getSelectedTotal } from '@/stores/bookingStore';
+import {
+  useBookingStore,
+  getSelectedSlotItems,
+  getSelectedTotal,
+} from '@/stores/bookingStore';
 import { formatTimeRange, formatCurrency, formatDateLong } from '@/utils/format';
 import { FIXED_SLOT, APP_CONFIG } from '@/utils/constants';
+import { ApiError } from '@/services/api';
 import type { CustomerDetails } from '@/types';
 
 // Normalize PH mobile: strip spaces/dashes/parens, convert +63/63 → 0
@@ -36,11 +41,10 @@ const normalizePhone = (value: string) =>
 const NOTES_MAX = 500;
 const HOLD_MINUTES = Math.round(APP_CONFIG.paymentTimerSeconds / 60);
 
-// 👇 Helper to check for test/sample keywords
 const isTestString = (val: string) => {
   const lower = val.toLowerCase();
   const blockedWords = ['test', 'sample', 'testing', 'admin', 'fake'];
-  return blockedWords.some(word => lower.includes(word));
+  return blockedWords.some((word) => lower.includes(word));
 };
 
 const customerSchema = z.object({
@@ -50,9 +54,8 @@ const customerSchema = z.object({
     .min(2, 'Name is required')
     .max(80, 'Name is too long')
     .regex(/^[A-Za-zÀ-ÿ.'\-\s]+$/, "Name can only contain letters, spaces, and . ' -")
-    // 👇 Block test names
     .refine((v) => !isTestString(v), {
-      message: "Please enter your real full name.",
+      message: 'Please enter your real full name.',
     }),
 
   email: z
@@ -62,14 +65,21 @@ const customerSchema = z.object({
     .min(1, 'Email is required')
     .email('Enter a valid email address')
     .max(120, 'Email is too long')
-    // 👇 Block test emails and specific domains
-    .refine((v) => {
-      const blockedDomains = ['test.com', 'example.com', 'mailinator.com', 'tempmail.com'];
-      const domain = v.split('@')[1];
-      return !blockedDomains.includes(domain) && !isTestString(v);
-    }, {
-      message: 'Please use a real, active email address.',
-    }),
+    .refine(
+      (v) => {
+        const blockedDomains = [
+          'test.com',
+          'example.com',
+          'mailinator.com',
+          'tempmail.com',
+        ];
+        const domain = v.split('@')[1];
+        return !blockedDomains.includes(domain) && !isTestString(v);
+      },
+      {
+        message: 'Please use a real, active email address.',
+      }
+    ),
 
   phone: z
     .string()
@@ -79,18 +89,15 @@ const customerSchema = z.object({
     .refine((v) => /^09\d{9}$/.test(v), {
       message: 'Enter a valid PH mobile number (e.g. 0917 123 4567)',
     })
-    // 👇 Block dummy numbers like 09000000000
     .refine((v) => !/^09(0{9}|1{9}|2{9}|3{9}|4{9}|5{9}|6{9}|7{9}|8{9}|9{9})$/.test(v), {
       message: 'Please enter a real mobile number.',
     }),
 
   notes: z.string().max(NOTES_MAX, 'Notes are too long').optional(),
 
-  termsAccepted: z
-    .boolean()
-    .refine((v) => v === true, {
-      message: 'You must agree to the Terms & Privacy Policy to continue',
-    }),
+  termsAccepted: z.boolean().refine((v) => v === true, {
+    message: 'You must agree to the Terms & Privacy Policy to continue',
+  }),
 });
 
 type CustomerForm = z.infer<typeof customerSchema>;
@@ -142,7 +149,9 @@ export function Booking() {
 
   const getSelectedCourts = () => {
     const courtMap = new Map();
-    const selectedTimeSlots = slots.filter((s) => storeState.selectedSlotIds.includes(s.id));
+    const selectedTimeSlots = slots.filter((s) =>
+      storeState.selectedSlotIds.includes(s.id)
+    );
     selectedTimeSlots.forEach((slot) => {
       const court = courts.find((c) => c.id === slot.court_id);
       if (court && !courtMap.has(court.id)) {
@@ -164,10 +173,22 @@ export function Booking() {
     setSubmitting(true);
     setSubmitError(null);
     try {
+      // Client-side pre-check: if a pending booking is already in storage,
+      // try to finish it before creating a new one. Backend rejects duplicate
+      // pending bookings anyway, but this gives a better UX.
+      const savedRef = localStorage.getItem('pendingBookingRef');
+      if (savedRef) {
+        setSubmitError(
+          `You have an unpaid booking (${savedRef}). Finish it or let it expire before booking again.`
+        );
+        setSubmitting(false);
+        return;
+      }
+
       const isStillAvailable = await refreshSlots();
       if (!isStillAvailable) {
         setSubmitError(
-          "Sorry, one of your selected slots was just booked by another customer. Please go back and select a different time."
+          'Sorry, one of your selected slots was just booked by another customer. Please go back and select a different time.'
         );
         setSubmitting(false);
         return;
@@ -189,7 +210,15 @@ export function Booking() {
 
       navigate('/checkout');
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to create booking');
+      // Show friendly message + a recovery link when the backend rejects
+      // a duplicate pending booking.
+      const msg =
+        err instanceof ApiError
+          ? err.userMessage
+          : err instanceof Error
+          ? err.message
+          : 'Failed to create booking';
+      setSubmitError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -202,6 +231,13 @@ export function Booking() {
   const handleSummaryButtonClick = () => {
     handleSubmit(onSubmit, onInvalid)();
   };
+
+  // Detect duplicate-pending error so we can render a recovery link
+  const showRecoveryLink =
+    !!submitError &&
+    (submitError.toLowerCase().includes('already have') ||
+      submitError.toLowerCase().includes('awaiting payment') ||
+      submitError.toLowerCase().includes('unpaid booking'));
 
   if (loadingCourts && courts.length === 0) {
     return (
@@ -423,8 +459,8 @@ export function Booking() {
                     <strong className="font-semibold text-brand-blue-200">
                       What happens next:
                     </strong>{' '}
-                    your slots are held for {HOLD_MINUTES} minutes once you continue. Pay and submit
-                    your payment reference within that time, or the hold is released.
+                    your slots are held for {HOLD_MINUTES} minutes once you continue. Pay and
+                    submit your payment reference within that time, or the hold is released.
                   </p>
                 </div>
 
@@ -461,9 +497,18 @@ export function Booking() {
                 )}
 
                 {submitError && (
-                  <p className="rounded-xl border border-error/30 bg-error/10 p-2.5 text-xs font-medium text-error">
-                    {submitError}
-                  </p>
+                  <div className="rounded-xl border border-error/30 bg-error/10 p-2.5 text-xs font-medium text-error">
+                    <p>{submitError}</p>
+                    {showRecoveryLink && (
+                      <Link
+                        to="/track"
+                        className="mt-2 inline-flex items-center gap-1 font-semibold text-brand-blue-300 underline hover:text-brand-blue-200"
+                      >
+                        Find your existing booking
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    )}
+                  </div>
                 )}
               </form>
             </div>
@@ -624,9 +669,17 @@ export function Booking() {
           </Button>
         </div>
         {submitError && (
-          <p className="mt-2 rounded-lg border border-error/30 bg-error/10 p-2 text-xs font-medium text-error">
-            {submitError}
-          </p>
+          <div className="mt-2 rounded-lg border border-error/30 bg-error/10 p-2 text-xs font-medium text-error">
+            <p>{submitError}</p>
+            {showRecoveryLink && (
+              <Link
+                to="/track"
+                className="mt-1 inline-block font-semibold text-brand-blue-300 underline"
+              >
+                Find your existing booking →
+              </Link>
+            )}
+          </div>
         )}
       </div>
 
