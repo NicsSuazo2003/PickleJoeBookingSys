@@ -1328,7 +1328,6 @@ function SlotPill({
   onToggle: () => void;
   accent: CourtAccent;
 }) {
-  // 👇 Read `status` from the backend, fall back to old flags
   const raw = slot as any;
   const status: string =
     raw.status ??
@@ -1339,7 +1338,6 @@ function SlotPill({
   const isBlocked = status === 'blocked';
   const isBooked = status === 'booked';
 
-  // Yellow pulse when pending AND expires within 15 minutes
   const isExpiringSoon = (() => {
     if (!isPending) return false;
     const expiresAt = raw.pending_expires_at ?? raw.pendingExpiresAt;
@@ -1350,15 +1348,21 @@ function SlotPill({
 
   let styleClasses = `${accent.border} ${accent.bg} ${accent.text} ${accent.hoverBorder} ${accent.hoverBg} cursor-pointer`;
   let title: string | undefined;
+  let label: React.ReactNode = formatTimeRangeShort(slot.start_time, slot.end_time);
 
   if (isSelected) {
     styleClasses =
       'border-court-300 bg-court-600 text-white font-bold shadow-glow-court cursor-pointer';
   } else if (isBlocked) {
-    // 🌑 DARK RED — admin-blocked
+    // 🍷 PALE DARK RED — muted burgundy, reads as "disabled" without shouting
     styleClasses =
-      'border-red-900 bg-red-950 text-red-200/90 line-through cursor-not-allowed';
+      'border-rose-900/40 bg-rose-950/40 text-rose-300/60 cursor-not-allowed';
     title = 'Blocked — not available for booking';
+    label = (
+      <span className="text-[10px] font-bold uppercase tracking-wider">
+        Blocked
+      </span>
+    );
   } else if (isBooked) {
     // 🔴 BRIGHT RED — already booked
     styleClasses =
@@ -1387,7 +1391,7 @@ function SlotPill({
       className={`flex h-11 w-full items-center justify-center rounded-xl border text-[11px] font-semibold tracking-tight transition-all px-1 active:scale-95 ${styleClasses}`}
     >
       <span className="flex items-center gap-1 truncate">
-        {formatTimeRangeShort(slot.start_time, slot.end_time)}
+        {label}
       </span>
     </button>
   );
