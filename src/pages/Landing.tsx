@@ -1010,12 +1010,12 @@ export function Landing() {
                 <Clock className="h-8 w-8 text-amber-400" />
               </div>
               <h2 className="text-2xl font-bold text-cream sm:text-3xl">
-                Online Bookings Temporarily Closed
+                CURRENTLY NOT ACCEPTING BOOKINGS
               </h2>
               <p className="mx-auto mt-3 max-w-md text-sm text-cream-muted sm:text-base">
-                We're not accepting new online reservations right now. Staff walk-ins
-                are still welcome — call or message the front desk, or track an
-                existing booking below.
+                We're not accepting any reservations at the moment — online or
+                walk-in. Please check back later, or track an existing booking
+                below.
               </p>
               <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
                 <Button to="/track" variant="secondary">
