@@ -1002,7 +1002,7 @@ export function Landing() {
             </div>
           </section>
         </div>
-      ) : (
+          ) : (
         <section className="relative z-20 border-y border-forest-600 bg-forest-950 py-12 md:py-20">
           <div className="container-page max-w-3xl text-center">
             <div className="rounded-2xl border border-amber-500/40 bg-amber-950/40 p-8 sm:p-12">
@@ -1014,20 +1014,8 @@ export function Landing() {
               </h2>
               <p className="mx-auto mt-3 max-w-md text-sm text-cream-muted sm:text-base">
                 We're not accepting any reservations at the moment — online or
-                walk-in. Please check back later, or track an existing booking
-                below.
+                walk-in. Please check back later.
               </p>
-              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-                <Button to="/track" variant="secondary">
-                  Track My Booking
-                </Button>
-                <Button
-                  to="https://www.facebook.com/profile.php?id=61594106069425"
-                  variant="ghost"
-                >
-                  Message us on Facebook
-                </Button>
-              </div>
             </div>
           </div>
         </section>
