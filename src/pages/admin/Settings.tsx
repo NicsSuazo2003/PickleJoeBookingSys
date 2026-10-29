@@ -270,12 +270,12 @@ export function Settings() {
     setProfilePhone(user?.phone ?? '');
   }, [user]);
 
-  const loadPaymentMethods = async () => {
+    const loadPaymentMethods = async () => {
     setLoadingPaymentMethods(true);
     try {
       const settings = await adminService.getSettings();
       
-      // 🔒 Guard: Filter out corrupted or blank entries before loading into the UI
+      // 🔒 Guard: Filter out corrupted or blank entries
       const cleaned = (settings.payment_methods ?? []).filter(
         (m): m is PaymentMethod =>
           !!m &&
@@ -283,7 +283,16 @@ export function Settings() {
           typeof m.name === 'string' && m.name.length > 0 &&
           typeof m.icon === 'string' && m.icon.length > 0 &&
           !!m.config
-      );
+      ).map((m) => ({
+        ...m,
+        // ✅ Convert camelCase from backend back to snake_case for the form
+        config: {
+          account_name: (m.config as any)?.accountName ?? '',
+          account_number: (m.config as any)?.accountNumber ?? '',
+          qr_image_url: (m.config as any)?.qrImageUrl ?? '',
+          instructions: (m.config as any)?.instructions ?? '',
+        },
+      }));
 
       if (cleaned.length > 0) {
         setPaymentMethods(cleaned);
@@ -302,7 +311,6 @@ export function Settings() {
           },
         ]);
       } else {
-        // If methods exist in DB but all were invalid, don't auto-seed, just be empty
         setPaymentMethods([]);
       }
     } catch (error) {
@@ -312,7 +320,6 @@ export function Settings() {
       setLoadingPaymentMethods(false);
     }
   };
-
    const savePaymentMethods = async (methods: PaymentMethod[]) => {
     // 🔒 Guard: Never send corrupted entries to the backend
     const cleaned = methods
