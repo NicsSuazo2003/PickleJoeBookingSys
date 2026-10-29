@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { APP_CONFIG } from '@/utils/constants';
 import { useClientStore } from '@/stores/clientStore';
 import { bookingService } from '@/services/bookingService';
+import { ApiError } from '@/services/api'; // 👈 Added missing import
 
 interface NavLink {
   label: string;
@@ -46,24 +47,39 @@ export function Navbar() {
 
     const checkPending = async () => {
       const savedRef = localStorage.getItem('pendingBookingRef');
-      if (!savedRef) {
+      const savedEmail = localStorage.getItem('pendingBookingEmail');
+
+      if (!savedRef || !savedEmail) {
+        // 🔒 Legacy session or no email — can't track.
+        if (savedRef && !savedEmail) {
+          localStorage.removeItem('pendingBookingRef');
+          localStorage.removeItem('pendingBookingId');
+        }
         if (!cancelled) setHasPending(false);
         return;
       }
 
       try {
-        const booking = await bookingService.trackBooking(savedRef);
+        const booking = await bookingService.trackBooking(savedRef, savedEmail);
         if (cancelled) return;
 
         if (booking.status === 'pending_payment') {
           setHasPending(true);
         } else {
           localStorage.removeItem('pendingBookingRef');
+          localStorage.removeItem('pendingBookingId');
+          localStorage.removeItem('pendingBookingEmail');
           setHasPending(false);
         }
-      } catch {
+      } catch (err) {
         if (cancelled) return;
         setHasPending(false);
+        // Only clear on auth/not-found. Don't clear on network errors.
+        if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
+          localStorage.removeItem('pendingBookingRef');
+          localStorage.removeItem('pendingBookingId');
+          localStorage.removeItem('pendingBookingEmail');
+        }
       }
     };
 

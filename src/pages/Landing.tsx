@@ -42,6 +42,7 @@ import {
   isWindowClosed,
 } from '@/utils/format';
 import type { TimeSlot, Court, OpenPlaySession, Booking } from '@/types';
+import { ApiError } from '@/services/api';
 
 const EMPTY_AMENITIES: AmenityItem[] = [];
 
@@ -201,9 +202,17 @@ export function Landing() {
     return toISODate(nextWeekStart) > maxSelectableDate;
   })();
 
-  useEffect(() => {
+   useEffect(() => {
     const savedRef = localStorage.getItem('pendingBookingRef');
     if (!savedRef) return;
+
+    const savedEmail = localStorage.getItem('pendingBookingEmail');
+    if (!savedEmail) {
+      // 🔒 Legacy session or corrupted state — can't track without email.
+      // Clear it so we don't get stuck in a 401 loop.
+      localStorage.removeItem('pendingBookingRef');
+      return;
+    }
 
     const dismissed = sessionStorage.getItem('pendingBannerDismissed');
     if (dismissed === savedRef) {
@@ -214,18 +223,25 @@ export function Landing() {
 
     (async () => {
       try {
-        const booking = await bookingService.trackBooking(savedRef);
+        const booking = await bookingService.trackBooking(savedRef, savedEmail);
         if (cancelled) return;
 
         if (booking.status === 'pending_payment') {
           setPendingBooking(booking);
         } else {
           localStorage.removeItem('pendingBookingRef');
+          localStorage.removeItem('pendingBookingId');
+          localStorage.removeItem('pendingBookingEmail');
         }
       } catch (err) {
         if (cancelled) return;
         console.error('Failed to load pending booking for banner:', err);
-        localStorage.removeItem('pendingBookingRef');
+        // Only clear if it's a true auth/not-found error (meaning the booking is gone)
+        if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
+          localStorage.removeItem('pendingBookingRef');
+          localStorage.removeItem('pendingBookingId');
+          localStorage.removeItem('pendingBookingEmail');
+        }
       }
     })();
 

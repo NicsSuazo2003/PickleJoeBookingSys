@@ -206,10 +206,12 @@ export function Booking() {
       await createBooking();
 
       const created = useBookingStore.getState().currentBooking;
-      if (created?.reference_code) {
-        localStorage.setItem('pendingBookingRef', created.reference_code);
-        window.dispatchEvent(new Event('pendingBookingUpdated'));
-      }
+if (created?.reference_code && created?.id) {
+  localStorage.setItem('pendingBookingRef', created.reference_code);
+  localStorage.setItem('pendingBookingId', created.id);
+  localStorage.setItem('pendingBookingEmail', data.email);
+  window.dispatchEvent(new Event('pendingBookingUpdated'));
+}
 
       navigate('/checkout');
     } catch (err) {

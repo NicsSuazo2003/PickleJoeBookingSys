@@ -144,11 +144,13 @@ export function Checkout() {
   };
 }, [currentBooking, navigate]);
   useEffect(() => {
-    if (currentBooking?.status === 'expired') {
-      localStorage.removeItem('pendingBookingRef');
-      navigate('/booking');
-    }
-  }, [currentBooking?.status, navigate]);
+  if (currentBooking?.status === 'expired') {
+    localStorage.removeItem('pendingBookingRef');
+    localStorage.removeItem('pendingBookingId');
+    localStorage.removeItem('pendingBookingEmail');
+    navigate('/booking');
+  }
+}, [currentBooking?.status, navigate]);
 
   useEffect(() => {
     if (!currentBooking?.payment_expires_at) {
@@ -234,14 +236,16 @@ export function Checkout() {
     setUploadError(null);
     try {
       await bookingService.uploadPayment(
-        currentBooking.id,
-        screenshot,
-        referenceTrimmed,
-        selectedMethod?.name
-      );
-      localStorage.removeItem('pendingBookingRef');
-      window.dispatchEvent(new Event('pendingBookingUpdated'));
-      navigate('/success');
+  currentBooking.id,
+  screenshot,
+  referenceTrimmed,
+  selectedMethod?.name
+);
+localStorage.removeItem('pendingBookingRef');
+localStorage.removeItem('pendingBookingId');
+localStorage.removeItem('pendingBookingEmail');
+window.dispatchEvent(new Event('pendingBookingUpdated'));
+navigate('/success');
     } catch (err) {
       setUploadError(err instanceof ApiError ? err.userMessage : 'Upload failed');
     } finally {
@@ -260,11 +264,13 @@ export function Checkout() {
   };
 
   const releaseAndRestart = () => {
-    localStorage.removeItem('pendingBookingRef');
-    window.dispatchEvent(new Event('pendingBookingUpdated'));
-    reset();
-    navigate('/');
-  };
+  localStorage.removeItem('pendingBookingRef');
+  localStorage.removeItem('pendingBookingId');
+  localStorage.removeItem('pendingBookingEmail');
+  window.dispatchEvent(new Event('pendingBookingUpdated'));
+  reset();
+  navigate('/');
+};
 
   const isExpired = timeLeft <= 0;
 
