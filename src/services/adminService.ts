@@ -56,6 +56,24 @@ function normalizeWindowMode(raw: any): BookingWindowMode {
 
 function normalizeClientSettings(raw: any): ClientSettings {
   const data = raw?.data ?? raw;
+
+  // 🔒 Map the backend's camelCase config back to snake_case for the UI
+  const normalizedPaymentMethods = (data.paymentMethods ?? data.payment_methods ?? []).map((pm: any) => {
+    const c = pm?.config ?? pm?.Config ?? {};
+    return {
+      id: pm.id ?? pm.Id ?? '',
+      name: pm.name ?? pm.Name ?? '',
+      icon: pm.icon ?? pm.Icon ?? 'Smartphone',
+      enabled: pm.enabled ?? pm.Enabled ?? true,
+      config: {
+        account_name: c.accountName ?? c.account_name ?? c.AccountName ?? '',
+        account_number: c.accountNumber ?? c.account_number ?? c.AccountNumber ?? '',
+        qr_image_url: c.qrImageUrl ?? c.qr_image_url ?? c.QrImageUrl ?? '',
+        instructions: c.instructions ?? c.Instructions ?? '',
+      },
+    };
+  });
+
   return {
     id: data.id || '',
     name: data.name || '',
@@ -65,7 +83,7 @@ function normalizeClientSettings(raw: any): ClientSettings {
     accent_color: data.accentColor ?? data.accent_color ?? '#C9A94E',
     gcash_number: data.gcashNumber ?? data.gcash_number ?? null,
     gcash_account_name: data.gcashAccountName ?? data.gcash_account_name ?? null,
-    payment_methods: data.paymentMethods ?? data.payment_methods ?? [],
+    payment_methods: normalizedPaymentMethods,
     available_amenities: (data.availableAmenities ?? data.available_amenities ?? [])
       .map(normalizeAmenity),
     max_advance_booking_days: Number(
@@ -207,7 +225,7 @@ export const adminService = {
     return normalizeClientSettings(res?.data ?? res);
   },
 
-    async updateSettings(payload: {
+  async updateSettings(payload: {
     name?: string;
     gcash_number?: string;
     gcash_account_name?: string;
@@ -223,18 +241,21 @@ export const adminService = {
   }): Promise<ClientSettings> {
     
     // 🔒 Convert PaymentMethods from snake_case (frontend) to camelCase (backend)
-    const paymentMethodsCamel = payload.payment_methods?.map((m) => ({
-      id: m.id,
-      name: m.name,
-      icon: m.icon,
-      enabled: m.enabled,
-      config: {
-        accountName: m.config?.account_name ?? '',
-        accountNumber: m.config?.account_number ?? '',
-        qrImageUrl: m.config?.qr_image_url ?? undefined,
-        instructions: m.config?.instructions ?? undefined,
-      },
-    }));
+    const paymentMethodsCamel = payload.payment_methods?.map((m) => {
+      const config = m.config as any;
+      return {
+        id: m.id,
+        name: m.name,
+        icon: m.icon,
+        enabled: m.enabled,
+        config: {
+          accountName: config?.account_name ?? config?.accountName ?? '',
+          accountNumber: config?.account_number ?? config?.accountNumber ?? '',
+          qrImageUrl: config?.qr_image_url ?? config?.qrImageUrl ?? undefined,
+          instructions: config?.instructions ?? undefined,
+        },
+      };
+    });
 
     const res = await apiRequest<any>('/api/admin/settings', {
       method: 'PUT',
@@ -242,7 +263,7 @@ export const adminService = {
         name: payload.name,
         gcashNumber: payload.gcash_number,
         gcashAccountName: payload.gcash_account_name,
-        paymentMethods: paymentMethodsCamel, // 👈 Send the camelCase version
+        paymentMethods: paymentMethodsCamel,
         rcbcAccountName: payload.rcbc_account_name,
         rcbcQrImage: payload.rcbc_qr_image,
         availableAmenities: payload.available_amenities,
@@ -255,6 +276,7 @@ export const adminService = {
     });
     return normalizeClientSettings(res?.data ?? res);
   },
+
   async getBookings(filters?: {
     status?: BookingStatus;
     courtId?: string;
