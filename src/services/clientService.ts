@@ -14,6 +14,24 @@ function normalizeAmenity(raw: any): AmenityItem {
 
 function normalizeClientSettings(raw: any): ClientSettings {
   const data = raw?.data ?? raw;
+
+  // 🔒 Map camelCase from backend to snake_case for the UI
+  const paymentMethods = (data.paymentMethods ?? data.payment_methods ?? []).map((pm: any) => {
+    const c = pm?.config ?? pm?.Config ?? {};
+    return {
+      id: pm.id ?? pm.Id ?? '',
+      name: pm.name ?? pm.Name ?? '',
+      icon: pm.icon ?? pm.Icon ?? 'Smartphone',
+      enabled: pm.enabled ?? pm.Enabled ?? true,
+      config: {
+        account_name: c.accountName ?? c.account_name ?? c.AccountName ?? '',
+        account_number: c.accountNumber ?? c.account_number ?? c.AccountNumber ?? '',
+        qr_image_url: c.qrImageUrl ?? c.qr_image_url ?? c.QrImageUrl ?? '',
+        instructions: c.instructions ?? c.Instructions ?? '',
+      },
+    };
+  });
+
   return {
     id: data.id || '',
     name: data.name || '',
@@ -23,7 +41,7 @@ function normalizeClientSettings(raw: any): ClientSettings {
     accent_color: data.accentColor ?? data.accent_color ?? '#C9A94E',
     gcash_number: data.gcashNumber ?? data.gcash_number ?? null,
     gcash_account_name: data.gcashAccountName ?? data.gcash_account_name ?? null,
-    payment_methods: data.paymentMethods ?? data.payment_methods ?? [],
+    payment_methods: paymentMethods,
     available_amenities: (data.availableAmenities ?? data.available_amenities ?? [])
       .map(normalizeAmenity),
     max_advance_booking_days: Number(

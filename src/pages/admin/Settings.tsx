@@ -216,7 +216,6 @@ export function Settings() {
         setAmenities(settings.available_amenities ?? []);
         setMaxAdvanceDays(settings.max_advance_booking_days ?? 90);
         setBookingsEnabled(settings.bookings_enabled ?? true);
-        // ── NEW: hydrate the booking window state ──
         setBookingWindowMode(settings.booking_window_mode ?? 'rolling');
         setBookingOpenDate(settings.booking_open_date ?? '');
         setBookingCloseDate(settings.booking_close_date ?? '');
@@ -270,12 +269,12 @@ export function Settings() {
     setProfilePhone(user?.phone ?? '');
   }, [user]);
 
-    const loadPaymentMethods = async () => {
+  const loadPaymentMethods = async () => {
     setLoadingPaymentMethods(true);
     try {
+      // adminService.getSettings() already returns snake_case config. Do NOT remap it here.
       const settings = await adminService.getSettings();
-      
-      // 🔒 Guard: Filter out corrupted or blank entries
+
       const cleaned = (settings.payment_methods ?? []).filter(
         (m): m is PaymentMethod =>
           !!m &&
@@ -283,21 +282,11 @@ export function Settings() {
           typeof m.name === 'string' && m.name.length > 0 &&
           typeof m.icon === 'string' && m.icon.length > 0 &&
           !!m.config
-      ).map((m) => ({
-        ...m,
-        // ✅ Convert camelCase from backend back to snake_case for the form
-        config: {
-          account_name: (m.config as any)?.accountName ?? '',
-          account_number: (m.config as any)?.accountNumber ?? '',
-          qr_image_url: (m.config as any)?.qrImageUrl ?? '',
-          instructions: (m.config as any)?.instructions ?? '',
-        },
-      }));
+      );
 
       if (cleaned.length > 0) {
         setPaymentMethods(cleaned);
       } else if (!settings.payment_methods || settings.payment_methods.length === 0) {
-        // Fallback to default GCash only if DB is completely empty
         setPaymentMethods([
           {
             id: '1',
@@ -320,38 +309,20 @@ export function Settings() {
       setLoadingPaymentMethods(false);
     }
   };
-   const savePaymentMethods = async (methods: PaymentMethod[]) => {
-    // 🔒 Guard: Never send corrupted entries to the backend
-    const cleaned = methods
-      .filter(
-        (m) =>
-          m &&
-          typeof m.id === 'string' && m.id.length > 0 &&
-          typeof m.name === 'string' && m.name.length > 0 &&
-          typeof m.icon === 'string' && m.icon.length > 0 &&
-          !!m.config
-      )
-      // 🔒 Fix: Force config fields to be strings, never null.
-      // The backend's C# DTO requires AccountName/Number to be non-null.
-      .map((m) => ({
-        ...m,
-        config: {
-          account_name: m.config?.account_name ?? '',
-          account_number: m.config?.account_number ?? '',
-          // 👇 Changed from ?? null to ?? undefined
-          qr_image_url: m.config?.qr_image_url ?? undefined,
-          instructions: m.config?.instructions ?? undefined,
-        },
-      }));
 
-    if (cleaned.length !== methods.length) {
-      console.warn('Dropped invalid payment methods before save:', methods);
-    }
+  const savePaymentMethods = async (methods: PaymentMethod[]) => {
+    const cleaned = methods.filter(
+      (m) =>
+        m &&
+        typeof m.id === 'string' && m.id.length > 0 &&
+        typeof m.name === 'string' && m.name.length > 0 &&
+        typeof m.icon === 'string' && m.icon.length > 0 &&
+        !!m.config
+    );
 
-    // 🔒 Guard: Do not overwrite existing DB methods with an empty array if we just filtered everything out
     if (cleaned.length === 0 && paymentMethods.length > 0) {
-       setMethodMsg({ type: 'error', text: 'Cannot save empty payment methods.' });
-       return false;
+      setMethodMsg({ type: 'error', text: 'Cannot save empty payment methods.' });
+      return false;
     }
 
     try {
@@ -370,6 +341,7 @@ export function Settings() {
       return false;
     }
   };
+
   const handleQrUpload = async (file: File): Promise<string | null> => {
     setUploadingQR(true);
     setMethodMsg(null);
@@ -527,7 +499,12 @@ export function Settings() {
       type: inferTypeFromName(method.name),
       icon: method.icon || 'Smartphone',
       enabled: method.enabled,
-      config: { ...(method.config ?? {}) },
+      config: {
+        account_name: method.config?.account_name ?? '',
+        account_number: method.config?.account_number ?? '',
+        qr_image_url: method.config?.qr_image_url ?? '',
+        instructions: method.config?.instructions ?? '',
+      },
     });
     setMethodMsg(null);
   };
@@ -708,7 +685,6 @@ export function Settings() {
     setSavingAmenities(true);
     setAmenitiesMsg(null);
     try {
-      // Note: Do NOT pass payment_methods here
       await adminService.updateSettings({ available_amenities: amenities });
       setAmenitiesMsg({ type: 'success', text: 'Amenities saved.' });
       await loadCourts();
@@ -726,7 +702,6 @@ export function Settings() {
   const saveBookingWindow = async () => {
     setBookingWindowMsg(null);
 
-    // Client-side validation for `fixed` mode
     if (bookingWindowMode === 'fixed') {
       if (!bookingOpenDate || !bookingCloseDate) {
         setBookingWindowMsg({
@@ -746,7 +721,6 @@ export function Settings() {
 
     setSavingBookingWindow(true);
     try {
-      // Note: Do NOT pass payment_methods here
       await adminService.updateSettings({
         booking_window_mode: bookingWindowMode,
         booking_open_date:
@@ -756,7 +730,6 @@ export function Settings() {
         max_advance_booking_days: maxAdvanceDays,
       });
 
-      // Keep public store in sync across open tabs
       useClientStore.setState((state) =>
         state.settings
           ? {
@@ -862,9 +835,8 @@ export function Settings() {
     );
   };
 
-  const showAccountNumberField =
-    formData.type === 'gcash' || formData.type === 'e_wallet';
-  const showQrField = formData.type === 'qr_ph' || formData.type === 'gcash';
+  const showAccountNumberField = true;
+  const showQrField = true;
 
   return (
     <Layout>
@@ -1343,9 +1315,7 @@ export function Settings() {
                   </p>
                 </div>
 
-                {/* Mode radios */}
                 <div className="space-y-3">
-                  {/* Rolling */}
                   <label
                     className={`flex cursor-pointer gap-3 rounded-xl border p-3.5 transition ${
                       bookingWindowMode === 'rolling'
@@ -1403,7 +1373,6 @@ export function Settings() {
                     </div>
                   </label>
 
-                  {/* Fixed */}
                   <label
                     className={`flex cursor-pointer gap-3 rounded-xl border p-3.5 transition ${
                       bookingWindowMode === 'fixed'
@@ -1448,7 +1417,6 @@ export function Settings() {
                     </div>
                   </label>
 
-                  {/* Closed */}
                   <label
                     className={`flex cursor-pointer gap-3 rounded-xl border p-3.5 transition ${
                       bookingWindowMode === 'closed'
@@ -1476,7 +1444,6 @@ export function Settings() {
                   </label>
                 </div>
 
-                {/* Preview line */}
                 <p className="mt-3 text-xs text-cream-muted">
                   Currently:{' '}
                   <span className="font-semibold text-brand-blue-300">
@@ -1848,10 +1815,7 @@ export function Settings() {
           />
 
           <p className="text-[11px] text-cream-muted leading-relaxed">
-            Fields adapt to the method name: methods containing{' '}
-            <strong className="text-cream">GCash</strong> show Account Number + QR
-            Code, methods containing <strong className="text-cream">QR</strong> show
-            QR Code, and bank transfers show Account Number only.
+            Add an account number, a QR code, or both. Whatever you fill in is shown to clients at checkout.
           </p>
 
           <div className="border-t border-forest-700/80 pt-4 space-y-3.5">
