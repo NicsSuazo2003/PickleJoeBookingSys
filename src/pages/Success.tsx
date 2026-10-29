@@ -22,10 +22,14 @@ import {
   formatDateLong,
 } from '@/utils/format';
 
+const normalizeCourtId = (id: unknown): string =>
+  id == null ? '' : String(id).trim().toLowerCase();
+
 export function Success() {
   const navigate = useNavigate();
   const { currentBooking } = useBookingStore();
   const courts = useAdminStore((state) => state.courts);
+  const loadCourts = useAdminStore((state) => state.loadCourts);
 
   useEffect(() => {
     if (!currentBooking) {
@@ -33,17 +37,54 @@ export function Success() {
     }
   }, [currentBooking, navigate]);
 
+  useEffect(() => {
+    if (courts.length === 0) {
+      void loadCourts();
+    }
+  }, [courts.length, loadCourts]);
+
   const courtNames = useMemo(() => {
-    if (!currentBooking || !currentBooking.slots) return currentBooking?.court_name || '';
-    const ids = Array.from(new Set(currentBooking.slots.map(s => s.court_id).filter(Boolean)));
-    if (ids.length === 0) return currentBooking.court_name;
-    const names = ids.map(id => courts.find(c => c.id === id)?.name).filter(Boolean);
-    return names.length > 0 ? names.join(', ') : currentBooking.court_name;
+    if (!currentBooking) return '';
+
+    const courtNameById = new Map<string, string>();
+    courts.forEach((court) => {
+      if (court?.id) {
+        courtNameById.set(
+          normalizeCourtId(court.id),
+          court.name || 'Unnamed Court'
+        );
+      }
+    });
+
+    const courtIds = Array.from(
+      new Set(
+        (currentBooking.slots ?? [])
+          .map((slot) => normalizeCourtId(slot.court_id))
+          .filter(Boolean)
+      )
+    );
+
+    const names = Array.from(
+      new Set(
+        courtIds
+          .map((id) => courtNameById.get(id))
+          .filter((name): name is string => Boolean(name))
+      )
+    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    return names.length > 0
+      ? names.join(', ')
+      : currentBooking.court_name || 'Unknown Court';
   }, [currentBooking, courts]);
 
   if (!currentBooking) return null;
 
-  const formatSlotTime = (slot: { startTime?: string; endTime?: string; start_time?: string; end_time?: string }): string => {
+  const formatSlotTime = (slot: {
+    startTime?: string;
+    endTime?: string;
+    start_time?: string;
+    end_time?: string;
+  }): string => {
     const start = slot.startTime || slot.start_time || '';
     const end = slot.endTime || slot.end_time || '';
     return formatTimeRange(start, end);
@@ -126,7 +167,7 @@ export function Success() {
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">Time Slots</p>
                   <p className="text-sm font-medium text-cream sm:text-base">
-                    {currentBooking.slots.map((s) => formatSlotTime(s)).join(', ')}
+                    {currentBooking.slots.map((slot) => formatSlotTime(slot)).join(', ')}
                   </p>
                 </div>
               </div>

@@ -35,6 +35,9 @@ import { APP_CONFIG } from '@/utils/constants';
 import { isInAppBrowser, getInAppBrowserName } from '@/utils/browser';
 import type { Booking, BookingSummary } from '@/types';
 
+const normalizeCourtId = (id: unknown): string =>
+  id == null ? '' : String(id).trim().toLowerCase();
+
 function trackErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 404) {
@@ -175,14 +178,38 @@ export function Track() {
     }
   };
 
-  const getCourtNames = (b: Booking | null) => {
-    if (!b || !b.slots) return b?.court_name || '';
-    const ids = Array.from(new Set(b.slots.map((s) => s.court_id).filter(Boolean)));
-    if (ids.length === 0) return b.court_name;
-    const names = ids
-      .map((id) => courts.find((c) => c.id === id)?.name)
-      .filter(Boolean);
-    return names.length > 0 ? names.join(', ') : b.court_name;
+  const getCourtNames = (b: Booking | null): string => {
+    if (!b) return '';
+
+    const courtNameById = new Map<string, string>();
+    courts.forEach((court) => {
+      if (court?.id) {
+        courtNameById.set(
+          normalizeCourtId(court.id),
+          court.name || 'Unnamed Court'
+        );
+      }
+    });
+
+    const courtIds = Array.from(
+      new Set(
+        (b.slots ?? [])
+          .map((slot) => normalizeCourtId(slot.court_id))
+          .filter(Boolean)
+      )
+    );
+
+    const names = Array.from(
+      new Set(
+        courtIds
+          .map((id) => courtNameById.get(id))
+          .filter((name): name is string => Boolean(name))
+      )
+    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    return names.length > 0
+      ? names.join(', ')
+      : b.court_name || 'Unknown Court';
   };
 
   const canUploadPayment =
@@ -193,30 +220,57 @@ export function Track() {
 
   const groupedSlots = useMemo(() => {
     if (!booking || !booking.slots) return [];
-    const map = new Map<string, { start_time: string; end_time: string }[]>();
-    booking.slots.forEach((s) => {
-      const cid = s.court_id || 'unknown';
-      if (!map.has(cid)) map.set(cid, []);
-      map.get(cid)!.push({ start_time: s.start_time, end_time: s.end_time });
-    });
 
-    let unknownIndex = 1;
-    return Array.from(map.entries()).map(([cid, times]) => {
-      let courtName = courts.find((c) => c.id === cid)?.name;
-
-      if (!courtName) {
-        if (cid === 'unknown') {
-          courtName = `Court ${unknownIndex++}`;
-        } else {
-          courtName = booking.court_name || 'Court';
-        }
+    const courtNameById = new Map<string, string>();
+    courts.forEach((court) => {
+      if (court?.id) {
+        courtNameById.set(
+          normalizeCourtId(court.id),
+          court.name || 'Unnamed Court'
+        );
       }
-
-      return {
-        courtName,
-        times: times.sort((a, b) => a.start_time.localeCompare(b.start_time)),
-      };
     });
+
+    const slotsByCourt = new Map<
+      string,
+      { start_time: string; end_time: string }[]
+    >();
+
+    booking.slots.forEach((slot) => {
+      const courtId = normalizeCourtId(slot.court_id) || 'unknown';
+      if (!slotsByCourt.has(courtId)) slotsByCourt.set(courtId, []);
+
+      const times = slotsByCourt.get(courtId)!;
+      const alreadyExists = times.some(
+        (time) =>
+          time.start_time.slice(0, 5) === slot.start_time.slice(0, 5) &&
+          time.end_time.slice(0, 5) === slot.end_time.slice(0, 5)
+      );
+
+      if (!alreadyExists) {
+        times.push({
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+        });
+      }
+    });
+
+    return Array.from(slotsByCourt.entries())
+      .map(([courtId, times]) => ({
+        courtName:
+          courtNameById.get(courtId) ??
+          (slotsByCourt.size === 1
+            ? booking.court_name || 'Court'
+            : 'Unknown Court'),
+        times: [...times].sort((a, b) =>
+          a.start_time.localeCompare(b.start_time)
+        ),
+      }))
+      .sort((a, b) =>
+        a.courtName.localeCompare(b.courtName, undefined, {
+          numeric: true,
+        })
+      );
   }, [booking, courts]);
 
   return (
