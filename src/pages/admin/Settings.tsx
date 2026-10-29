@@ -274,9 +274,21 @@ export function Settings() {
     setLoadingPaymentMethods(true);
     try {
       const settings = await adminService.getSettings();
-      if (settings.payment_methods && settings.payment_methods.length > 0) {
-        setPaymentMethods(settings.payment_methods);
-      } else {
+      
+      // 🔒 Guard: Filter out corrupted or blank entries before loading into the UI
+      const cleaned = (settings.payment_methods ?? []).filter(
+        (m): m is PaymentMethod =>
+          !!m &&
+          typeof m.id === 'string' && m.id.length > 0 &&
+          typeof m.name === 'string' && m.name.length > 0 &&
+          typeof m.icon === 'string' && m.icon.length > 0 &&
+          !!m.config
+      );
+
+      if (cleaned.length > 0) {
+        setPaymentMethods(cleaned);
+      } else if (!settings.payment_methods || settings.payment_methods.length === 0) {
+        // Fallback to default GCash only if DB is completely empty
         setPaymentMethods([
           {
             id: '1',
@@ -289,18 +301,42 @@ export function Settings() {
             },
           },
         ]);
+      } else {
+        // If methods exist in DB but all were invalid, don't auto-seed, just be empty
+        setPaymentMethods([]);
       }
     } catch (error) {
       console.error('Failed to load payment methods:', error);
+      setPaymentMethods([]);
     } finally {
       setLoadingPaymentMethods(false);
     }
   };
 
   const savePaymentMethods = async (methods: PaymentMethod[]) => {
+    // 🔒 Guard: Never send corrupted entries to the backend
+    const cleaned = methods.filter(
+      (m) =>
+        m &&
+        typeof m.id === 'string' && m.id.length > 0 &&
+        typeof m.name === 'string' && m.name.length > 0 &&
+        typeof m.icon === 'string' && m.icon.length > 0 &&
+        !!m.config
+    );
+
+    if (cleaned.length !== methods.length) {
+      console.warn('Dropped invalid payment methods before save:', methods);
+    }
+
+    // 🔒 Guard: Do not overwrite existing DB methods with an empty array if we just filtered everything out
+    if (cleaned.length === 0 && paymentMethods.length > 0) {
+       setMethodMsg({ type: 'error', text: 'Cannot save empty payment methods.' });
+       return false;
+    }
+
     try {
-      await adminService.updateSettings({ payment_methods: methods });
-      setPaymentMethods(methods);
+      await adminService.updateSettings({ payment_methods: cleaned });
+      setPaymentMethods(cleaned);
       return true;
     } catch (error) {
       console.error('Failed to save payment methods:', error);
@@ -653,6 +689,7 @@ export function Settings() {
     setSavingAmenities(true);
     setAmenitiesMsg(null);
     try {
+      // Note: Do NOT pass payment_methods here
       await adminService.updateSettings({ available_amenities: amenities });
       setAmenitiesMsg({ type: 'success', text: 'Amenities saved.' });
       await loadCourts();
@@ -690,6 +727,7 @@ export function Settings() {
 
     setSavingBookingWindow(true);
     try {
+      // Note: Do NOT pass payment_methods here
       await adminService.updateSettings({
         booking_window_mode: bookingWindowMode,
         booking_open_date:
