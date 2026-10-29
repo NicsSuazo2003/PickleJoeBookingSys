@@ -85,52 +85,64 @@ export function Checkout() {
   }, [loadSettings]);
 
   useEffect(() => {
-    if (currentBooking) {
-      setRestoring(false);
-      return;
-    }
+  if (currentBooking) {
+    setRestoring(false);
+    return;
+  }
 
-    const savedRef = localStorage.getItem('pendingBookingRef');
-    if (!savedRef) {
-      setRestoring(false);
-      navigate('/booking');
-      return;
-    }
+  const savedId = localStorage.getItem('pendingBookingId');
+  const savedRef = localStorage.getItem('pendingBookingRef');
+  const savedEmail = localStorage.getItem('pendingBookingEmail');
 
-    let cancelled = false;
+  if (!savedId && !savedRef) {
+    setRestoring(false);
+    navigate('/booking');
+    return;
+  }
 
-    (async () => {
-      try {
-        // Backend now requires email — but here we know the booking was just
-        // created in this session, so use the booking id from the store first,
-        // and only fall back to track with the booking id from local state if
-        // the store is empty (rare: hard refresh on the checkout page).
-        const booking = await bookingService.getBooking(savedRef);
-        if (cancelled) return;
+  let cancelled = false;
 
-        if (booking.status !== 'pending_payment') {
-          localStorage.removeItem('pendingBookingRef');
-          setRestoring(false);
-          navigate('/booking');
-          return;
-        }
+  (async () => {
+    try {
+      // ✅ Prefer the UUID — getBooking hits /api/bookings/{id}
+      //    Fall back to trackBooking (needs email) for legacy sessions.
+      const booking = savedId
+        ? await bookingService.getBooking(savedId)
+        : await bookingService.trackBooking(savedRef!, savedEmail ?? undefined);
 
-        useBookingStore.setState({ currentBooking: booking });
-        setRestoring(false);
-      } catch (err) {
-        if (cancelled) return;
-        console.error('Failed to restore pending booking:', err);
+      if (cancelled) return;
+
+      if (booking.status !== 'pending_payment') {
         localStorage.removeItem('pendingBookingRef');
+        localStorage.removeItem('pendingBookingId');
+        localStorage.removeItem('pendingBookingEmail');
         setRestoring(false);
         navigate('/booking');
+        return;
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [currentBooking, navigate]);
+      useBookingStore.setState({ currentBooking: booking });
+      setRestoring(false);
+    } catch (err) {
+      if (cancelled) return;
+      console.error('Failed to restore pending booking:', err);
+      // Don't wipe the keys on a network error — the user may still be able
+      // to recover by refreshing. Only wipe on 404.
+      const isNotFound = err instanceof ApiError && err.status === 404;
+      if (isNotFound) {
+        localStorage.removeItem('pendingBookingRef');
+        localStorage.removeItem('pendingBookingId');
+        localStorage.removeItem('pendingBookingEmail');
+      }
+      setRestoring(false);
+      navigate('/booking');
+    }
+  })();
 
+  return () => {
+    cancelled = true;
+  };
+}, [currentBooking, navigate]);
   useEffect(() => {
     if (currentBooking?.status === 'expired') {
       localStorage.removeItem('pendingBookingRef');

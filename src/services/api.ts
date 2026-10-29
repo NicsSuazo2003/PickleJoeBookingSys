@@ -10,7 +10,6 @@ export class ApiError extends Error {
     this.body = body;
   }
 
-  /** Best-effort human-readable message from the backend response body. */
   get userMessage(): string {
     const b = this.body as { message?: string } | string | undefined;
     if (typeof b === 'string' && b.trim()) return b;
@@ -20,6 +19,7 @@ export class ApiError extends Error {
     return this.message;
   }
 }
+
 const BASE_URL = APP_CONFIG.apiUrl;
 const CLIENT_SUBDOMAIN = import.meta.env.VITE_CLIENT_SUBDOMAIN ?? 'picklejoe';
 
@@ -30,13 +30,12 @@ export async function apiRequest<T>(
   const fullPath = path.startsWith('/api') ? path : `/api${path}`;
   const url = `${BASE_URL}${fullPath}`;
 
-  // ✅ Get token from localStorage
   const token = localStorage.getItem('admin_token');
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     'X-Client-Subdomain': CLIENT_SUBDOMAIN,
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
@@ -52,13 +51,28 @@ export async function apiRequest<T>(
     clearTimeout(timeoutId);
 
     if (!res.ok) {
+      // ✅ Clone the response so we can safely read it multiple times without
+      //    "body stream already read" errors.
+      const cloned = res.clone();
       let body: unknown;
+
+      // Try JSON first (most error responses are JSON)
       try {
-        body = await res.json();
+        body = await cloned.json();
       } catch {
-        body = await res.text();
+        // If JSON parsing fails, read the original response as text
+        try {
+          body = await res.text();
+        } catch {
+          body = undefined;
+        }
       }
-      throw new ApiError(`Request failed: ${res.status} ${res.statusText}`, res.status, body);
+
+      throw new ApiError(
+        `Request failed: ${res.status} ${res.statusText}`,
+        res.status,
+        body
+      );
     }
 
     if (res.status === 204) return undefined as T;
