@@ -313,16 +313,29 @@ export function Settings() {
     }
   };
 
-  const savePaymentMethods = async (methods: PaymentMethod[]) => {
+   const savePaymentMethods = async (methods: PaymentMethod[]) => {
     // 🔒 Guard: Never send corrupted entries to the backend
-    const cleaned = methods.filter(
-      (m) =>
-        m &&
-        typeof m.id === 'string' && m.id.length > 0 &&
-        typeof m.name === 'string' && m.name.length > 0 &&
-        typeof m.icon === 'string' && m.icon.length > 0 &&
-        !!m.config
-    );
+    const cleaned = methods
+      .filter(
+        (m) =>
+          m &&
+          typeof m.id === 'string' && m.id.length > 0 &&
+          typeof m.name === 'string' && m.name.length > 0 &&
+          typeof m.icon === 'string' && m.icon.length > 0 &&
+          !!m.config
+      )
+      // 🔒 Fix: Force config fields to be strings, never null.
+      // The backend's C# DTO requires AccountName/Number to be non-null.
+      .map((m) => ({
+        ...m,
+        config: {
+          account_name: m.config?.account_name ?? '',
+          account_number: m.config?.account_number ?? '',
+          // 👇 Changed from ?? null to ?? undefined
+          qr_image_url: m.config?.qr_image_url ?? undefined,
+          instructions: m.config?.instructions ?? undefined,
+        },
+      }));
 
     if (cleaned.length !== methods.length) {
       console.warn('Dropped invalid payment methods before save:', methods);
@@ -350,7 +363,6 @@ export function Settings() {
       return false;
     }
   };
-
   const handleQrUpload = async (file: File): Promise<string | null> => {
     setUploadingQR(true);
     setMethodMsg(null);
