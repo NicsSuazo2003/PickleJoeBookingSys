@@ -27,16 +27,26 @@ function normalizeClientSettings(raw: any): ClientSettings {
     available_amenities: (data.availableAmenities ?? data.available_amenities ?? [])
       .map(normalizeAmenity),
     max_advance_booking_days: Number(
-      data.maxAdvanceBookingDays ??
-        data.max_advance_booking_days ??
-        90
+      data.maxAdvanceBookingDays ?? data.max_advance_booking_days ?? 90
     ),
-    // 👇 THE FIX
     bookings_enabled: (() => {
       const v = data.bookingsEnabled ?? data.bookings_enabled;
       return v === undefined || v === null ? true : Boolean(v);
     })(),
-  };
+    // ── NEW: booking window ──
+    booking_window_mode: (() => {
+      const v = String(data.bookingWindowMode ?? data.booking_window_mode ?? 'rolling').toLowerCase();
+      return v === 'fixed' || v === 'closed' || v === 'rolling' ? v : 'rolling';
+    })(),
+    booking_open_date: (() => {
+      const v = data.bookingOpenDate ?? data.booking_open_date ?? null;
+      return v ? String(v).slice(0, 10) : null;
+    })(),
+    booking_close_date: (() => {
+      const v = data.bookingCloseDate ?? data.booking_close_date ?? null;
+      return v ? String(v).slice(0, 10) : null;
+    })(),
+  } as ClientSettings;
 }
 
 export const clientService = {
