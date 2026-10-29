@@ -84,88 +84,98 @@ export function Checkout() {
     loadSettings();
   }, [loadSettings]);
 
-  useEffect(() => {
-  if (currentBooking) {
-    setRestoring(false);
-    return;
-  }
-
-  const savedId = localStorage.getItem('pendingBookingId');
-  const savedRef = localStorage.getItem('pendingBookingRef');
-  const savedEmail = localStorage.getItem('pendingBookingEmail');
-
-  if (!savedId && !savedRef) {
-    setRestoring(false);
-    navigate('/booking');
-    return;
-  }
-
-  let cancelled = false;
-
-  (async () => {
-    try {
-      // ✅ Prefer the UUID — getBooking hits /api/bookings/{id}
-      //    Fall back to trackBooking (needs email) for legacy sessions.
-      const booking = savedId
-        ? await bookingService.getBooking(savedId)
-        : await bookingService.trackBooking(savedRef!, savedEmail ?? undefined);
-
-      if (cancelled) return;
-
-      if (booking.status !== 'pending_payment') {
-        localStorage.removeItem('pendingBookingRef');
-        localStorage.removeItem('pendingBookingId');
-        localStorage.removeItem('pendingBookingEmail');
-        setRestoring(false);
-        navigate('/booking');
-        return;
-      }
-
-      useBookingStore.setState({ currentBooking: booking });
+    useEffect(() => {
+    if (currentBooking) {
       setRestoring(false);
-    } catch (err) {
-      if (cancelled) return;
-      console.error('Failed to restore pending booking:', err);
-      // Don't wipe the keys on a network error — the user may still be able
-      // to recover by refreshing. Only wipe on 404.
-      const isNotFound = err instanceof ApiError && err.status === 404;
-      if (isNotFound) {
-        localStorage.removeItem('pendingBookingRef');
-        localStorage.removeItem('pendingBookingId');
-        localStorage.removeItem('pendingBookingEmail');
-      }
+      return;
+    }
+
+    const savedId = localStorage.getItem('pendingBookingId');
+    const savedRef = localStorage.getItem('pendingBookingRef');
+    const savedEmail = localStorage.getItem('pendingBookingEmail');
+
+    if (!savedId && !savedRef) {
       setRestoring(false);
       navigate('/booking');
+      return;
     }
-  })();
 
-  return () => {
-    cancelled = true;
-  };
-}, [currentBooking, navigate]);
+    let cancelled = false;
 
+    (async () => {
+      try {
+        // ✅ Prefer the UUID — getBooking hits /api/bookings/{id}
+        //    Fall back to trackBooking (needs email) for legacy sessions.
+        const booking = savedId
+          ? await bookingService.getBooking(savedId)
+          : await bookingService.trackBooking(savedRef!, savedEmail ?? undefined);
 
+        if (cancelled) return;
+
+        // 🔒 If the booking is no longer pending, clear state and send them back
+        if (booking.status !== 'pending_payment') {
+          localStorage.removeItem('pendingBookingRef');
+          localStorage.removeItem('pendingBookingId');
+          localStorage.removeItem('pendingBookingEmail');
+          setRestoring(false);
+          navigate('/booking');
+          return;
+        }
+
+        // 🔒 If the payment window already expired, clear state and send them back
+        if (booking.payment_expires_at) {
+          const expiresAt = new Date(booking.payment_expires_at).getTime();
+          if (expiresAt <= Date.now()) {
+            localStorage.removeItem('pendingBookingRef');
+            localStorage.removeItem('pendingBookingId');
+            localStorage.removeItem('pendingBookingEmail');
+            setRestoring(false);
+            navigate('/booking');
+            return;
+          }
+        }
+
+        useBookingStore.setState({ currentBooking: booking });
+        setRestoring(false);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Failed to restore pending booking:', err);
+        
+        // 🔒 Wipe stale keys on 404 (not found) or 401 (email mismatch)
+        if (err instanceof ApiError && (err.status === 404 || err.status === 401)) {
+          localStorage.removeItem('pendingBookingRef');
+          localStorage.removeItem('pendingBookingId');
+          localStorage.removeItem('pendingBookingEmail');
+        }
+        setRestoring(false);
+        navigate('/booking');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentBooking, navigate]);
+
+  // Separate effect for handling expiry *after* it's loaded (timer reaching 0)
   useEffect(() => {
-  if (restoring) return;
-  if (currentBooking?.status === 'expired') {
-    localStorage.removeItem('pendingBookingRef');
-    localStorage.removeItem('pendingBookingId');
-    localStorage.removeItem('pendingBookingEmail');
-    navigate('/booking');
-    return;
-  }
+    if (restoring || !currentBooking) return;
 
-  // 🔒 If the payment window is already over, don't even render checkout
-  if (currentBooking?.payment_expires_at) {
-    const expiresAt = new Date(currentBooking.payment_expires_at).getTime();
-    if (expiresAt <= Date.now()) {
+    if (currentBooking.status === 'expired') {
+      localStorage.removeItem('pendingBookingRef');
+      localStorage.removeItem('pendingBookingId');
+      localStorage.removeItem('pendingBookingEmail');
+      navigate('/booking');
+      return;
+    }
+
+    if (timeLeft <= 0) {
       localStorage.removeItem('pendingBookingRef');
       localStorage.removeItem('pendingBookingId');
       localStorage.removeItem('pendingBookingEmail');
       navigate('/booking');
     }
-  }
-}, [restoring, currentBooking, navigate]);
+  }, [restoring, currentBooking, timeLeft, navigate]);
 
   useEffect(() => {
     if (!currentBooking?.payment_expires_at) {
