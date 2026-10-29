@@ -176,56 +176,67 @@ export function Booking() {
   };
 
   const onSubmit = async (data: CustomerForm) => {
-    setSubmitting(true);
-    setSubmitError(null);
-    try {
-      const savedRef = localStorage.getItem('pendingBookingRef');
-      if (savedRef) {
-        setSubmitError(
-          `You have an unpaid booking (${savedRef}). Finish it or let it expire before booking again.`
-        );
-        setSubmitting(false);
-        return;
-      }
+  setSubmitting(true);
+  setSubmitError(null);
 
-      const isStillAvailable = await refreshSlots();
-      if (!isStillAvailable) {
-        setSubmitError(
-          'Sorry, one of your selected slots was just booked by another customer. Please go back and select a different time.'
-        );
-        setSubmitting(false);
-        return;
-      }
+  // 🔒 Clear any stale booking from a previous attempt
+  useBookingStore.setState({ currentBooking: null });
 
-      setCustomer({
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        notes: data.notes,
-      });
-      await createBooking();
-
-      const created = useBookingStore.getState().currentBooking;
-if (created?.reference_code && created?.id) {
-  localStorage.setItem('pendingBookingRef', created.reference_code);
-  localStorage.setItem('pendingBookingId', created.id);
-  localStorage.setItem('pendingBookingEmail', data.email);
-  window.dispatchEvent(new Event('pendingBookingUpdated'));
-}
-
-      navigate('/checkout');
-    } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.userMessage
-          : err instanceof Error
-          ? err.message
-          : 'Failed to create booking';
-      setSubmitError(msg);
-    } finally {
+  try {
+    const savedRef = localStorage.getItem('pendingBookingRef');
+    if (savedRef) {
+      setSubmitError(
+        `You have an unpaid booking (${savedRef}). Finish it or let it expire before booking again.`
+      );
       setSubmitting(false);
+      return;
     }
-  };
+
+    const isStillAvailable = await refreshSlots();
+    if (!isStillAvailable) {
+      setSubmitError(
+        'Sorry, one of your selected slots was just booked by another customer. Please go back and select a different time.'
+      );
+      setSubmitting(false);
+      return;
+    }
+
+    setCustomer({
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      notes: data.notes,
+    });
+
+    // 🔒 createBooking throws on any 4xx/5xx
+    await createBooking();
+
+    // 🔒 Only proceed if a booking was actually returned
+    const created = useBookingStore.getState().currentBooking;
+    if (!created?.reference_code || !created?.id) {
+      throw new Error('Booking was not created. Please try again.');
+    }
+
+    localStorage.setItem('pendingBookingRef', created.reference_code);
+    localStorage.setItem('pendingBookingId', created.id);
+    localStorage.setItem('pendingBookingEmail', data.email);
+    window.dispatchEvent(new Event('pendingBookingUpdated'));
+
+    // 🔒 Only NOW navigate
+    navigate('/checkout');
+  } catch (err) {
+    const msg =
+      err instanceof ApiError
+        ? err.userMessage
+        : err instanceof Error
+        ? err.message
+        : 'Failed to create booking';
+    setSubmitError(msg);
+    // 🔒 Do not navigate — stay on /booking so they can retry
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const onInvalid = () => {
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
