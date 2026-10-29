@@ -207,7 +207,7 @@ export const adminService = {
     return normalizeClientSettings(res?.data ?? res);
   },
 
-  async updateSettings(payload: {
+    async updateSettings(payload: {
     name?: string;
     gcash_number?: string;
     gcash_account_name?: string;
@@ -217,18 +217,32 @@ export const adminService = {
     available_amenities?: AmenityItem[];
     max_advance_booking_days?: number;
     bookings_enabled?: boolean;
-    // ── NEW ──
     booking_window_mode?: BookingWindowMode;
     booking_open_date?: string | null;
     booking_close_date?: string | null;
   }): Promise<ClientSettings> {
+    
+    // 🔒 Convert PaymentMethods from snake_case (frontend) to camelCase (backend)
+    const paymentMethodsCamel = payload.payment_methods?.map((m) => ({
+      id: m.id,
+      name: m.name,
+      icon: m.icon,
+      enabled: m.enabled,
+      config: {
+        accountName: m.config?.account_name ?? '',
+        accountNumber: m.config?.account_number ?? '',
+        qrImageUrl: m.config?.qr_image_url ?? undefined,
+        instructions: m.config?.instructions ?? undefined,
+      },
+    }));
+
     const res = await apiRequest<any>('/api/admin/settings', {
       method: 'PUT',
       body: JSON.stringify({
         name: payload.name,
         gcashNumber: payload.gcash_number,
         gcashAccountName: payload.gcash_account_name,
-        paymentMethods: payload.payment_methods,
+        paymentMethods: paymentMethodsCamel, // 👈 Send the camelCase version
         rcbcAccountName: payload.rcbc_account_name,
         rcbcQrImage: payload.rcbc_qr_image,
         availableAmenities: payload.available_amenities,
@@ -241,7 +255,6 @@ export const adminService = {
     });
     return normalizeClientSettings(res?.data ?? res);
   },
-
   async getBookings(filters?: {
     status?: BookingStatus;
     courtId?: string;
