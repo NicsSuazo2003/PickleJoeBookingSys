@@ -143,14 +143,29 @@ export function Checkout() {
     cancelled = true;
   };
 }, [currentBooking, navigate]);
+
+
   useEffect(() => {
+  if (restoring) return;
   if (currentBooking?.status === 'expired') {
     localStorage.removeItem('pendingBookingRef');
     localStorage.removeItem('pendingBookingId');
     localStorage.removeItem('pendingBookingEmail');
     navigate('/booking');
+    return;
   }
-}, [currentBooking?.status, navigate]);
+
+  // 🔒 If the payment window is already over, don't even render checkout
+  if (currentBooking?.payment_expires_at) {
+    const expiresAt = new Date(currentBooking.payment_expires_at).getTime();
+    if (expiresAt <= Date.now()) {
+      localStorage.removeItem('pendingBookingRef');
+      localStorage.removeItem('pendingBookingId');
+      localStorage.removeItem('pendingBookingEmail');
+      navigate('/booking');
+    }
+  }
+}, [restoring, currentBooking, navigate]);
 
   useEffect(() => {
     if (!currentBooking?.payment_expires_at) {
