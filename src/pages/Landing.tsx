@@ -1,3 +1,4 @@
+// src/pages/Landing.tsx
 import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -36,7 +37,9 @@ import {
   formatDateLong,
   toISODate,
   addDays,
-  getMaxSelectableDate,
+  getBookableRange,
+  isWindowNotOpenYet,
+  isWindowClosed,
 } from '@/utils/format';
 import type { TimeSlot, Court, OpenPlaySession, Booking } from '@/types';
 
@@ -156,27 +159,31 @@ export function Landing() {
   const availableAmenities: AmenityItem[] =
     useClientStore((state) => state.settings?.available_amenities) ?? EMPTY_AMENITIES;
 
-  const maxAdvanceDays = useClientStore(
-    (state) => state.settings?.max_advance_booking_days ?? APP_CONFIG.defaultMaxAdvanceBookingDays
-  );
+  const settings = useClientStore((state) => state.settings);
 
   const bookingsEnabled = useClientStore(
     (state) => state.settings?.bookings_enabled ?? true
   );
 
-  const maxSelectableDate = getMaxSelectableDate(maxAdvanceDays);
+  // ── NEW: compute the bookable range from the client's window mode ──
+  const range = getBookableRange(settings);
+  const minSelectableDate = range?.minISO ?? todayISO();
+  const maxSelectableDate = range?.maxISO ?? null;
+  // ────────────────────────────────────────────────────────────────────
+
+  const notOpenYet = isWindowNotOpenYet(settings);
+  const closedByDate = isWindowClosed(settings);
 
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStart = addDays(new Date(), weekOffset * 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  // Dynamic operating hours fallback
   const getOperatingHours = () => {
     if (!courts || courts.length === 0) return '7AM - 12AM';
-    const earliestOpen = courts.reduce((earliest, court) => 
+    const earliestOpen = courts.reduce((earliest, court) =>
       court.open_time < earliest ? court.open_time : earliest
     , courts[0].open_time);
-    const latestClose = courts.reduce((latest, court) => 
+    const latestClose = courts.reduce((latest, court) =>
       court.close_time > latest ? court.close_time : latest
     , courts[0].close_time);
     const formatTime = (timeStr: string) => {
@@ -245,7 +252,6 @@ export function Landing() {
       loadAllCourtsSlots();
     }
 
-    // Poll for updates every 60 seconds
     const interval = setInterval(() => {
       const selectedCount = useBookingStore.getState().selectedSlotIds.length;
       if (selectedCount === 0) {
@@ -264,19 +270,18 @@ export function Landing() {
     let iso = e.target.value;
     if (!iso) return;
 
-    const today = todayISO();
-    if (iso < today) iso = today;
-
-    if (maxSelectableDate && iso > maxSelectableDate) {
-      iso = maxSelectableDate;
-    }
+    if (iso < minSelectableDate) iso = minSelectableDate;
+    if (maxSelectableDate && iso > maxSelectableDate) iso = maxSelectableDate;
 
     setDate(iso);
     setWeekOffset(Math.max(0, weeksBetweenToday(iso)));
   };
 
-  const isDayBeyondLimit = (iso: string) =>
-    !!maxSelectableDate && iso > maxSelectableDate;
+  const isDayBeyondLimit = (iso: string) => {
+    if (iso < minSelectableDate) return true;
+    if (maxSelectableDate && iso > maxSelectableDate) return true;
+    return false;
+  };
 
   const nextSession = openPlaySessions
     .filter(
@@ -393,6 +398,30 @@ export function Landing() {
 
   const showPendingBanner = !!pendingBooking && !bannerDismissed;
 
+  // ── NEW: composite banner decision ──
+  // If the window is fixed but not yet open OR already closed, we hide the
+  // booking UI and show a message. Same for "closed" mode and BookingsEnabled=false.
+  const windowMode = settings?.booking_window_mode ?? 'rolling';
+  const showClosedBanner =
+    !bookingsEnabled || windowMode === 'closed' || notOpenYet || closedByDate;
+
+  // ── Mode-aware banner copy ──
+  const bannerTitle = !bookingsEnabled || windowMode === 'closed'
+    ? 'CURRENTLY NOT ACCEPTING BOOKINGS'
+    : notOpenYet
+      ? 'BOOKINGS OPEN SOON'
+      : closedByDate
+        ? 'BOOKINGS FOR THIS PERIOD HAVE CLOSED'
+        : 'CURRENTLY NOT ACCEPTING BOOKINGS';
+
+  const bannerBody = !bookingsEnabled || windowMode === 'closed'
+    ? "We're not accepting any reservations at the moment — online or walk-in. Please check back later."
+    : notOpenYet && settings?.booking_open_date
+      ? `Online bookings for the next period open on ${formatDateLong(settings.booking_open_date)}. Please check back then.`
+      : closedByDate && settings?.booking_close_date
+        ? `Online bookings for this period closed on ${formatDateLong(settings.booking_close_date)}. The next period will be announced soon.`
+        : "We're not accepting any reservations at the moment — online or walk-in. Please check back later.";
+
   return (
     <div className="min-h-screen bg-charcoal text-cream">
       <Navbar />
@@ -441,7 +470,7 @@ export function Landing() {
         </div>
       )}
 
-      {/* Hero Section */}
+      {/* Hero Section — unchanged except for the dynamic operating hours */}
       <section className="relative flex min-h-[85vh] items-start pt-28 sm:min-h-screen sm:items-center sm:pt-20 overflow-hidden">
         <div className="absolute inset-0">
           <img
@@ -533,7 +562,7 @@ export function Landing() {
         </div>
       </section>
 
-      {/* Open Play This Week Section */}
+      {/* Open Play This Week Section — unchanged */}
       {weekSessions.length > 0 && (
         <section className="relative border-b border-forest-600 bg-forest-900 py-10 sm:py-14">
           <div className="container-page">
@@ -652,7 +681,7 @@ export function Landing() {
       )}
 
       {/* Booking Section */}
-      {bookingsEnabled ? (
+      {!showClosedBanner ? (
         <div ref={bookingSectionRef}>
           <section className="relative z-20 border-y border-forest-600 bg-forest-950 py-8 md:py-16">
             <div className="container-page max-w-7xl">
@@ -712,7 +741,7 @@ export function Landing() {
                           <input
                             type="date"
                             value={selectedDate}
-                            min={todayISO()}
+                            min={minSelectableDate}
                             max={maxSelectableDate ?? undefined}
                             onChange={handleCalendarPick}
                             aria-label="Pick a date from calendar"
@@ -770,7 +799,13 @@ export function Landing() {
                                 key={iso}
                                 onClick={() => setDate(iso)}
                                 disabled={beyondLimit}
-                                title={beyondLimit ? `Bookings open up to ${maxAdvanceDays} days ahead` : undefined}
+                                title={
+                                  beyondLimit
+                                    ? (iso < minSelectableDate
+                                        ? `Bookings open from ${minSelectableDate}`
+                                        : `Bookings close after ${maxSelectableDate}`)
+                                    : undefined
+                                }
                                 className={`relative flex min-w-[54px] flex-1 snap-center flex-col items-center justify-center rounded-xl border py-2 transition-all ${
                                   beyondLimit
                                     ? 'cursor-not-allowed border-forest-800/50 bg-forest-950/50 opacity-40 text-cream-muted/50'
@@ -826,7 +861,7 @@ export function Landing() {
                         <button
                           onClick={() => setWeekOffset((w) => w + 1)}
                           disabled={isNextWeekDisabled}
-                          title={isNextWeekDisabled ? `Bookings open up to ${maxAdvanceDays} days ahead` : undefined}
+                          title={isNextWeekDisabled ? `Bookings close after ${maxSelectableDate}` : undefined}
                           className="hidden h-14 w-10 shrink-0 items-center justify-center rounded-xl border border-forest-600 bg-forest-800 text-cream-muted transition hover:border-court-400/60 hover:text-court-200 disabled:opacity-30 sm:flex"
                           aria-label="Next week"
                         >
@@ -859,7 +894,6 @@ export function Landing() {
                       </span>
                     </div>
 
-                    {/* Legend */}
                     <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-forest-700/60 pb-3 text-[11px] text-cream-muted">
                       <div className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full border border-court-400/80 bg-court-500/30" />
@@ -873,7 +907,6 @@ export function Landing() {
                         <span className="h-2 w-2 rounded-full bg-red-400" />
                         <span>Booked</span>
                       </div>
-                     
                       <div className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full bg-court-300" />
                         <span>Open Play</span>
@@ -1002,7 +1035,7 @@ export function Landing() {
             </div>
           </section>
         </div>
-          ) : (
+      ) : (
         <section className="relative z-20 border-y border-forest-600 bg-forest-950 py-12 md:py-20">
           <div className="container-page max-w-3xl text-center">
             <div className="rounded-2xl border border-amber-500/40 bg-amber-950/40 p-8 sm:p-12">
@@ -1010,11 +1043,10 @@ export function Landing() {
                 <Clock className="h-8 w-8 text-amber-400" />
               </div>
               <h2 className="text-2xl font-bold text-cream sm:text-3xl">
-                CURRENTLY NOT ACCEPTING BOOKINGS
+                {bannerTitle}
               </h2>
               <p className="mx-auto mt-3 max-w-md text-sm text-cream-muted sm:text-base">
-                We're not accepting any reservations at the moment — online or
-                walk-in. Please check back later.
+                {bannerBody}
               </p>
             </div>
           </div>
@@ -1042,7 +1074,7 @@ export function Landing() {
         </div>
       )}
 
-      {/* ─── Find Us (Google Maps) ─── */}
+      {/* Find Us — unchanged */}
       <section className="border-b border-forest-700/80 bg-forest-950/60 py-12 sm:py-20">
         <div className="container-page">
           <div className="mb-8 text-center sm:mb-12">
@@ -1073,7 +1105,7 @@ export function Landing() {
         </div>
       </section>
 
-      {/* ─── Venue Amenities ─── */}
+      {/* Venue Amenities — unchanged */}
       <section className="border-b border-forest-700/80 bg-forest-900/60 py-12 sm:py-20">
         <div className="container-page">
           <div className="mb-8 text-center sm:mb-12">
@@ -1130,7 +1162,7 @@ export function Landing() {
         </div>
       </section>
 
-      {/* How It Works Section */}
+      {/* How It Works — unchanged */}
       <section className="py-14 sm:py-20 bg-forest-950/40">
         <div className="container-page">
           <div className="mb-10 text-center sm:mb-12">
@@ -1177,9 +1209,7 @@ export function Landing() {
   );
 }
 
-// --------------------------------------------------------
-// SUB-COMPONENTS
-// --------------------------------------------------------
+// ─── Sub-components — unchanged ───
 
 function DesktopPeriodSection({
   title,
@@ -1325,10 +1355,9 @@ function SlotPill({
 
   if (isSelected) {
     styleClasses = 'border-court-300 bg-court-600 text-white font-bold shadow-glow-court cursor-pointer';
- } else if (isBlocked) {
-  // 🍷 PALE DARK RED + strikethrough (crossed out like booked)
-  styleClasses = 'border-rose-900/40 bg-rose-950/40 text-rose-300/60 line-through cursor-not-allowed';
-} else if (isBooked) {
+  } else if (isBlocked) {
+    styleClasses = 'border-rose-900/40 bg-rose-950/40 text-rose-300/60 line-through cursor-not-allowed';
+  } else if (isBooked) {
     styleClasses = 'border-red-500/30 bg-red-500/10 text-red-400/75 line-through cursor-not-allowed';
   } else if (isPending) {
     styleClasses = 'border-amber-500/40 bg-amber-500/15 text-amber-300/90 cursor-not-allowed';

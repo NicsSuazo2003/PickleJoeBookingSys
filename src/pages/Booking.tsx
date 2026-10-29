@@ -16,6 +16,7 @@ import {
   Phone,
   Timer,
   ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -27,12 +28,12 @@ import {
   getSelectedSlotItems,
   getSelectedTotal,
 } from '@/stores/bookingStore';
-import { formatTimeRange, formatCurrency, formatDateLong } from '@/utils/format';
+import { useClientStore } from '@/stores/clientStore';
+import { formatTimeRange, formatCurrency, formatDateLong, isDateBookable } from '@/utils/format';
 import { FIXED_SLOT, APP_CONFIG } from '@/utils/constants';
 import { ApiError } from '@/services/api';
 import type { CustomerDetails } from '@/types';
 
-// Normalize PH mobile: strip spaces/dashes/parens, convert +63/63 → 0
 const normalizePhone = (value: string) =>
   value
     .replace(/[\s\-()]/g, '')
@@ -76,9 +77,7 @@ const customerSchema = z.object({
         const domain = v.split('@')[1];
         return !blockedDomains.includes(domain) && !isTestString(v);
       },
-      {
-        message: 'Please use a real, active email address.',
-      }
+      { message: 'Please use a real, active email address.' }
     ),
 
   phone: z
@@ -118,8 +117,15 @@ export function Booking() {
     refreshSlots,
   } = useBookingStore();
 
+  const settings = useClientStore((state) => state.settings);
+  const loadSettings = useClientStore((state) => state.loadSettings);
+
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const {
     register,
@@ -173,9 +179,6 @@ export function Booking() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      // Client-side pre-check: if a pending booking is already in storage,
-      // try to finish it before creating a new one. Backend rejects duplicate
-      // pending bookings anyway, but this gives a better UX.
       const savedRef = localStorage.getItem('pendingBookingRef');
       if (savedRef) {
         setSubmitError(
@@ -210,8 +213,6 @@ export function Booking() {
 
       navigate('/checkout');
     } catch (err) {
-      // Show friendly message + a recovery link when the backend rejects
-      // a duplicate pending booking.
       const msg =
         err instanceof ApiError
           ? err.userMessage
@@ -232,7 +233,6 @@ export function Booking() {
     handleSubmit(onSubmit, onInvalid)();
   };
 
-  // Detect duplicate-pending error so we can render a recovery link
   const showRecoveryLink =
     !!submitError &&
     (submitError.toLowerCase().includes('already have') ||
@@ -249,6 +249,11 @@ export function Booking() {
     );
   }
 
+  // ── NEW: guard — selected date is no longer bookable under current window ──
+  const dateIsBookable = selectedDate ? isDateBookable(selectedDate, settings) : true;
+  const windowBlocked = !!selectedDate && !dateIsBookable;
+  // ────────────────────────────────────────────────────────────────────────────
+
   if (selectedSlots.length === 0) {
     return (
       <div className="min-h-screen bg-charcoal">
@@ -263,6 +268,32 @@ export function Booking() {
           </div>
           <Button size="md" to="/" leftIcon={<ArrowLeft className="h-4 w-4" />}>
             Choose Court & Time
+          </Button>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // If somehow the selected date fell outside the window (stale tab/bookmark),
+  // show a clear recovery screen instead of letting the backend reject.
+  if (windowBlocked) {
+    return (
+      <div className="min-h-screen bg-charcoal">
+        <Navbar />
+        <div className="container-page flex flex-col items-center justify-center gap-4 pt-32 pb-24 text-center">
+          <AlertTriangle className="h-10 w-10 text-amber-400" />
+          <div>
+            <h1 className="text-lg font-bold text-cream">
+              That date isn't available right now
+            </h1>
+            <p className="mt-1 text-sm text-cream-muted">
+              Bookings are currently open for a different date range. Please go back
+              and pick a new date.
+            </p>
+          </div>
+          <Button size="md" to="/" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Pick a New Date
           </Button>
         </div>
         <Footer />
@@ -292,7 +323,6 @@ export function Booking() {
 
         <div className="grid gap-5 md:gap-6 lg:grid-cols-3">
           <div className="space-y-5 lg:col-span-2">
-            {/* Selection Summary */}
             <div className="card rounded-2xl border border-forest-700/70 bg-forest-900/80 p-4 sm:p-5 shadow-xl backdrop-blur-sm">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue-300">
@@ -390,7 +420,6 @@ export function Booking() {
               </div>
             </div>
 
-            {/* Customer Details Form */}
             <div
               ref={formRef}
               className="card rounded-2xl border border-forest-700/70 bg-forest-900/80 p-4 scroll-mt-24 sm:p-5 shadow-xl backdrop-blur-sm"
@@ -514,7 +543,6 @@ export function Booking() {
             </div>
           </div>
 
-          {/* Right: Booking Summary Sidebar */}
           <div className="hidden lg:col-span-1 lg:block">
             <div className="sticky top-24 space-y-3">
               <div className="card rounded-2xl border border-forest-700/70 bg-forest-900/90 p-5 shadow-xl">
@@ -610,30 +638,15 @@ export function Booking() {
 
                 <p className="mt-3 text-center text-[11px] text-cream-muted">
                   View our{' '}
-                  <Link
-                    to="/terms"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-semibold text-brand-blue-300 underline"
-                  >
+                  <Link to="/terms" target="_blank" rel="noreferrer" className="font-semibold text-brand-blue-300 underline">
                     Terms
                   </Link>
                   ,{' '}
-                  <Link
-                    to="/privacy"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-semibold text-brand-blue-300 underline"
-                  >
+                  <Link to="/privacy" target="_blank" rel="noreferrer" className="font-semibold text-brand-blue-300 underline">
                     Privacy Policy
                   </Link>
                   , and{' '}
-                  <Link
-                    to="/refund-policy"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-semibold text-brand-blue-300 underline"
-                  >
+                  <Link to="/refund-policy" target="_blank" rel="noreferrer" className="font-semibold text-brand-blue-300 underline">
                     No Refund Policy
                   </Link>
                   .
@@ -644,7 +657,6 @@ export function Booking() {
         </div>
       </div>
 
-      {/* Sticky Mobile Checkout Bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-forest-700/80 bg-forest-950/95 p-3.5 backdrop-blur-md lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -672,10 +684,7 @@ export function Booking() {
           <div className="mt-2 rounded-lg border border-error/30 bg-error/10 p-2 text-xs font-medium text-error">
             <p>{submitError}</p>
             {showRecoveryLink && (
-              <Link
-                to="/track"
-                className="mt-1 inline-block font-semibold text-brand-blue-300 underline"
-              >
+              <Link to="/track" className="mt-1 inline-block font-semibold text-brand-blue-300 underline">
                 Find your existing booking →
               </Link>
             )}

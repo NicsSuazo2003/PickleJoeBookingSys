@@ -1,3 +1,4 @@
+// src/services/adminService.ts
 import type {
   Analytics,
   Booking,
@@ -8,13 +9,13 @@ import type {
   PaymentMethod,
   PricingRule,
   AmenityItem,
+  BookingWindowMode,
   RescheduleBookingPayload,
   RescheduleBookingResult,
 } from '@/types';
 import { apiRequest } from './api';
 import { normalizeCourt, buildCourtPayload } from './courtService';
 
-// ─── Security events (admin log viewer) ───
 export type SecuritySeverity = 'info' | 'warning' | 'critical';
 
 export interface SecurityEvent {
@@ -47,6 +48,12 @@ function normalizeAmenity(raw: any): AmenityItem {
   };
 }
 
+function normalizeWindowMode(raw: any): BookingWindowMode {
+  const v = String(raw ?? '').toLowerCase();
+  if (v === 'fixed' || v === 'closed' || v === 'rolling') return v;
+  return 'rolling';
+}
+
 function normalizeClientSettings(raw: any): ClientSettings {
   const data = raw?.data ?? raw;
   return {
@@ -69,6 +76,20 @@ function normalizeClientSettings(raw: any): ClientSettings {
     bookings_enabled: (() => {
       const v = data.bookingsEnabled ?? data.bookings_enabled;
       return v === undefined || v === null ? true : Boolean(v);
+    })(),
+    // ── NEW: fixed booking window ──
+    booking_window_mode: normalizeWindowMode(
+      data.bookingWindowMode ?? data.booking_window_mode
+    ),
+    booking_open_date: (() => {
+      const v = data.bookingOpenDate ?? data.booking_open_date ?? null;
+      if (!v) return null;
+      return String(v).slice(0, 10);
+    })(),
+    booking_close_date: (() => {
+      const v = data.bookingCloseDate ?? data.booking_close_date ?? null;
+      if (!v) return null;
+      return String(v).slice(0, 10);
     })(),
   };
 }
@@ -196,6 +217,10 @@ export const adminService = {
     available_amenities?: AmenityItem[];
     max_advance_booking_days?: number;
     bookings_enabled?: boolean;
+    // ── NEW ──
+    booking_window_mode?: BookingWindowMode;
+    booking_open_date?: string | null;
+    booking_close_date?: string | null;
   }): Promise<ClientSettings> {
     const res = await apiRequest<any>('/api/admin/settings', {
       method: 'PUT',
@@ -209,6 +234,9 @@ export const adminService = {
         availableAmenities: payload.available_amenities,
         maxAdvanceBookingDays: payload.max_advance_booking_days,
         bookingsEnabled: payload.bookings_enabled,
+        bookingWindowMode: payload.booking_window_mode,
+        bookingOpenDate: payload.booking_open_date,
+        bookingCloseDate: payload.booking_close_date,
       }),
     });
     return normalizeClientSettings(res?.data ?? res);

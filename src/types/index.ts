@@ -52,8 +52,8 @@ export interface TimeSlot {
   price: number;
   is_available: boolean;
   is_peak: boolean;
-  status?: SlotStatus;                 // 👈 NEW
-  pending_expires_at?: string | null;  // 👈 NEW
+  status?: SlotStatus;
+  pending_expires_at?: string | null;
 }
 
 export interface BookingSlotItem {
@@ -136,10 +136,6 @@ export interface Analytics {
   court_breakdown: { court_id: string; court_name: string; bookings: number; revenue: number }[];
 }
 
-// ─── Payment methods ───
-// The backend's PaymentMethodDto does NOT persist `type` (it's inferred from
-// `name`) and does NOT reliably round-trip `sort_order`. Keep both optional so
-// the TypeScript type matches the real data contract returned by the API.
 export type PaymentType =
   | 'gcash'
   | 'qr_ph'
@@ -174,12 +170,14 @@ export interface AdminUser {
   status?: string;
 }
 
-// ⭐ Amenity card on the Landing page
 export interface AmenityItem {
   name: string;
   icon: string;
   description?: string;
 }
+
+// ── NEW: fixed booking window ──
+export type BookingWindowMode = 'rolling' | 'fixed' | 'closed';
 
 export interface ClientSettings {
   id: string;
@@ -194,6 +192,10 @@ export interface ClientSettings {
   available_amenities?: AmenityItem[];
   max_advance_booking_days: number;
   bookings_enabled: boolean;
+  // ── NEW ──
+  booking_window_mode: BookingWindowMode;
+  booking_open_date?: string | null;   // yyyy-MM-dd
+  booking_close_date?: string | null;  // yyyy-MM-dd
 }
 
 export type AdminView = 'calendar' | 'list';
@@ -278,16 +280,14 @@ export interface BookingSummary {
   created_at: string;
 }
 
-// ✅ Reschedule feature — request payload for the admin endpoint
 export interface RescheduleBookingPayload {
-  court_id?: string;       // omit to keep current court
-  date?: string;           // omit to keep current date (YYYY-MM-DD)
+  court_id?: string;
+  date?: string;
   slots: { start_time: string; end_time: string }[];
   reason?: string;
   staff_notes?: string;
 }
 
-// ✅ Reschedule feature — response wrapper with delta info
 export interface RescheduleBookingResult {
   booking: Booking;
   previous_slots: BookingSlotItem[];
@@ -296,6 +296,6 @@ export interface RescheduleBookingResult {
   previous_court_name: string;
   previous_total_amount: number;
   new_total_amount: number;
-  balance_due: number;     // positive = customer owes more
-  refund_due: number;      // positive = customer is owed a refund
+  balance_due: number;
+  refund_due: number;
 }

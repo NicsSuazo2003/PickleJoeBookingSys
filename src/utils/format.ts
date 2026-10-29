@@ -1,3 +1,6 @@
+// src/utils/format.ts
+import type { ClientSettings, BookingWindowMode } from '@/types';
+
 export function formatTime(time?: string | null): string {
   if (!time) return '?';
   const [h, m] = time.split(':').map(Number);
@@ -72,24 +75,11 @@ export function isSameDate(a: string, b: string): boolean {
   return a === b;
 }
 
-/**
- * ⭐ NEW — Compute the latest selectable ISO date (YYYY-MM-DD) given a
- * max advance booking setting in days.
- *
- *   0 or negative → null (no limit, don't clamp)
- *   N > 0         → ISO string for today + N days
- *
- * Use this with `<input type="date" max={...} />`, or with any
- * calendar component's maxDate / toDate prop.
- */
 export function getMaxSelectableDate(maxAdvanceDays: number): string | null {
   if (!maxAdvanceDays || maxAdvanceDays <= 0) return null;
   return toISODate(addDays(new Date(), maxAdvanceDays));
 }
 
-/**
- * ⭐ NEW — Human-readable helper for showing "Book up to 3 months ahead" etc.
- */
 export function describeAdvanceWindow(maxAdvanceDays: number): string {
   if (!maxAdvanceDays || maxAdvanceDays <= 0) return 'Any future date';
   if (maxAdvanceDays === 1) return 'Up to 1 day ahead';
@@ -134,4 +124,119 @@ export function getMonthMatrix(year: number, month: number): Date[][] {
     if (week[6].getMonth() !== month && week[0].getMonth() !== month) break;
   }
   return weeks;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ⭐ NEW: Fixed booking window helpers
+// ═══════════════════════════════════════════════════════════════════════
+
+type WindowSettings = Pick<
+  ClientSettings,
+  'booking_window_mode' | 'booking_open_date' | 'booking_close_date' | 'max_advance_booking_days'
+>;
+
+/**
+ * Returns the [min, max] range (both inclusive, ISO yyyy-MM-dd) of dates a
+ * customer can book, based on the client's current window mode.
+ *
+ *  - rolling  → [today, today + maxAdvanceBookingDays]
+ *  - fixed    → [booking_open_date, booking_close_date]
+ *  - closed   → null (nothing bookable)
+ *
+ * `maxISO` is `null` when there is no upper bound (rolling with 0 = unlimited).
+ */
+export function getBookableRange(settings: WindowSettings | null | undefined): {
+  minISO: string;
+  maxISO: string | null;
+} | null {
+  if (!settings) {
+    return { minISO: todayISO(), maxISO: null };
+  }
+
+  const mode = settings.booking_window_mode ?? 'rolling';
+
+  if (mode === 'closed') return null;
+
+  if (mode === 'fixed') {
+    if (!settings.booking_open_date || !settings.booking_close_date) return null;
+    return {
+      minISO: settings.booking_open_date,
+      maxISO: settings.booking_close_date,
+    };
+  }
+
+  // rolling
+  const days = settings.max_advance_booking_days ?? 0;
+  return {
+    minISO: todayISO(),
+    maxISO: days > 0 ? getMaxSelectableDate(days) : null,
+  };
+}
+
+/**
+ * True if the given ISO date can be booked *right now* by a customer.
+ * Considers today (past check) and the configured window.
+ */
+export function isDateBookable(
+  iso: string,
+  settings: WindowSettings | null | undefined
+): boolean {
+  if (!iso) return false;
+  const today = todayISO();
+  if (iso < today) return false;
+
+  const mode: BookingWindowMode = settings?.booking_window_mode ?? 'rolling';
+  if (mode === 'closed') return false;
+
+  if (mode === 'fixed') {
+    if (!settings?.booking_open_date || !settings?.booking_close_date) return false;
+    return iso >= settings.booking_open_date && iso <= settings.booking_close_date;
+  }
+
+  // rolling
+  const days = settings?.max_advance_booking_days ?? 0;
+  if (days > 0) {
+    const max = getMaxSelectableDate(days);
+    if (max && iso > max) return false;
+  }
+  return true;
+}
+
+/**
+ * True if the window is configured but has not yet opened (today < open_date).
+ */
+export function isWindowNotOpenYet(settings: WindowSettings | null | undefined): boolean {
+  if (!settings) return false;
+  if ((settings.booking_window_mode ?? 'rolling') !== 'fixed') return false;
+  if (!settings.booking_open_date) return false;
+  return todayISO() < settings.booking_open_date;
+}
+
+/**
+ * True if the window is fixed and has already closed (today > close_date).
+ */
+export function isWindowClosed(settings: WindowSettings | null | undefined): boolean {
+  if (!settings) return false;
+  if ((settings.booking_window_mode ?? 'rolling') !== 'fixed') return false;
+  if (!settings.booking_close_date) return false;
+  return todayISO() > settings.booking_close_date;
+}
+
+/**
+ * Human-readable description of the current window state.
+ * Used in the admin Settings page preview.
+ */
+export function describeBookingWindow(
+  mode: BookingWindowMode,
+  openDate: string | null | undefined,
+  closeDate: string | null | undefined,
+  maxAdvanceDays: number
+): string {
+  if (mode === 'closed') return 'Online bookings are closed.';
+  if (mode === 'fixed') {
+    if (!openDate || !closeDate) return 'Fixed window — dates not set.';
+    return `Online bookings open ${openDate} through ${closeDate} (inclusive).`;
+  }
+  if (!maxAdvanceDays || maxAdvanceDays <= 0) return 'Unlimited advance booking.';
+  return `Customers can book up to ${maxAdvanceDays} days ahead.`;
 }

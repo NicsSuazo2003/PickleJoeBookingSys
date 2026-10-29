@@ -45,6 +45,7 @@ import {
   toISODate,
   addDays,
   describeAdvanceWindow,
+  describeBookingWindow,
 } from '@/utils/format';
 import { APP_CONFIG } from '@/utils/constants';
 import type {
@@ -53,6 +54,7 @@ import type {
   PaymentType,
   AmenityItem,
   TimeSlot,
+  BookingWindowMode,
 } from '@/types';
 import { StaffManagement } from '@/components/ui/StaffManagement';
 import { Modal } from '@/components/ui/Modal';
@@ -61,14 +63,6 @@ import {
   getAmenityIconForItem,
 } from '@/utils/amenityIcons';
 
-/**
- * Local form-field type. The backend's PaymentMethodDto does NOT include
- * `type` — it gets dropped on save. We keep `formData.type` locally only so
- * the UI can decide which fields to show (Account Number for GCash, QR for
- * GCash/QR Ph, etc). The "Payment Type" dropdown is removed from the modal,
- * but this state persists between Edit clicks so editing an existing GCash
- * method still shows the Account Number + QR fields.
- */
 type PaymentFormState = {
   name: string;
   type: PaymentType;
@@ -82,10 +76,6 @@ type PaymentFormState = {
   };
 };
 
-/**
- * Heuristic: derive a "type" from the method name so we can decide which
- * fields to show when editing an existing method that lacks a stored type.
- */
 function inferTypeFromName(name: string | undefined): PaymentType {
   const lower = (name ?? '').toLowerCase();
   if (lower.includes('gcash')) return 'gcash';
@@ -190,6 +180,9 @@ export function Settings() {
   } | null>(null);
 
   // ─── Booking window ───
+  const [bookingWindowMode, setBookingWindowMode] = useState<BookingWindowMode>('rolling');
+  const [bookingOpenDate, setBookingOpenDate] = useState<string>('');
+  const [bookingCloseDate, setBookingCloseDate] = useState<string>('');
   const [maxAdvanceDays, setMaxAdvanceDays] = useState<number>(90);
   const [savingBookingWindow, setSavingBookingWindow] = useState(false);
   const [bookingWindowMsg, setBookingWindowMsg] = useState<{
@@ -205,12 +198,8 @@ export function Settings() {
     text: string;
   } | null>(null);
 
-  // ─── QR upload ───
   const [uploadingQR, setUploadingQR] = useState(false);
-
-  // ─── Payment method form (LOCAL-ONLY type field) ───
   const [formData, setFormData] = useState<PaymentFormState>({ ...DEFAULT_FORM });
-
   const [, setClientSettings] = useState<ClientSettings | null>(null);
   const [, setLoadingSettings] = useState(true);
 
@@ -227,6 +216,10 @@ export function Settings() {
         setAmenities(settings.available_amenities ?? []);
         setMaxAdvanceDays(settings.max_advance_booking_days ?? 90);
         setBookingsEnabled(settings.bookings_enabled ?? true);
+        // ── NEW: hydrate the booking window state ──
+        setBookingWindowMode(settings.booking_window_mode ?? 'rolling');
+        setBookingOpenDate(settings.booking_open_date ?? '');
+        setBookingCloseDate(settings.booking_close_date ?? '');
       } catch (err) {
         console.error('Failed to load client settings:', err);
       } finally {
@@ -242,7 +235,6 @@ export function Settings() {
     }
   }, [selectedCourtId, loadBlockedDates]);
 
-  // Fetch availability for the selected date
   useEffect(() => {
     if (!selectedCourtId || !blockDate) return;
 
@@ -285,7 +277,6 @@ export function Settings() {
       if (settings.payment_methods && settings.payment_methods.length > 0) {
         setPaymentMethods(settings.payment_methods);
       } else {
-        // Seed a starter GCash method with sensible defaults, no fake `type`.
         setPaymentMethods([
           {
             id: '1',
@@ -381,7 +372,6 @@ export function Settings() {
     setSavingMethod(true);
     setMethodMsg(null);
 
-    // Note: `type` and `sort_order` are NOT sent — backend drops them.
     const newMethod: PaymentMethod = {
       id: Date.now().toString(),
       name: formData.name.trim(),
@@ -479,7 +469,6 @@ export function Settings() {
     setEditingMethod(method);
     setFormData({
       name: method.name,
-      // Infer `type` from the name since it's not persisted
       type: inferTypeFromName(method.name),
       icon: method.icon || 'Smartphone',
       enabled: method.enabled,
@@ -677,11 +666,56 @@ export function Settings() {
     }
   };
 
+  // ─── Booking window save ───
   const saveBookingWindow = async () => {
-    setSavingBookingWindow(true);
     setBookingWindowMsg(null);
+
+    // Client-side validation for `fixed` mode
+    if (bookingWindowMode === 'fixed') {
+      if (!bookingOpenDate || !bookingCloseDate) {
+        setBookingWindowMsg({
+          type: 'error',
+          text: 'Fixed window requires both an open and close date.',
+        });
+        return;
+      }
+      if (bookingOpenDate > bookingCloseDate) {
+        setBookingWindowMsg({
+          type: 'error',
+          text: 'Open date cannot be after the close date.',
+        });
+        return;
+      }
+    }
+
+    setSavingBookingWindow(true);
     try {
-      await adminService.updateSettings({ max_advance_booking_days: maxAdvanceDays });
+      await adminService.updateSettings({
+        booking_window_mode: bookingWindowMode,
+        booking_open_date:
+          bookingWindowMode === 'fixed' ? bookingOpenDate : null,
+        booking_close_date:
+          bookingWindowMode === 'fixed' ? bookingCloseDate : null,
+        max_advance_booking_days: maxAdvanceDays,
+      });
+
+      // Keep public store in sync across open tabs
+      useClientStore.setState((state) =>
+        state.settings
+          ? {
+              settings: {
+                ...state.settings,
+                booking_window_mode: bookingWindowMode,
+                booking_open_date:
+                  bookingWindowMode === 'fixed' ? bookingOpenDate : null,
+                booking_close_date:
+                  bookingWindowMode === 'fixed' ? bookingCloseDate : null,
+                max_advance_booking_days: maxAdvanceDays,
+              },
+            }
+          : {}
+      );
+
       setBookingWindowMsg({ type: 'success', text: 'Booking window saved.' });
     } catch (err) {
       setBookingWindowMsg({
@@ -771,7 +805,6 @@ export function Settings() {
     );
   };
 
-  // UI-level check for showing account-number / QR inputs, based on the local form type
   const showAccountNumberField =
     formData.type === 'gcash' || formData.type === 'e_wallet';
   const showQrField = formData.type === 'qr_ph' || formData.type === 'gcash';
@@ -1046,7 +1079,6 @@ export function Settings() {
                   </div>
                 )}
 
-                {/* Add new amenity */}
                 <div className="mt-4 space-y-3 rounded-xl border border-dashed border-forest-700/80 bg-forest-950/40 p-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-brand-blue-300">
                     Add new amenity
@@ -1169,7 +1201,6 @@ export function Settings() {
                         setBookingsEnabledMsg(null);
                         try {
                           await adminService.updateSettings({ bookings_enabled: next });
-                          // Keep public client store in sync across open tabs
                           useClientStore.setState((state) =>
                             state.settings
                               ? {
@@ -1250,47 +1281,160 @@ export function Settings() {
                     Booking Window
                   </h2>
                   <p className="mt-0.5 text-xs text-cream-muted sm:text-sm">
-                    How far in advance customers can book. Use{' '}
-                    <strong className="text-cream">0</strong> for no limit.
+                    Control which dates customers can book online. Staff manual bookings
+                    are not affected by this setting.
                   </p>
                 </div>
 
-                <div className="grid gap-4 sm:max-w-md">
-                  <Input
-                    label="Max Advance Booking (days)"
-                    type="number"
-                    min={0}
-                    max={365}
-                    value={String(maxAdvanceDays)}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      setMaxAdvanceDays(
-                        Number.isNaN(v) ? 0 : Math.max(0, Math.min(365, v))
-                      );
-                    }}
-                    hint="e.g. 90 = customers can book up to ~3 months ahead. 0 = unlimited."
-                  />
+                {/* Mode radios */}
+                <div className="space-y-3">
+                  {/* Rolling */}
+                  <label
+                    className={`flex cursor-pointer gap-3 rounded-xl border p-3.5 transition ${
+                      bookingWindowMode === 'rolling'
+                        ? 'border-brand-blue-400 bg-brand-blue-500/15'
+                        : 'border-forest-700/80 bg-forest-950/40 hover:border-brand-blue-400/40'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="booking_window_mode"
+                      value="rolling"
+                      checked={bookingWindowMode === 'rolling'}
+                      onChange={() => setBookingWindowMode('rolling')}
+                      className="mt-1 h-4 w-4 accent-brand-blue-500"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-cream">
+                        Rolling window — always open N days ahead of today
+                      </p>
+                      <p className="mt-0.5 text-xs text-cream-muted">
+                        The cutoff moves forward every day. Best for "always accept bookings".
+                      </p>
+
+                      {bookingWindowMode === 'rolling' && (
+                        <div className="mt-3 grid gap-3 sm:max-w-xs">
+                          <Input
+                            label="Max Advance Booking (days)"
+                            type="number"
+                            min={0}
+                            max={365}
+                            value={String(maxAdvanceDays)}
+                            onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setMaxAdvanceDays(
+                                Number.isNaN(v) ? 0 : Math.max(0, Math.min(365, v))
+                              );
+                            }}
+                            hint="0 = no limit"
+                          />
+                          <p className="text-xs text-cream-muted">
+                            <span className="font-semibold text-brand-blue-300">
+                              {describeAdvanceWindow(maxAdvanceDays)}
+                            </span>
+                            {maxAdvanceDays > 0 && (
+                              <>
+                                {' '}· Last bookable date today:{' '}
+                                <span className="font-mono text-cream">
+                                  {toISODate(addDays(new Date(), maxAdvanceDays))}
+                                </span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
+                  {/* Fixed */}
+                  <label
+                    className={`flex cursor-pointer gap-3 rounded-xl border p-3.5 transition ${
+                      bookingWindowMode === 'fixed'
+                        ? 'border-brand-blue-400 bg-brand-blue-500/15'
+                        : 'border-forest-700/80 bg-forest-950/40 hover:border-brand-blue-400/40'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="booking_window_mode"
+                      value="fixed"
+                      checked={bookingWindowMode === 'fixed'}
+                      onChange={() => setBookingWindowMode('fixed')}
+                      className="mt-1 h-4 w-4 accent-brand-blue-500"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-cream">
+                        Fixed date range — only open between two specific dates
+                      </p>
+                      <p className="mt-0.5 text-xs text-cream-muted">
+                        Both dates are inclusive. Outside the range, customer bookings are
+                        rejected. Best for "only sell Nov 1–8".
+                      </p>
+
+                      {bookingWindowMode === 'fixed' && (
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:max-w-md">
+                          <Input
+                            label="Open on"
+                            type="date"
+                            value={bookingOpenDate}
+                            onChange={(e) => setBookingOpenDate(e.target.value)}
+                          />
+                          <Input
+                            label="Close after"
+                            type="date"
+                            value={bookingCloseDate}
+                            onChange={(e) => setBookingCloseDate(e.target.value)}
+                            min={bookingOpenDate || undefined}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
+                  {/* Closed */}
+                  <label
+                    className={`flex cursor-pointer gap-3 rounded-xl border p-3.5 transition ${
+                      bookingWindowMode === 'closed'
+                        ? 'border-brand-blue-400 bg-brand-blue-500/15'
+                        : 'border-forest-700/80 bg-forest-950/40 hover:border-brand-blue-400/40'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="booking_window_mode"
+                      value="closed"
+                      checked={bookingWindowMode === 'closed'}
+                      onChange={() => setBookingWindowMode('closed')}
+                      className="mt-1 h-4 w-4 accent-brand-blue-500"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-cream">
+                        Closed — no online bookings at all
+                      </p>
+                      <p className="mt-0.5 text-xs text-cream-muted">
+                        Landing page shows "Bookings temporarily closed". Staff can still
+                        create manual bookings.
+                      </p>
+                    </div>
+                  </label>
                 </div>
 
+                {/* Preview line */}
                 <p className="mt-3 text-xs text-cream-muted">
                   Currently:{' '}
                   <span className="font-semibold text-brand-blue-300">
-                    {describeAdvanceWindow(maxAdvanceDays)}
+                    {describeBookingWindow(
+                      bookingWindowMode,
+                      bookingOpenDate || null,
+                      bookingCloseDate || null,
+                      maxAdvanceDays
+                    )}
                   </span>
-                  {maxAdvanceDays > 0 && (
-                    <>
-                      {' '}
-                      · Last bookable date:{' '}
-                      <span className="font-mono text-cream">
-                        {toISODate(addDays(new Date(), maxAdvanceDays))}
-                      </span>
-                    </>
-                  )}
                 </p>
 
                 {bookingWindowMsg && (
                   <div
-                    className={`mt-4 flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold ${
+                    className={`mt-3 flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold ${
                       bookingWindowMsg.type === 'success'
                         ? 'border-accentGreen-400/40 bg-accentGreen-500/15 text-accentGreen-300'
                         : 'border-error/40 bg-error/15 text-error'
@@ -1362,7 +1506,6 @@ export function Settings() {
                         const IconComponent =
                           ICON_OPTIONS.find((i) => i.value === method.icon)?.icon ||
                           Smartphone;
-                        // Use inferred type for display label when backend didn't send one
                         const displayType =
                           method.type ?? inferTypeFromName(method.name);
 
@@ -1647,11 +1790,6 @@ export function Settings() {
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
 
-          {/*
-            The "Payment Type" dropdown is intentionally removed. The backend
-            no longer stores `type`; it's inferred from `name` when needed.
-            We keep a small hint for the admin so they know which fields appear.
-          */}
           <p className="text-[11px] text-cream-muted leading-relaxed">
             Fields adapt to the method name: methods containing{' '}
             <strong className="text-cream">GCash</strong> show Account Number + QR
