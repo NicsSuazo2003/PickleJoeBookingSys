@@ -16,6 +16,8 @@ import { formatDateTime } from '@/utils/format';
 
 type Severity = 'all' | 'info' | 'warning' | 'critical';
 
+const RATE_LIMIT_EVENT = 'rate_limit.triggered';
+
 const SEVERITY_STYLES: Record<
   SecurityEvent['severity'],
   { icon: typeof Info; cls: string; label: string }
@@ -59,6 +61,8 @@ export function SecurityLogs() {
   const [severity, setSeverity] = useState<Severity>('warning');
   const [eventType, setEventType] = useState<string>('');
   const [limit, setLimit] = useState(100);
+  // Rate-limit events are noisy; hide them by default so real warnings stay visible.
+  const [hideRateLimits, setHideRateLimits] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -81,10 +85,20 @@ export function SecurityLogs() {
     })();
   }, [severity, eventType, limit]);
 
+  // If the admin explicitly filters for rate-limit events, always show them.
+  const filteringForRateLimits = eventType.trim() === RATE_LIMIT_EVENT;
+  const rateLimitCount = events.filter(
+    (e) => e.event_type === RATE_LIMIT_EVENT
+  ).length;
+  const visibleEvents =
+    hideRateLimits && !filteringForRateLimits
+      ? events.filter((e) => e.event_type !== RATE_LIMIT_EVENT)
+      : events;
+
   const counts = {
-    info: events.filter((e) => e.severity === 'info').length,
-    warning: events.filter((e) => e.severity === 'warning').length,
-    critical: events.filter((e) => e.severity === 'critical').length,
+    info: visibleEvents.filter((e) => e.severity === 'info').length,
+    warning: visibleEvents.filter((e) => e.severity === 'warning').length,
+    critical: visibleEvents.filter((e) => e.severity === 'critical').length,
   };
 
   return (
@@ -97,7 +111,8 @@ export function SecurityLogs() {
           </h1>
           <p className="mt-1 text-xs text-cream-muted sm:text-sm">
             Authentication, booking, and administrative events. IP addresses are
-            hashed. Only warnings and critical events are shown by default.
+            hashed. Only warnings and critical events are shown by default, and
+            rate-limit events are hidden unless you turn them on.
           </p>
         </div>
 
@@ -117,6 +132,17 @@ export function SecurityLogs() {
             </button>
           ))}
 
+          {rateLimitCount > 0 && !filteringForRateLimits && (
+            <button
+              onClick={() => setHideRateLimits((h) => !h)}
+              className="rounded-lg border border-forest-700 bg-forest-950 px-3 py-1.5 text-xs font-semibold text-cream-muted transition hover:text-cream"
+            >
+              {hideRateLimits
+                ? `Show ${rateLimitCount} rate-limit event${rateLimitCount !== 1 ? 's' : ''}`
+                : 'Hide rate-limit events'}
+            </button>
+          )}
+
           <input
             type="text"
             placeholder="Filter by event type (e.g. auth.login_failed)"
@@ -134,18 +160,23 @@ export function SecurityLogs() {
 
         {loading ? (
           <LoadingSpinner className="py-16" />
-        ) : events.length === 0 ? (
+        ) : visibleEvents.length === 0 ? (
           <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-12 text-center">
             <Shield className="mx-auto h-10 w-10 text-cream-muted/30" />
             <p className="mt-3 text-sm font-semibold text-cream-muted">
               No security events match this filter.
             </p>
+            {hideRateLimits && rateLimitCount > 0 && (
+              <p className="mt-1 text-xs text-cream-muted/70">
+                {rateLimitCount} rate-limit event{rateLimitCount !== 1 ? 's are' : ' is'} hidden.
+              </p>
+            )}
           </div>
         ) : (
           <>
             <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-cream-muted">
               <span>
-                {events.length} event{events.length !== 1 ? 's' : ''}
+                {visibleEvents.length} event{visibleEvents.length !== 1 ? 's' : ''}
               </span>
               <span className="flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-amber-400" />
@@ -158,7 +189,7 @@ export function SecurityLogs() {
             </div>
 
             <div className="space-y-2">
-              {events.map((e) => {
+              {visibleEvents.map((e) => {
                 const style = SEVERITY_STYLES[e.severity] ?? SEVERITY_STYLES.info;
                 const Icon = style.icon;
                 return (
