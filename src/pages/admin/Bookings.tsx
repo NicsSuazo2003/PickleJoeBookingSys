@@ -1,5 +1,6 @@
 // src/pages/admin/Bookings.tsx
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -355,6 +356,10 @@ export function Bookings() {
   const isAdmin = user?.role === 'admin';
   const isStaff = user?.role === 'staff';
 
+  const location = useLocation();
+  const incomingOpenId = (location.state as { openBookingId?: string } | null)?.openBookingId;
+  const autoOpenedRef = useRef<string | null>(null);
+
   const bookings = useAdminStore((state) => state.bookings);
   const courts = useAdminStore((state) => state.courts);
   const loadingBookings = useAdminStore((state) => state.loadingBookings);
@@ -593,6 +598,21 @@ export function Bookings() {
     setCopied(false);
     setSelectedBooking(b);
   };
+
+  // ── Auto-open a booking passed via navigation state (from Dashboard) ──
+  useEffect(() => {
+    if (!incomingOpenId) return;
+    if (autoOpenedRef.current === incomingOpenId) return;
+    if (bookings.length === 0) return; // wait for data
+
+    const target = bookings.find((b) => b.id === incomingOpenId);
+    if (target) {
+      autoOpenedRef.current = incomingOpenId;
+      openDetails(target);
+      // Clear the history state so a page refresh doesn't re-open it.
+      window.history.replaceState({}, '');
+    }
+  }, [incomingOpenId, bookings]);
 
   const openReschedule = (b: Booking) => {
     setSelectedBooking(null);
@@ -881,7 +901,7 @@ export function Bookings() {
                         <td className="px-4 py-3.5">
                           <StatusBadge status={b.status} size="sm" />
                         </td>
-                        <td className="px-4 py-3.5 text-right">
+                                                <td className="px-4 py-3.5 text-right">
                           {needsReview ? (
                             <Button
                               size="sm"

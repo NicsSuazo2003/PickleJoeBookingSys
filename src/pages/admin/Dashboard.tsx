@@ -1,6 +1,6 @@
 // src/pages/admin/Dashboard.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   CalendarDays,
@@ -45,12 +45,22 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'cancelled', label: 'Cancelled' },
 ];
 
+// Statuses that appear on the calendar grid.
+// Everything else (completed, cancelled, rejected, expired, refunded,
+// pending_payment) is hidden from the calendar — but still visible in list view.
+const CALENDAR_STATUSES = new Set(['confirmed', 'payment_submitted']);
+
 // One place that defines status colors, used by chips, dots and the legend.
 const STATUS_STYLE: Record<string, { chip: string; dot: string; label: string }> = {
   confirmed: {
     chip: 'bg-accentGreen-500/25 text-accentGreen-300 border border-accentGreen-400/30',
     dot: 'bg-accentGreen-400',
     label: 'Confirmed',
+  },
+  payment_submitted: {
+    chip: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+    dot: 'bg-amber-400',
+    label: 'Needs review',
   },
   pending_payment: {
     chip: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
@@ -79,13 +89,6 @@ function formatTimeShort(time: string): string {
   return minute === 0 ? `${hour12}${ampm}` : `${hour12}:${String(minute).padStart(2, '0')}${ampm}`;
 }
 
-function formatSlotTime(slot: any): string {
-  if (!slot) return '?';
-  const start = slot.start_time ? formatTimeShort(slot.start_time) : '?';
-  const end = slot.end_time ? formatTimeShort(slot.end_time) : '?';
-  return `${start}-${end}`;
-}
-
 function firstStart(b: any): string {
   return b?.slots?.[0]?.start_time ?? '';
 }
@@ -99,12 +102,15 @@ function bookingKey(b: any, i: number): string {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const analytics = useAdminStore((state) => state.analytics);
   const bookings = useAdminStore((state) => state.bookings || []);
+  const courts = useAdminStore((state) => state.courts);
   const loadingAnalytics = useAdminStore((state) => state.loadingAnalytics);
   const loadingBookings = useAdminStore((state) => state.loadingBookings);
   const loadAnalytics = useAdminStore((state) => state.loadAnalytics);
   const loadBookings = useAdminStore((state) => state.loadBookings);
+  const loadCourts = useAdminStore((state) => state.loadCourts);
 
   const [view, setView] = useState<AdminView>('calendar');
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -117,7 +123,8 @@ export function Dashboard() {
   useEffect(() => {
     loadAnalytics();
     loadBookings();
-  }, [loadAnalytics, loadBookings]);
+    loadCourts();
+  }, [loadAnalytics, loadBookings, loadCourts]);
 
   useEffect(() => {
     setVisibleCount(LIST_PAGE_SIZE);
@@ -127,9 +134,15 @@ export function Dashboard() {
   const month = calendarDate.getMonth();
   const weeks = getMonthMatrix(year, month);
 
+  // Calendar only shows confirmed + payment_submitted (needs review).
+  const calendarBookings = useMemo(
+    () => bookings.filter((b) => b && CALENDAR_STATUSES.has(b.status)),
+    [bookings]
+  );
+
   const bookingsByDate = useMemo(() => {
     const map = new Map<string, Booking[]>();
-    bookings.forEach((b) => {
+    calendarBookings.forEach((b) => {
       if (!b || !b.date) return;
       const existing = map.get(b.date) ?? [];
       existing.push(b);
@@ -138,7 +151,7 @@ export function Dashboard() {
     // Earliest first, so the day drawer reads like a schedule.
     map.forEach((list) => list.sort((a, b) => firstStart(a).localeCompare(firstStart(b))));
     return map;
-  }, [bookings]);
+  }, [calendarBookings]);
 
   const selectedDateBookings = selectedDate ? bookingsByDate.get(selectedDate) ?? [] : [];
 
@@ -164,6 +177,10 @@ export function Dashboard() {
   const goToToday = () => {
     setCalendarDate(new Date());
     setSelectedDate(todayISO());
+  };
+
+  const openBookingInList = (id: string) => {
+    navigate(ADMIN_BOOKINGS_PATH, { state: { openBookingId: id } });
   };
 
   const statCards = [
@@ -410,12 +427,14 @@ export function Dashboard() {
           ) : view === 'calendar' ? (
             <div>
               <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-cream-muted">
-                {Object.entries(STATUS_STYLE).map(([key, s]) => (
-                  <span key={key} className="flex items-center gap-1.5">
-                    <span className={`h-2 w-2 rounded-full ${s.dot}`} />
-                    {s.label}
-                  </span>
-                ))}
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-accentGreen-400" />
+                  Confirmed
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  Needs review
+                </span>
               </div>
 
               <div className="mb-2 grid grid-cols-7 gap-1">
@@ -435,7 +454,7 @@ export function Dashboard() {
                   const iso = toISODate(day);
                   const dayBookings = bookingsByDate.get(iso) ?? [];
                   const activeBookings = dayBookings.filter((b) => b.status !== 'cancelled');
-                  const hasPending = dayBookings.some((b) => b.status === 'pending_payment');
+                  const hasPending = dayBookings.some((b) => b.status === 'payment_submitted');
                   const isCurrentMonth = day.getMonth() === month;
                   const isToday = iso === todayISO();
                   const isSelected = iso === selectedDate;
@@ -448,7 +467,7 @@ export function Dashboard() {
                       aria-pressed={isSelected}
                       aria-label={`${formatDate(iso)}: ${activeBookings.length} booking${
                         activeBookings.length !== 1 ? 's' : ''
-                      }${hasPending ? ', has pending payments' : ''}`}
+                      }${hasPending ? ', has pending reviews' : ''}`}
                       className={`min-h-[56px] rounded-xl border p-1 text-left transition sm:min-h-24 sm:p-2 ${
                         isSelected
                           ? 'border-brand-blue-400 bg-brand-blue-500/20 shadow-glow-blue'
@@ -520,12 +539,18 @@ export function Dashboard() {
                   </h3>
                   {selectedDateBookings.length === 0 ? (
                     <p className="py-6 text-center text-xs font-medium text-cream-muted sm:text-sm">
-                      No bookings for this date.
+                      No confirmed or pending-review bookings for this date.
                     </p>
                   ) : (
                     <div className="space-y-2.5">
                       {selectedDateBookings.map((b, i) => (
-                        <BookingRow key={bookingKey(b, i)} booking={b} showDate={false} />
+                        <BookingRow
+                          key={bookingKey(b, i)}
+                          booking={b}
+                          showDate={false}
+                          courts={courts}
+                          onOpen={() => openBookingInList(b.id)}
+                        />
                       ))}
                     </div>
                   )}
@@ -567,7 +592,14 @@ export function Dashboard() {
                   </p>
                 ) : (
                   filteredList.slice(0, visibleCount).map((b, i) => (
-                    <BookingRow key={bookingKey(b, i)} booking={b} showDate showReference />
+                    <BookingRow
+                      key={bookingKey(b, i)}
+                      booking={b}
+                      showDate
+                      showReference
+                      courts={courts}
+                      onOpen={() => openBookingInList(b.id)}
+                    />
                   ))
                 )}
               </div>
@@ -598,31 +630,34 @@ function BookingRow({
   booking: b,
   showDate,
   showReference = false,
+  courts,
+  onOpen,
 }: {
   booking: any;
   showDate: boolean;
   showReference?: boolean;
+  courts: { id: string; name: string }[];
+  onOpen?: () => void;
 }) {
-  const courts = useAdminStore((state) => state.courts);
-
-  // Group slots by court, dedupe, sort, merge consecutive ranges
+  // Group slots by court, dedupe, sort, merge consecutive ranges.
   const { courtNames, slotDisplay } = useMemo(() => {
     if (!b || !b.slots?.length) {
       return { courtNames: b?.court_name || 'Unknown Court', slotDisplay: 'No slots' };
     }
 
-    // Build court id → name map
+    // Build court id → name map (case-insensitive).
     const nameById = new Map<string, string>();
     (courts ?? []).forEach((c) => {
-      if (c?.id) nameById.set(c.id.toLowerCase(), c.name || 'Unnamed Court');
+      if (c?.id) nameById.set(String(c.id).trim().toLowerCase(), c.name || 'Unnamed Court');
     });
 
-    // Group slots by court_id
+    // Group slots by court_id, falling back to booking-level court info.
     const byCourt = new Map<string, Map<string, { start: string; end: string }>>();
 
     for (const s of b.slots) {
       if (!s?.start_time || !s?.end_time) continue;
-      const courtKey = (s.court_id ?? 'unknown').toString().toLowerCase();
+      const rawCourtKey = s.court_id ?? b.court_id ?? b.court_name ?? 'unknown';
+      const courtKey = String(rawCourtKey).trim().toLowerCase();
       const timeKey = `${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)}`;
 
       let times = byCourt.get(courtKey);
@@ -639,7 +674,6 @@ function BookingRow({
       return { courtNames: b.court_name || 'Unknown Court', slotDisplay: 'No slots' };
     }
 
-    // Merge consecutive ranges per court
     const mergeRanges = (times: Map<string, { start: string; end: string }>) => {
       const sorted = Array.from(times.values()).sort((a, c) =>
         a.start.slice(0, 5).localeCompare(c.start.slice(0, 5))
@@ -656,15 +690,25 @@ function BookingRow({
       return merged;
     };
 
-    // Resolve court labels and merge times
+    // Resolve a friendly label for a court key with a robust fallback chain:
+    //  1. Real court name from store (by id)
+    //  2. Booking-level court_name (if it's meaningful)
+    //  3. Generic "Court" / "Unknown Court"
+    const resolveLabel = (courtKey: string): string => {
+      const fromStore = nameById.get(courtKey);
+      if (fromStore) return fromStore;
+
+      const fallback = (b.court_name ?? '').trim();
+      if (fallback && fallback.toLowerCase() !== 'unknown court') return fallback;
+
+      return byCourt.size === 1 ? 'Court' : 'Unknown Court';
+    };
+
     const courtLabels: string[] = [];
     const signatureToTimes = new Map<string, string>();
 
     byCourt.forEach((times, courtKey) => {
-      const label =
-        nameById.get(courtKey) ??
-        (byCourt.size === 1 ? b.court_name || 'Unknown Court' : 'Unknown Court');
-
+      const label = resolveLabel(courtKey);
       const merged = mergeRanges(times);
       const text = merged
         .map((r) => `${formatTimeShort(r.start)}-${formatTimeShort(r.end)}`)
@@ -676,17 +720,17 @@ function BookingRow({
       }
     });
 
-    // Sort court labels numerically: Court 1, Court 2, Court 3
+    // Sort court labels numerically: Court 1, Court 2, Court 3.
     courtLabels.sort((a, c) => a.localeCompare(c, undefined, { numeric: true }));
 
-    // If every court has identical time signature, collapse to one
+    // If every court has identical time signature, collapse to one line.
     const uniqueSignatures = Array.from(signatureToTimes.keys());
     const slotDisplay =
       uniqueSignatures.length === 1 && byCourt.size > 1
         ? `${uniqueSignatures[0]} (each court)`
         : Array.from(byCourt.entries())
             .map(([courtKey, times]) => {
-              const label = nameById.get(courtKey) ?? 'Unknown Court';
+              const label = resolveLabel(courtKey);
               const merged = mergeRanges(times);
               const text = merged
                 .map((r) => `${formatTimeShort(r.start)}-${formatTimeShort(r.end)}`)
@@ -703,8 +747,29 @@ function BookingRow({
     };
   }, [b, courts]);
 
+  const clickable = typeof onOpen === 'function';
+
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-forest-700/70 bg-forest-950/70 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? onOpen : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpen?.();
+              }
+            }
+          : undefined
+      }
+      className={`flex flex-col gap-2 rounded-xl border border-forest-700/70 bg-forest-950/70 p-3.5 sm:flex-row sm:items-center sm:justify-between ${
+        clickable
+          ? 'cursor-pointer transition hover:border-brand-blue-400/60 hover:bg-forest-900/70 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/40'
+          : ''
+      }`}
+    >
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-10 min-w-[3.5rem] shrink-0 items-center justify-center rounded-xl border border-brand-blue-400/30 bg-brand-blue-500/20 px-2 text-xs font-black text-brand-blue-200">
           {firstStart(b) ? formatTimeShort(firstStart(b)) : 'N/A'}
