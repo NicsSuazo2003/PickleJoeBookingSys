@@ -31,7 +31,7 @@ export function normalizeCourt(raw: any, index: number = 0): Court {
   // If ID is not a valid GUID, generate one for frontend use
   let id = raw.id;
   const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-  
+
   if (!isGuid && USE_MOCK_DATA) {
     // In mock mode, map to our mock GUIDs
     if (id === 'court-1') id = MOCK_COURT_GUIDS['court-1'];
@@ -107,8 +107,8 @@ export function normalizeSlot(raw: any, fallbackDate: string): TimeSlot {
     price: Number(raw.price ?? raw.Price ?? 0),
     is_available: raw.isAvailable ?? raw.is_available ?? true,
     is_peak: raw.isPeak ?? raw.is_peak ?? false,
-    status: raw.status ?? raw.Status ?? undefined,                              // 👈 NEW
-    pending_expires_at: raw.pendingExpiresAt ?? raw.pending_expires_at ?? null, // 👈 NEW
+    status: raw.status ?? raw.Status ?? undefined,
+    pending_expires_at: raw.pendingExpiresAt ?? raw.pending_expires_at ?? null,
   };
 }
 
@@ -116,15 +116,12 @@ export const courtService = {
   async getCourts(): Promise<Court[]> {
     // If mock mode is enabled, return mock data
     if (USE_MOCK_DATA) {
-      console.warn('🔧 Using mock court data (development mode)');
       return mockCourts;
     }
 
     try {
-      console.log('📡 Fetching courts from backend...');
       const res = await apiRequest<any>('/api/courts');
-      console.log('📡 Backend response:', res);
-      
+
       let rawList = [];
       if (Array.isArray(res)) {
         rawList = res;
@@ -133,28 +130,21 @@ export const courtService = {
       } else if (res?.courts && Array.isArray(res.courts)) {
         rawList = res.courts;
       } else {
-        console.warn('Unexpected courts response format:', res);
         return [];
       }
-      
+
       if (rawList.length === 0) {
-        console.warn('⚠️ No courts found in backend');
         // In development, fallback to mock data
         if (import.meta.env.DEV) {
-          console.warn('🔧 Backend returned no courts, using mock data as fallback');
           return mockCourts;
         }
         return [];
       }
-      
-      const courts = rawList.map((item: any, idx: number) => normalizeCourt(item, idx));
-      console.log(`✅ Loaded ${courts.length} courts from backend`);
-      return courts;
+
+      return rawList.map((item: any, idx: number) => normalizeCourt(item, idx));
     } catch (error) {
-      console.error('❌ Failed to fetch courts:', error);
       // In development, fallback to mock data
       if (import.meta.env.DEV) {
-        console.warn('🔧 Backend unavailable, using mock data as fallback');
         return mockCourts;
       }
       throw error;
@@ -173,7 +163,6 @@ export const courtService = {
       const data = res?.data ?? res?.court ?? res;
       return normalizeCourt(data);
     } catch (error) {
-      console.error('❌ Failed to fetch court:', error);
       if (import.meta.env.DEV) {
         const court = mockCourts.find((c) => c.id === id);
         if (court) return court;
@@ -182,7 +171,7 @@ export const courtService = {
     }
   },
 
-   // ✅ UPDATED — accepts an optional excludeBookingId so the reschedule
+  // ✅ UPDATED — accepts an optional excludeBookingId so the reschedule
   //    modal can see the booking's own current slots as selectable.
   async getAvailability(
     courtId: string,
@@ -190,7 +179,6 @@ export const courtService = {
     excludeBookingId?: string
   ): Promise<TimeSlot[]> {
     if (USE_MOCK_DATA) {
-      console.warn('🔧 Using mock slot data (development mode)');
       return generateMockSlots(courtId, date);
     }
 
@@ -198,41 +186,28 @@ export const courtService = {
       const params = new URLSearchParams({ date });
       if (excludeBookingId) params.set('excludeBookingId', excludeBookingId);
 
-      console.log(
-        `📡 Fetching availability for court ${courtId} on ${date}` +
-          (excludeBookingId ? ` (excluding booking ${excludeBookingId})` : '') +
-          '...'
-      );
       const res = await apiRequest<any>(
         `/api/courts/${courtId}/availability?${params.toString()}`
       );
-      console.log('📡 Availability response:', res);
 
       const rawList = Array.isArray(res) ? res : res?.data || res?.slots || [];
 
       if (rawList.length === 0) {
-        console.warn('⚠️ No slots found in backend');
         if (import.meta.env.DEV) {
-          console.warn('🔧 Using mock slots as fallback');
           return generateMockSlots(courtId, date);
         }
         return [];
       }
 
-      const slots = rawList.map((item: any) => {
+      return rawList.map((item: any) => {
         const normalized = normalizeSlot(item, date);
         return {
           ...normalized,
           court_id: courtId,
         };
       });
-
-      console.log(`✅ Loaded ${slots.length} slots from backend`);
-      return slots;
     } catch (error) {
-      console.error('❌ Failed to fetch slots:', error);
       if (import.meta.env.DEV) {
-        console.warn('🔧 Backend unavailable, using mock slots as fallback');
         return generateMockSlots(courtId, date);
       }
       throw error;
@@ -249,7 +224,6 @@ export const courtService = {
       const res = await apiRequest<any>(`/api/courts/blocked-dates${query}`);
       return Array.isArray(res) ? res : res?.data || [];
     } catch (error) {
-      console.error('❌ Failed to fetch blocked dates:', error);
       if (import.meta.env.DEV) {
         return mockBlockedDates;
       }
@@ -259,7 +233,6 @@ export const courtService = {
 
   async updateCourt(court: Court): Promise<Court> {
     if (USE_MOCK_DATA) {
-      console.warn('🔧 Mock mode: Court update simulated');
       return court;
     }
 
