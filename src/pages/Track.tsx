@@ -1,4 +1,5 @@
 
+// src/pages/Track.tsx
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -24,10 +25,10 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
 import { bookingService } from '@/services/bookingService';
+import { courtService } from '@/services/courtService';
 import { ApiError } from '@/services/api';
 
 import { useClientStore } from '@/stores/clientStore';
-import { useAdminStore } from '@/stores/adminStore';
 
 import {
   formatTimeRange,
@@ -39,7 +40,7 @@ import {
 import { APP_CONFIG } from '@/utils/constants';
 import { isInAppBrowser, getInAppBrowserName } from '@/utils/browser';
 
-import type { Booking, BookingSummary } from '@/types';
+import type { Booking, BookingSummary, Court } from '@/types';
 
 // ============================================================
 // HELPERS
@@ -47,36 +48,6 @@ import type { Booking, BookingSummary } from '@/types';
 
 const normalizeCourtId = (id: unknown): string =>
   id == null ? '' : String(id).trim().toLowerCase();
-
-/**
- * Extract the court ID regardless of JSON naming convention.
- *
- * Supports:
- * court_id
- * courtId
- * CourtId
- * courtID
- * court.id
- * court.Id
- */
-const getSlotCourtId = (
-  slot: Booking['slots'][number]
-): string => {
-  const data = slot as unknown as Record<string, unknown>;
-
-  const nestedCourt = data.court as
-    | Record<string, unknown>
-    | undefined;
-
-  return normalizeCourtId(
-    data.court_id ??
-      data.courtId ??
-      data.CourtId ??
-      data.courtID ??
-      nestedCourt?.id ??
-      nestedCourt?.Id
-  );
-};
 
 function trackErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
@@ -98,7 +69,9 @@ function trackErrorMessage(err: unknown): string {
     return err.userMessage || 'Something went wrong. Please try again.';
   }
 
-  return err instanceof Error ? err.message : 'Search failed. Please try again.';
+  return err instanceof Error
+    ? err.message
+    : 'Search failed. Please try again.';
 }
 
 // ============================================================
@@ -109,8 +82,9 @@ export function Track() {
   const settings = useClientStore((state) => state.settings);
   const loadSettings = useClientStore((state) => state.loadSettings);
 
-  const courts = useAdminStore((state) => state.courts);
-  const loadCourts = useAdminStore((state) => state.loadCourts);
+  // Public court data instead of the admin store.
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [courtsLoading, setCourtsLoading] = useState(true);
 
   const displayNumber =
     settings?.gcash_number || APP_CONFIG.paymentNumber;
@@ -137,12 +111,66 @@ export function Track() {
   // ============================================================
 
   useEffect(() => {
+    let cancelled = false;
+
+    // Load client settings.
     loadSettings();
 
-    if (courts.length === 0) {
-      loadCourts();
-    }
-  }, [loadSettings, loadCourts, courts.length]);
+    // Load public courts.
+    const loadPublicCourts = async () => {
+      try {
+        const result = await courtService.getCourts();
+
+        if (!cancelled) {
+          setCourts(result);
+          console.log(
+            '[Track] Public courts loaded:',
+            result.map((court) => ({
+              id: court.id,
+              name: court.name,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error(
+          '[Track] Failed to load public courts:',
+          err
+        );
+
+        if (!cancelled) {
+          setCourts([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setCourtsLoading(false);
+        }
+      }
+    };
+
+    void loadPublicCourts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadSettings]);
+
+  // ============================================================
+  // COURT ID TO NAME MAPPING
+  // ============================================================
+
+  const courtNameById = useMemo(() => {
+    const map = new Map<string, string>();
+
+    courts.forEach((court) => {
+      const id = normalizeCourtId(court.id);
+
+      if (id) {
+        map.set(id, court.name || 'Unnamed Court');
+      }
+    });
+
+    return map;
+  }, [courts]);
 
   // ============================================================
   // SEARCH BOOKING
@@ -159,6 +187,7 @@ export function Track() {
       return;
     }
 
+    // Backend requires email for reference-code lookups.
     if (ref && !mail) {
       setError(
         'Please enter the email address you used when booking to look up this reference code.'
@@ -276,26 +305,7 @@ export function Track() {
   };
 
   // ============================================================
-  // COURT NAME LOOKUP
-  // ============================================================
-
-  const courtNameById = useMemo(() => {
-    const map = new Map<string, string>();
-
-    courts.forEach((court) => {
-      if (court?.id != null) {
-        map.set(
-          normalizeCourtId(court.id),
-          court.name || 'Unnamed Court'
-        );
-      }
-    });
-
-    return map;
-  }, [courts]);
-
-  // ============================================================
-  // GET ALL COURT NAMES
+  // GET COURT NAMES
   // ============================================================
 
   const getCourtNames = (b: Booking | null): string => {
@@ -304,7 +314,7 @@ export function Track() {
     const courtIds = Array.from(
       new Set(
         (b.slots ?? [])
-          .map(getSlotCourtId)
+          .map((slot) => normalizeCourtId(slot.court_id))
           .filter(Boolean)
       )
     );
@@ -313,9 +323,9 @@ export function Track() {
       return b.court_name || 'Unknown Court';
     }
 
-    const names = courtIds.map(
-      (id) => courtNameById.get(id) ?? `Unknown Court (${id})`
-    );
+    const names = courtIds.map((id) => {
+      return courtNameById.get(id) ?? `Unknown Court (${id})`;
+    });
 
     return Array.from(new Set(names))
       .sort((a, b) =>
@@ -327,7 +337,7 @@ export function Track() {
   };
 
   // ============================================================
-  // BOOKING PAYMENT STATUS
+  // BOOKING STATUS
   // ============================================================
 
   const canUploadPayment =
@@ -345,9 +355,7 @@ export function Track() {
   // ============================================================
 
   const groupedSlots = useMemo(() => {
-    if (!booking || !booking.slots?.length) {
-      return [];
-    }
+    if (!booking || !booking.slots?.length) return [];
 
     const slotsByCourt = new Map<
       string,
@@ -355,7 +363,8 @@ export function Track() {
     >();
 
     booking.slots.forEach((slot) => {
-      const courtId = getSlotCourtId(slot) || 'unknown';
+      const courtId =
+        normalizeCourtId(slot.court_id) || 'unknown';
 
       if (!slotsByCourt.has(courtId)) {
         slotsByCourt.set(courtId, []);
@@ -380,17 +389,21 @@ export function Track() {
     });
 
     return Array.from(slotsByCourt.entries())
-      .map(([courtId, times]) => ({
-        courtName:
+      .map(([courtId, times]) => {
+        const courtName =
           courtNameById.get(courtId) ??
-          (courtId === 'unknown' && slotsByCourt.size === 1
+          (courtId === 'unknown'
             ? booking.court_name || 'Unknown Court'
-            : `Unknown Court (${courtId})`),
+            : `Unknown Court (${courtId})`);
 
-        times: [...times].sort((a, b) =>
-          a.start_time.localeCompare(b.start_time)
-        ),
-      }))
+        return {
+          courtId,
+          courtName,
+          times: [...times].sort((a, b) =>
+            a.start_time.localeCompare(b.start_time)
+          ),
+        };
+      })
       .sort((a, b) =>
         a.courtName.localeCompare(b.courtName, undefined, {
           numeric: true,
@@ -416,8 +429,9 @@ export function Track() {
 
             <span>
               You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser.
-              If uploading a screenshot doesn't work, tap <strong>⋯</strong> and
-              choose <strong>"Open in Browser."</strong>
+              If uploading a screenshot doesn't work, tap{' '}
+              <strong>⋯</strong> and choose{' '}
+              <strong>"Open in Browser."</strong>
             </span>
           </div>
         )}
@@ -511,8 +525,8 @@ export function Track() {
                   </h2>
 
                   <p className="text-[11px] text-cream-muted">
-                    Confirmed or completed bookings won't appear here. Use your
-                    reference code to see them.
+                    Confirmed or completed bookings won't appear here.
+                    Use your reference code to see them.
                   </p>
                 </div>
 
@@ -558,7 +572,8 @@ export function Track() {
                   </div>
 
                   <p className="mt-2 text-[11px] text-cream-muted">
-                    Booked {formatDateTime(s.created_at)} · {formatCurrency(s.total_amount)}
+                    Booked {formatDateTime(s.created_at)} ·{' '}
+                    {formatCurrency(s.total_amount)}
                   </p>
 
                 </motion.button>
@@ -653,7 +668,7 @@ export function Track() {
                       {groupedSlots.length > 0 ? (
                         groupedSlots.map((group) => (
                           <div
-                            key={group.courtName}
+                            key={group.courtId}
                             className="rounded-xl border border-forest-700/60 bg-forest-800/80 p-3"
                           >
 
@@ -887,8 +902,7 @@ export function Track() {
                     </h3>
 
                     <p className="mb-3.5 text-xs text-cream-muted">
-                      Your payment screenshot has been submitted and is currently
-                      being verified.
+                      Your payment screenshot has been submitted and is currently being verified.
                     </p>
 
                     <div className="rounded-xl border border-forest-700/80 bg-forest-950/80 p-3">
