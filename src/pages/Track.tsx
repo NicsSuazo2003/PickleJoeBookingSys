@@ -1,4 +1,4 @@
-// src/pages/Track.tsx
+
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -15,75 +15,142 @@ import {
   ImageIcon,
   CheckCircle2,
 } from 'lucide-react';
+
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+
 import { bookingService } from '@/services/bookingService';
 import { ApiError } from '@/services/api';
+
 import { useClientStore } from '@/stores/clientStore';
 import { useAdminStore } from '@/stores/adminStore';
+
 import {
   formatTimeRange,
   formatCurrency,
   formatDateLong,
   formatDateTime,
 } from '@/utils/format';
+
 import { APP_CONFIG } from '@/utils/constants';
 import { isInAppBrowser, getInAppBrowserName } from '@/utils/browser';
+
 import type { Booking, BookingSummary } from '@/types';
+
+// ============================================================
+// HELPERS
+// ============================================================
 
 const normalizeCourtId = (id: unknown): string =>
   id == null ? '' : String(id).trim().toLowerCase();
+
+/**
+ * Extract the court ID regardless of JSON naming convention.
+ *
+ * Supports:
+ * court_id
+ * courtId
+ * CourtId
+ * courtID
+ * court.id
+ * court.Id
+ */
+const getSlotCourtId = (
+  slot: Booking['slots'][number]
+): string => {
+  const data = slot as unknown as Record<string, unknown>;
+
+  const nestedCourt = data.court as
+    | Record<string, unknown>
+    | undefined;
+
+  return normalizeCourtId(
+    data.court_id ??
+      data.courtId ??
+      data.CourtId ??
+      data.courtID ??
+      nestedCourt?.id ??
+      nestedCourt?.Id
+  );
+};
 
 function trackErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 404) {
       return 'No booking found with that reference code and email. Double-check both and try again.';
     }
+
     if (err.status === 401) {
       return 'That email does not match the one on file for this booking. Please use the email you booked with.';
     }
+
     if (err.status === 429) {
       return 'Too many attempts. Please wait 10 minutes and try again.';
     }
+
     if (err.status === 409) return err.userMessage;
     if (err.status === 0) return err.userMessage;
+
     return err.userMessage || 'Something went wrong. Please try again.';
   }
+
   return err instanceof Error ? err.message : 'Search failed. Please try again.';
 }
+
+// ============================================================
+// TRACK PAGE
+// ============================================================
 
 export function Track() {
   const settings = useClientStore((state) => state.settings);
   const loadSettings = useClientStore((state) => state.loadSettings);
+
   const courts = useAdminStore((state) => state.courts);
   const loadCourts = useAdminStore((state) => state.loadCourts);
 
-  const displayNumber = settings?.gcash_number || APP_CONFIG.paymentNumber;
+  const displayNumber =
+    settings?.gcash_number || APP_CONFIG.paymentNumber;
 
   const [reference, setReference] = useState(
     () => localStorage.getItem('pendingBookingRef') || ''
   );
+
   const [email, setEmail] = useState('');
   const [booking, setBooking] = useState<Booking | null>(null);
   const [summaries, setSummaries] = useState<BookingSummary[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [paymentRef, setPaymentRef] = useState('');
+
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
+  // ============================================================
+  // INITIAL LOAD
+  // ============================================================
+
   useEffect(() => {
     loadSettings();
-    if (courts.length === 0) loadCourts();
+
+    if (courts.length === 0) {
+      loadCourts();
+    }
   }, [loadSettings, loadCourts, courts.length]);
+
+  // ============================================================
+  // SEARCH BOOKING
+  // ============================================================
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const ref = reference.trim();
     const mail = email.trim();
 
@@ -92,7 +159,6 @@ export function Track() {
       return;
     }
 
-    // 🔒 Backend now requires email for reference-code lookups.
     if (ref && !mail) {
       setError(
         'Please enter the email address you used when booking to look up this reference code.'
@@ -102,8 +168,10 @@ export function Track() {
 
     setLoading(true);
     setError(null);
+
     setBooking(null);
     setSummaries([]);
+
     setUploadSuccess(false);
 
     try {
@@ -111,7 +179,9 @@ export function Track() {
         const result = await bookingService.trackBooking(ref, mail);
         setBooking(result);
       } else {
-        const list = await bookingService.trackBookingSummariesByEmail(mail);
+        const list =
+          await bookingService.trackBookingSummariesByEmail(mail);
+
         if (list.length === 0) {
           setError(
             'No pending payments found for this email. If your booking is already confirmed, look it up with your reference code and email.'
@@ -127,14 +197,20 @@ export function Track() {
     }
   };
 
+  // ============================================================
+  // SELECT BOOKING SUMMARY
+  // ============================================================
+
   const handleSummaryClick = async (summary: BookingSummary) => {
     setLoading(true);
     setError(null);
+
     try {
       const detail = await bookingService.trackBooking(
         summary.reference_code,
         email.trim()
       );
+
       setBooking(detail);
       setSummaries([]);
     } catch (err) {
@@ -144,92 +220,134 @@ export function Track() {
     }
   };
 
+  // ============================================================
+  // PAYMENT SCREENSHOT
+  // ============================================================
+
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) return;
+
     if (file.size > 5 * 1024 * 1024) {
       setError('Image must be under 5MB.');
       return;
     }
+
     const reader = new FileReader();
-    reader.onload = () => setScreenshot(reader.result as string);
+
+    reader.onload = () => {
+      setScreenshot(reader.result as string);
+    };
+
     reader.readAsDataURL(file);
   };
 
+  // ============================================================
+  // UPLOAD PAYMENT
+  // ============================================================
+
   const handleUpload = async () => {
     if (!booking || !screenshot || !paymentRef.trim()) return;
+
     setUploading(true);
+
     try {
       const updated = await bookingService.uploadPayment(
         booking.id,
         screenshot,
         paymentRef.trim()
       );
+
       setBooking(updated);
       setUploadSuccess(true);
+
       setScreenshot(null);
       setPaymentRef('');
+
       localStorage.removeItem('pendingBookingRef');
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.userMessage : 'Failed to upload payment. Please try again.'
+        err instanceof ApiError
+          ? err.userMessage
+          : 'Failed to upload payment. Please try again.'
       );
     } finally {
       setUploading(false);
     }
   };
 
-  const getCourtNames = (b: Booking | null): string => {
-    if (!b) return '';
+  // ============================================================
+  // COURT NAME LOOKUP
+  // ============================================================
 
-    const courtNameById = new Map<string, string>();
+  const courtNameById = useMemo(() => {
+    const map = new Map<string, string>();
+
     courts.forEach((court) => {
-      if (court?.id) {
-        courtNameById.set(
+      if (court?.id != null) {
+        map.set(
           normalizeCourtId(court.id),
           court.name || 'Unnamed Court'
         );
       }
     });
+
+    return map;
+  }, [courts]);
+
+  // ============================================================
+  // GET ALL COURT NAMES
+  // ============================================================
+
+  const getCourtNames = (b: Booking | null): string => {
+    if (!b) return '';
 
     const courtIds = Array.from(
       new Set(
         (b.slots ?? [])
-          .map((slot) => normalizeCourtId(slot.court_id))
+          .map(getSlotCourtId)
           .filter(Boolean)
       )
     );
 
-    const names = Array.from(
-      new Set(
-        courtIds
-          .map((id) => courtNameById.get(id))
-          .filter((name): name is string => Boolean(name))
-      )
-    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    if (courtIds.length === 0) {
+      return b.court_name || 'Unknown Court';
+    }
 
-    return names.length > 0
-      ? names.join(', ')
-      : b.court_name || 'Unknown Court';
+    const names = courtIds.map(
+      (id) => courtNameById.get(id) ?? `Unknown Court (${id})`
+    );
+
+    return Array.from(new Set(names))
+      .sort((a, b) =>
+        a.localeCompare(b, undefined, {
+          numeric: true,
+        })
+      )
+      .join(', ');
   };
+
+  // ============================================================
+  // BOOKING PAYMENT STATUS
+  // ============================================================
 
   const canUploadPayment =
     booking &&
-    (booking.status === 'pending_payment' || booking.status === 'payment_submitted');
+    (booking.status === 'pending_payment' ||
+      booking.status === 'payment_submitted');
+
   const hasPaymentScreenshot = booking?.payment_screenshot_url;
-  const canSearch = reference.trim().length > 0 || email.trim().length > 0;
+
+  const canSearch =
+    reference.trim().length > 0 || email.trim().length > 0;
+
+  // ============================================================
+  // GROUP TIME SLOTS BY COURT
+  // ============================================================
 
   const groupedSlots = useMemo(() => {
-    if (!booking || !booking.slots) return [];
-
-    const courtNameById = new Map<string, string>();
-    courts.forEach((court) => {
-      if (court?.id) {
-        courtNameById.set(
-          normalizeCourtId(court.id),
-          court.name || 'Unnamed Court'
-        );
-      }
-    });
+    if (!booking || !booking.slots?.length) {
+      return [];
+    }
 
     const slotsByCourt = new Map<
       string,
@@ -237,14 +355,20 @@ export function Track() {
     >();
 
     booking.slots.forEach((slot) => {
-      const courtId = normalizeCourtId(slot.court_id) || 'unknown';
-      if (!slotsByCourt.has(courtId)) slotsByCourt.set(courtId, []);
+      const courtId = getSlotCourtId(slot) || 'unknown';
+
+      if (!slotsByCourt.has(courtId)) {
+        slotsByCourt.set(courtId, []);
+      }
 
       const times = slotsByCourt.get(courtId)!;
+
       const alreadyExists = times.some(
         (time) =>
-          time.start_time.slice(0, 5) === slot.start_time.slice(0, 5) &&
-          time.end_time.slice(0, 5) === slot.end_time.slice(0, 5)
+          time.start_time.slice(0, 5) ===
+            slot.start_time.slice(0, 5) &&
+          time.end_time.slice(0, 5) ===
+            slot.end_time.slice(0, 5)
       );
 
       if (!alreadyExists) {
@@ -259,9 +383,10 @@ export function Track() {
       .map(([courtId, times]) => ({
         courtName:
           courtNameById.get(courtId) ??
-          (slotsByCourt.size === 1
-            ? booking.court_name || 'Court'
-            : 'Unknown Court'),
+          (courtId === 'unknown' && slotsByCourt.size === 1
+            ? booking.court_name || 'Unknown Court'
+            : `Unknown Court (${courtId})`),
+
         times: [...times].sort((a, b) =>
           a.start_time.localeCompare(b.start_time)
         ),
@@ -271,40 +396,55 @@ export function Track() {
           numeric: true,
         })
       );
-  }, [booking, courts]);
+  }, [booking, courtNameById]);
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
       <Navbar />
 
       <div className="container-page pt-24 pb-14 sm:pt-28 sm:pb-16">
+
+        {/* IN-APP BROWSER WARNING */}
+
         {isInAppBrowser() && (
           <div className="mx-auto mb-4 flex max-w-3xl items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
+
             <span>
-              You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser. If uploading
-              a screenshot doesn't work, tap <strong>⋯</strong> and choose{' '}
-              <strong>"Open in Browser."</strong>
+              You're viewing this in {getInAppBrowserName() ?? 'an in-app'} browser.
+              If uploading a screenshot doesn't work, tap <strong>⋯</strong> and
+              choose <strong>"Open in Browser."</strong>
             </span>
           </div>
         )}
 
         <div className="mx-auto max-w-3xl">
+
+          {/* PAGE HEADER */}
+
           <div className="mb-6 text-center sm:mb-8">
             <h1 className="font-display text-2xl font-bold text-cream sm:text-3xl lg:text-4xl">
               Track Your Booking
             </h1>
+
             <p className="mt-1.5 text-xs text-cream-muted sm:mt-2 sm:text-sm">
-              Look up a booking with your reference code and the email you used, or search by
-              email to see bookings pending payment.
+              Look up a booking with your reference code and the email you used,
+              or search by email to see bookings pending payment.
             </p>
           </div>
+
+          {/* SEARCH FORM */}
 
           <form
             onSubmit={handleSearch}
             className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm"
           >
             <div className="grid gap-3.5 sm:grid-cols-2 sm:gap-4">
+
               <Input
                 label="Reference Code"
                 placeholder="e.g. BK-K7NPQ4RT2X"
@@ -313,6 +453,7 @@ export function Track() {
                 onChange={(e) => setReference(e.target.value)}
                 hint="We'll also ask for the email you booked with"
               />
+
               <Input
                 label="Email"
                 type="email"
@@ -322,7 +463,9 @@ export function Track() {
                 onChange={(e) => setEmail(e.target.value)}
                 hint="Same email you used when booking"
               />
+
             </div>
+
             <Button
               type="submit"
               size="lg"
@@ -334,12 +477,15 @@ export function Track() {
             >
               Search Booking
             </Button>
+
             {!canSearch && (
               <p className="mt-2 text-[11px] text-cream-muted">
                 Enter a reference code or email to enable search.
               </p>
             )}
           </form>
+
+          {/* ERROR */}
 
           {error && (
             <div className="mt-4 flex items-start gap-2 rounded-xl border border-error/30 bg-error/10 p-3.5 text-xs text-error font-medium">
@@ -348,20 +494,28 @@ export function Track() {
             </div>
           )}
 
+          {/* LOADING */}
+
           {loading && <LoadingSpinner className="py-12" />}
+
+          {/* BOOKING SUMMARIES */}
 
           {!loading && summaries.length > 0 && (
             <div className="mt-6 space-y-3 sm:mt-8">
+
               <div className="flex flex-wrap items-start justify-between gap-2">
+
                 <div>
                   <h2 className="text-sm font-bold text-cream sm:text-base">
                     Bookings Needing Payment Action ({summaries.length})
                   </h2>
+
                   <p className="text-[11px] text-cream-muted">
-                    Confirmed or completed bookings won't appear here. Use your reference code to
-                    see them.
+                    Confirmed or completed bookings won't appear here. Use your
+                    reference code to see them.
                   </p>
                 </div>
+
                 <button
                   onClick={() => {
                     setSummaries([]);
@@ -371,6 +525,7 @@ export function Track() {
                 >
                   Clear
                 </button>
+
               </div>
 
               {summaries.map((s) => (
@@ -381,27 +536,38 @@ export function Track() {
                   onClick={() => handleSummaryClick(s)}
                   className="w-full cursor-pointer rounded-2xl border border-forest-700/80 bg-forest-900/80 p-4 text-left shadow-xl backdrop-blur-sm transition hover:border-brand-blue-400/60"
                 >
+
                   <div className="flex flex-wrap items-center justify-between gap-2">
+
                     <div className="min-w-0">
                       <p className="font-mono text-sm font-extrabold tracking-wider text-brand-blue-300">
                         {s.reference_code}
                       </p>
+
                       <p className="mt-0.5 text-xs text-cream-muted">
                         {s.court_name} · {formatDateLong(s.date)}
+
                         {s.start_time && s.end_time && (
                           <> · {formatTimeRange(s.start_time, s.end_time)}</>
                         )}
                       </p>
                     </div>
+
                     <StatusBadge status={s.status} />
+
                   </div>
+
                   <p className="mt-2 text-[11px] text-cream-muted">
                     Booked {formatDateTime(s.created_at)} · {formatCurrency(s.total_amount)}
                   </p>
+
                 </motion.button>
               ))}
+
             </div>
           )}
+
+          {/* BOOKING DETAILS */}
 
           <AnimatePresence>
             {booking && !loading && (
@@ -411,88 +577,144 @@ export function Track() {
                 exit={{ opacity: 0 }}
                 className="mt-6 space-y-4 sm:mt-8 sm:space-y-6"
               >
+
+                {/* BOOKING INFORMATION */}
+
                 <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+
                   <div className="flex flex-col gap-3 border-b border-forest-700/80 pb-4 sm:flex-row sm:items-center sm:justify-between">
+
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
                         Reference Code
                       </p>
+
                       <p className="font-mono text-xl font-extrabold tracking-wider text-brand-blue-300 sm:text-2xl">
                         {booking.reference_code}
                       </p>
                     </div>
+
                     <StatusBadge status={booking.status} size="md" />
+
                   </div>
 
+                  {/* COURT AND DATE */}
+
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 sm:gap-4">
+
                     <div className="flex items-center gap-3">
+
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-forest-700 bg-forest-950/70 text-brand-blue-300">
                         <MapPin className="h-4 w-4" />
                       </div>
+
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
-                          Court
+                          Court(s)
                         </p>
+
                         <p className="text-sm font-bold text-cream sm:text-base">
                           {getCourtNames(booking)}
                         </p>
                       </div>
+
                     </div>
+
                     <div className="flex items-center gap-3">
+
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-forest-700 bg-forest-950/70 text-brand-blue-300">
                         <Calendar className="h-4 w-4" />
                       </div>
+
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-cream-muted">
                           Date
                         </p>
+
                         <p className="text-sm font-bold text-cream sm:text-base">
                           {formatDateLong(booking.date)}
                         </p>
                       </div>
+
                     </div>
+
                   </div>
 
+                  {/* TIME SLOTS */}
+
                   <div className="mt-4">
+
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-brand-blue-300">
                       Time Slots
                     </p>
+
                     <div className="space-y-3">
-                      {groupedSlots.map((group, idx) => (
-                        <div
-                          key={idx}
-                          className="rounded-xl border border-forest-700/60 bg-forest-800/80 p-3"
-                        >
-                          <p className="mb-1.5 text-xs font-bold text-cream">{group.courtName}</p>
-                          <div className="space-y-1">
-                            {group.times.map((t, i) => (
-                              <div
-                                key={i}
-                                className="flex items-center gap-2 text-xs text-cream-muted"
-                              >
-                                <Clock className="h-3.5 w-3.5 text-brand-blue-300" />
-                                <span>{formatTimeRange(t.start_time, t.end_time)}</span>
-                              </div>
-                            ))}
+
+                      {groupedSlots.length > 0 ? (
+                        groupedSlots.map((group) => (
+                          <div
+                            key={group.courtName}
+                            className="rounded-xl border border-forest-700/60 bg-forest-800/80 p-3"
+                          >
+
+                            <p className="mb-1.5 text-xs font-bold text-cream">
+                              {group.courtName}
+                            </p>
+
+                            <div className="space-y-1">
+
+                              {group.times.map((t, i) => (
+                                <div
+                                  key={`${t.start_time}-${t.end_time}-${i}`}
+                                  className="flex items-center gap-2 text-xs text-cream-muted"
+                                >
+                                  <Clock className="h-3.5 w-3.5 text-brand-blue-300" />
+
+                                  <span>
+                                    {formatTimeRange(t.start_time, t.end_time)}
+                                  </span>
+                                </div>
+                              ))}
+
+                            </div>
+
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      ) : (
+                        <p className="text-xs text-cream-muted">
+                          No time slots are available for this booking.
+                        </p>
+                      )}
+
                     </div>
                   </div>
 
+                  {/* TOTAL */}
+
                   <div className="mt-4 flex items-center justify-between border-t border-forest-700/80 pt-4">
-                    <span className="text-xs text-cream-muted sm:text-sm">Total Amount</span>
+
+                    <span className="text-xs text-cream-muted sm:text-sm">
+                      Total Amount
+                    </span>
+
                     <span className="font-display text-2xl font-extrabold text-brand-blue-300">
                       {formatCurrency(booking.total_amount)}
                     </span>
+
                   </div>
+
                 </div>
 
+                {/* CUSTOMER DETAILS */}
+
                 <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+
                   <h3 className="mb-3.5 font-display text-base font-bold text-cream">
                     Customer Details
                   </h3>
+
                   <div className="grid gap-3 sm:grid-cols-2">
+
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <User className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Name:</span>
@@ -500,6 +722,7 @@ export function Track() {
                         {booking.customer.name}
                       </span>
                     </div>
+
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <Mail className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Email:</span>
@@ -507,11 +730,15 @@ export function Track() {
                         {booking.customer.email}
                       </span>
                     </div>
+
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <Phone className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Phone:</span>
-                      <span className="font-medium text-cream">{booking.customer.phone}</span>
+                      <span className="font-medium text-cream">
+                        {booking.customer.phone}
+                      </span>
                     </div>
+
                     <div className="flex items-center gap-2 text-xs sm:text-sm">
                       <Calendar className="h-4 w-4 shrink-0 text-brand-blue-300" />
                       <span className="text-cream-muted">Booked:</span>
@@ -519,25 +746,35 @@ export function Track() {
                         {formatDateTime(booking.created_at)}
                       </span>
                     </div>
+
                   </div>
+
                   {booking.customer.notes && (
                     <div className="mt-3 rounded-xl border border-forest-700/60 bg-forest-950/60 p-3 text-xs text-cream-muted leading-relaxed">
                       <span className="font-semibold text-cream">Notes: </span>
                       {booking.customer.notes}
                     </div>
                   )}
+
                 </div>
+
+                {/* PAYMENT UPLOAD */}
 
                 {canUploadPayment && !hasPaymentScreenshot && (
                   <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+
                     <h3 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-cream">
                       <Wallet className="h-5 w-5 text-brand-blue-300" />
                       Complete Payment
                     </h3>
+
                     <p className="mb-3.5 text-xs text-cream-muted sm:text-sm">
-                      Send {formatCurrency(booking.total_amount)} to our payment account{' '}
-                      <span className="font-bold text-brand-blue-300">{displayNumber}</span> and
-                      upload your receipt below.
+                      Send {formatCurrency(booking.total_amount)} to our payment
+                      account{' '}
+                      <span className="font-bold text-brand-blue-300">
+                        {displayNumber}
+                      </span>{' '}
+                      and upload your receipt below.
                     </p>
 
                     {uploadSuccess ? (
@@ -546,53 +783,69 @@ export function Track() {
                       </div>
                     ) : (
                       <>
+
                         <div
                           onDragOver={(e) => e.preventDefault()}
                           onDrop={(e) => {
                             e.preventDefault();
+
                             const file = e.dataTransfer.files[0];
+
                             if (file) handleFile(file);
                           }}
                           className="rounded-xl border-2 border-dashed border-forest-700/80 bg-forest-950/40 p-4 text-center transition-all hover:border-brand-blue-400/60 sm:p-6"
                         >
+
                           {screenshot ? (
                             <div className="space-y-2">
+
                               <img
                                 src={screenshot}
                                 alt="Screenshot"
                                 className="mx-auto max-h-36 rounded-lg object-contain border border-forest-700 bg-forest-950 sm:max-h-40"
                               />
+
                               <button
+                                type="button"
                                 onClick={() => setScreenshot(null)}
                                 className="text-xs text-cream-muted underline hover:text-error transition"
                               >
                                 Change image
                               </button>
+
                             </div>
                           ) : (
                             <>
+
                               <ImageIcon className="mx-auto h-8 w-8 text-cream-muted/40" />
+
                               <p className="mt-2 text-xs text-cream-muted">
                                 Drag receipt screenshot or{' '}
                                 <label className="cursor-pointer font-semibold text-brand-blue-300 underline hover:text-brand-blue-200">
                                   browse
+
                                   <input
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
+
                                       if (file) handleFile(file);
                                     }}
                                   />
+
                                 </label>
                               </p>
+
                             </>
                           )}
+
                         </div>
 
                         {screenshot && (
                           <>
+
                             <div className="mt-3.5">
                               <input
                                 type="text"
@@ -602,6 +855,7 @@ export function Track() {
                                 className="w-full rounded-xl border border-forest-700/80 bg-forest-950/60 px-4 py-2.5 text-sm text-cream placeholder-cream-muted/40 transition-all focus:border-brand-blue-400 focus:bg-forest-900/60 focus:outline-none focus:ring-2 focus:ring-brand-blue-500/20"
                               />
                             </div>
+
                             <Button
                               className="mt-3.5"
                               fullWidth
@@ -612,29 +866,41 @@ export function Track() {
                             >
                               Upload Payment
                             </Button>
+
                           </>
                         )}
+
                       </>
                     )}
+
                   </div>
                 )}
 
+                {/* PAYMENT SCREENSHOT STATUS */}
+
                 {hasPaymentScreenshot && (
                   <div className="card rounded-2xl border border-forest-700/80 bg-forest-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-sm">
+
                     <h3 className="mb-2 flex items-center gap-2 font-display text-base font-bold text-cream">
                       <CheckCircle2 className="h-5 w-5 text-accentGreen-300" />
                       Payment Screenshot
                     </h3>
+
                     <p className="mb-3.5 text-xs text-cream-muted">
-                      Your payment screenshot has been submitted and is currently being verified.
+                      Your payment screenshot has been submitted and is currently
+                      being verified.
                     </p>
+
                     <div className="rounded-xl border border-forest-700/80 bg-forest-950/80 p-3">
+
                       <img
                         src={booking.payment_screenshot_url || undefined}
                         alt="Payment Screenshot"
                         className="mx-auto max-h-64 rounded-lg object-contain"
                       />
+
                     </div>
+
                     {booking.payment_reference && (
                       <p className="mt-2.5 text-xs text-cream-muted">
                         Reference Number:{' '}
@@ -643,32 +909,46 @@ export function Track() {
                         </span>
                       </p>
                     )}
+
                   </div>
                 )}
+
+                {/* CONFIRMED */}
 
                 {booking.status === 'confirmed' && (
                   <div className="rounded-xl border border-accentGreen-500/40 bg-accentGreen-500/10 p-4 text-center text-xs font-semibold text-accentGreen-300 sm:text-sm">
                     Your booking is confirmed! See you on the court.
                   </div>
                 )}
+
+                {/* COMPLETED */}
+
                 {booking.status === 'completed' && (
                   <div className="rounded-xl border border-brand-blue-500/40 bg-brand-blue-500/10 p-4 text-center text-xs font-semibold text-brand-blue-300 sm:text-sm">
                     Thanks for playing with us! We hope to see you again soon.
                   </div>
                 )}
+
+                {/* CANCELLED */}
+
                 {booking.status === 'cancelled' && (
                   <div className="rounded-xl border border-error/30 bg-error/10 p-4 text-center text-xs font-semibold text-error sm:text-sm">
                     This booking has been cancelled.
                   </div>
                 )}
+
+                {/* REJECTED */}
+
                 {booking.status === 'rejected' && (
                   <div className="rounded-xl border border-error/30 bg-error/10 p-4 text-center text-xs font-semibold text-error sm:text-sm">
                     Your payment could not be verified. Please contact court administration.
                   </div>
                 )}
+
               </motion.div>
             )}
           </AnimatePresence>
+
         </div>
       </div>
 
