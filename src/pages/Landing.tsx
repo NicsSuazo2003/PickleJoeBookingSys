@@ -168,7 +168,8 @@ export function Landing() {
 
   // ── NEW: compute the bookable range from the client's window mode ──
   const range = getBookableRange(settings);
-  const minSelectableDate = range?.minISO ?? todayISO();
+  const today = todayISO();
+  const minSelectableDate = range?.minISO && range.minISO > today ? range.minISO : today;
   const maxSelectableDate = range?.maxISO ?? null;
   // ────────────────────────────────────────────────────────────────────
 
