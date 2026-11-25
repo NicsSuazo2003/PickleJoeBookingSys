@@ -148,6 +148,9 @@ export function Terms() {
                 <ul className="list-inside list-disc space-y-1.5 pl-2">
                   <li>Players must wear non-marking athletic shoes at all times.</li>
                   <li>Food and beverages are not allowed on the court surface.</li>
+                  <li>
+                    <strong className="text-cream">Food Policy:</strong> Personal snacks and individually packed meals are permitted without charge. Party trays, lechon, buffet setups, and food served in large quantities are subject to corkage fees.
+                  </li>
                   <li>All players must observe proper court etiquette and respect their reserved playing time.</li>
                  <li>
   <strong className="text-cream">Noise and Conduct Policy:</strong> All players and guests
